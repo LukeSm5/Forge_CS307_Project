@@ -2,6 +2,7 @@
 A workout and diet tracking app that integrates AI to help give personalized advice and keep them on their fitness goals. CS 307 Group Project
 
 
+```
 branch architecture
 -> app
   -> fast_api
@@ -12,3 +13,4 @@ branch architecture
 -> react_frontend
   -> main.jsx      # client side work (colors & buttons, create requests)
   -> api.jsx       # connects client to server (send requests)
+  ```
