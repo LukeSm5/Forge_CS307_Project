@@ -66,6 +66,7 @@ class split_workouts(Base):
 
 
 class Posts(Base):
+    __tablename__ = 'Posts'
     PostID = Column(Integer, primary_key=True, nullable=False)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False)            # want to merge with workout_exercises
     ExerciseID = Column(Integer, ForeignKey('Exercises.ExerciseID'), nullable=False)
@@ -102,6 +103,7 @@ class Ingredients(Base):
     name = Column(Text, nullable=False)
 
 class meal_ingredients(Base):
+    __tablename__ = 'meal_ingredients'
     MealID = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
     IngredientID = Column(Integer, ForeignKey('Ingredients.IngredientID'), primary_key=True, nullable=False)
     serving_size = Column(Float)
@@ -112,3 +114,5 @@ class meal_ingredients(Base):
 # need to find some good chain restaurant menu data first
 class menu_meals(Base):
     __tablename__ = 'menu_meals'
+    MenuMealID = Column(Integer, primary_key=True, autoincrement=True)
+    MealID = Column(Integer, ForeignKey('Meals.MealID'), nullable=False)
