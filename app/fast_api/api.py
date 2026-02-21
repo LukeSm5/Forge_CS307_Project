@@ -1,5 +1,12 @@
-from app.core.db import Accounts
 from sqlalchemy.orm import Session
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from app.core.db import Accounts
+from app import repos
+
+app = FastAPI()
+
 
 def resetPassword(user, newPassword, session):
     if (not isinstance(user, Accounts)):
@@ -12,3 +19,18 @@ def resetPassword(user, newPassword, session):
         raise ValueError("New password must be at least 8 characters long")
     user.password = newPassword
     session.commit()
+
+
+@app.delete("/accounts/{user_id}")
+def delete_account(user_id: int, sess: Session):
+    try:
+        deleted = repos.delete_account_by_id(sess, user_id)
+        if deleted:
+            sess.commit()
+            return # json
+        else:
+            raise
+
+    except Exception:
+        sess.rollback()
+        raise

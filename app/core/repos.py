@@ -67,3 +67,16 @@ def populate_meals(sess):
             sess.add(obj)
     sess.commit()
     return m
+
+
+
+
+def delete_account_by_id(sess: Session, user_id: int) -> bool:
+    """
+    Deletes an account by UserID, returning True if deleted and False otherwise.
+    """
+    account = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
+    if account:
+        sess.delete(account), sess.flush()
+        return True
+    return False
