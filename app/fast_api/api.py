@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.core.db import Accounts
@@ -28,9 +28,9 @@ def delete_account(user_id: int, sess: Session):
         if deleted:
             sess.commit()
             return # json
-        else:
-            raise
+        if not deleted:
+            raise HTTPException(status_code=404, detail='Account not found')
 
     except Exception:
-        sess.rollback()
+        sess.rollback()    # this will undo sess.flush() if we never make it to sess.commit()
         raise

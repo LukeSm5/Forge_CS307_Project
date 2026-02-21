@@ -70,12 +70,30 @@ def populate_meals(sess):
 
 
 
+def create_account(sess: Session, username: str, password: str, bio: str) -> bool:
+    """
+    Create an Accounts object with an inputted username, password, bio.\n
+    Add and flush to session, commit in server file.\n
+    Returns True if successful and False otherwise.
+    """
+
+
+
+
+def lookup_account_by_id(sess: Session, user_id: int) -> Accounts:
+    """
+    return Accounts object if exists
+    """
+    account = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
+    return account if account else None
+
+
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
     """
     Deletes an account by UserID, returning True if deleted and False otherwise.
     """
-    account = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
+    account = lookup_account_by_id(sess, user_id)
     if account:
         sess.delete(account), sess.flush()
         return True

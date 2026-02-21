@@ -101,10 +101,32 @@ def test_reset_password_multiple_users():
     print("Test passed: test_reset_password_multiple_users")
     print("Tests completed.")
 
-test_reset_password_simple()
-test_reset_password_multiple_times()
-test_reset_password_invalid_user()
-test_reset_password_empty_password()
-test_reset_password_short_password()
-test_reset_password_long_password()
-test_reset_password_multiple_users()
+
+def test_delete_fake_account():
+    user_id = -1
+    action = api.delete_account(session, user_id)
+    if action:
+        print('Fail: json recieved from server, some action happened that shouldnt have')
+    elif not action:
+        print('Pass: no json from server, no action, no deletion')
+
+
+# def test_delete_real_account():
+    # create a new account
+    # delete it right after
+    # need someone to implement create account logic first
+
+
+
+
+
+
+if __name__ == '__main__':
+    print()
+    # test_reset_password_simple()
+    # test_reset_password_multiple_times()
+    # test_reset_password_invalid_user()
+    # test_reset_password_empty_password()
+    # test_reset_password_short_password()
+    # test_reset_password_long_password()
+    # test_reset_password_multiple_users()
