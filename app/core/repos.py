@@ -88,13 +88,25 @@ def lookup_account_by_id(sess: Session, user_id: int) -> Accounts:
     return account if account else None
 
 
+def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
+    """
+    return Profiles object if exists
+    """
+    profile = sess.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
+    return profile if profile else None
+
+
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
     """
-    Deletes an account by UserID, returning True if deleted and False otherwise.
+    Deletes an account by UserID, returning True if deleted and False otherwise.\n
+    Also deletes corresponding profile. 
     """
     account = lookup_account_by_id(sess, user_id)
     if account:
+        profile = lookup_profile_by_id(sess, user_id)
+        if profile:
+            sess.delete(profile)
         sess.delete(account), sess.flush()
         return True
     return False
