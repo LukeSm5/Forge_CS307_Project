@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, setToken, User } from "./api";
+import { api, setToken, User } from "../core/api";
 import "./App.css";
+import DeleteAccountButton from "../components/deleteAccount/DeleteAccountButton";
+
 
 type Status = { type: "ok" | "err"; msg: string } | null;
 
@@ -157,6 +159,17 @@ export default function App() {
             <button disabled={loading} onClick={refreshMe}>Refresh /me</button>
             <button disabled={loading} onClick={doLogout}>Logout</button>
           </div>
+
+          {user && (
+          <DeleteAccountButton
+            userId={(user as any).UserID ?? (user as any).user_id ?? (user as any).id}
+            onDeleted={() => {
+              setToken(null);
+              setUser(null);
+              setStatus({ type: "ok", msg: "Account deleted." });
+            }}
+          />
+          )}
 
           <div className="muted" style={{ marginTop: 10 }}>
             {user ? `Logged in as ${user.username} (${user.email})` : "Not logged in."}
