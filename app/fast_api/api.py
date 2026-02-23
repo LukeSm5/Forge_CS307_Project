@@ -7,6 +7,24 @@ from app import repos
 
 app = FastAPI()
 
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+    user_id: int
+
+@app.post("/accounts/{user_id}/reset_password")
+async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session):
+    user = session.get(Accounts, request.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        resetPassword(user, request.new_password, session)
+        return {"message": "Password reset successful"}
+    except TypeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 def resetPassword(user, newPassword, session):
     if (not isinstance(user, Accounts)):
