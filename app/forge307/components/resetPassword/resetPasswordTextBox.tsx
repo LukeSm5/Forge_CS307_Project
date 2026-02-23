@@ -1,6 +1,7 @@
 import React from 'react';
 import { TextInput, StyleSheet, Text, View } from 'react-native';
 
+// Attributes of reset password text boxes
 interface PasswordInputProps {
     label?: string;
     value: string;
@@ -11,6 +12,7 @@ interface PasswordInputProps {
     onToggleVisibility?: () => void;
 }
 
+// Setting up the reset password text boxes with the given attributes
 const ResetPasswordTextBox = ({label, value, onChangeText, placeholder, maxLength, isVisible, onToggleVisibility}: PasswordInputProps
 ) => {
     return (<View style={styles.container}>
@@ -26,6 +28,7 @@ const ResetPasswordTextBox = ({label, value, onChangeText, placeholder, maxLengt
     </View>);
 }
 
+// Styling for the reset password text boxes
 const styles = StyleSheet.create({
     container: {
         marginVertical: 10,
