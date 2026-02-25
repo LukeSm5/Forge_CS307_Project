@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from app.core.db import Workouts, workout_exercises, Exercises
 from app.core.db import Accounts
 from app.core import repos
+from app.core.seed import SessionLocal
+from app.core import db
 
 app = FastAPI()
 
@@ -67,7 +69,7 @@ async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
+"""
 def resetPassword(user, newPassword, session):
     if (not isinstance(user, Accounts)):
         raise TypeError("User must be an instance of Accounts")
@@ -79,7 +81,6 @@ def resetPassword(user, newPassword, session):
         raise ValueError("New password must be at least 8 characters long")
     user.password = newPassword
     session.commit()
-"""
 
 
 @app.delete("/accounts/{user_id}")
