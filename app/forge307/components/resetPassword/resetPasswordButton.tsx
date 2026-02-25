@@ -3,12 +3,12 @@ import { TouchableOpacity, Text, StyleSheet} from 'react-native';
 import { useRouter } from 'expo-router';
 
 // Reset Password Button to navigate to the Reset Password Screen
-const ResetPasswordButton = () => {
+const ResetPasswordButton = ({ onPress, title } : { onPress: () => void, title: string }) => {
     const router = useRouter();
 
     return (
-        <TouchableOpacity onPress={() => router.push('/resetPasswordScreen')}>
-            <Text>Reset Password</Text>
+        <TouchableOpacity onPress={onPress}>
+            <Text>{title}</Text>
         </TouchableOpacity>
     );
 }

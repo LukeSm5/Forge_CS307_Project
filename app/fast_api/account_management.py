@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class AccountError(Exception):
+    pass
 
 class EmailAlreadyInUse(AccountError):
     pass
