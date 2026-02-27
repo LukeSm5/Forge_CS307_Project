@@ -1,6 +1,15 @@
 
 from sqlalchemy.orm import Session
 from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients
+from fastapi import HTTPException, Header
+from app.core.auth_tokens import (
+    create_access_token,
+    decode_access_token,
+    generate_refresh_token,
+    hash_refresh_token,
+    refresh_expiry,
+    utcnow,
+)
 
 
 # fill all these lists out 
@@ -80,7 +89,26 @@ def create_account(sess: Session, username: str, password: str, bio: str) -> boo
 
 
 
-def lookup_account_by_id(sess: Session, user_id: int) -> Accounts:
+def lookup_account_by_token(sess: Session, authorization: str = Header(None)) -> Accounts:
+    """
+    token decreypted to UserID then lookks up and returns Accounts object if exists
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+
+    token = authorization.split(" ", 1)[1]
+    try:
+        user_id = decode_access_token(token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid or expired access token")
+
+    user = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def lookup_account_by_id(sess: Session, user_id: int) -> Profiles:
     """
     return Accounts object if exists
     """

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 
 from typing import Optional, List, Dict
@@ -9,6 +9,15 @@ from app.core.db import Accounts
 from app.core import repos
 from app.core.seed import SessionLocal
 from app.core import db
+from app.core import account_management as am  
+from app.core.auth_tokens import (
+    create_access_token,
+    decode_access_token,
+    generate_refresh_token,
+    hash_refresh_token,
+    refresh_expiry,
+    utcnow,
+)
 
 app = FastAPI()
 
@@ -53,6 +62,39 @@ class WorkoutOut(BaseModel):
     workout_id: int
     workout_name: str
     exercises: List[WorkoutExerciseOut]
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+
+@app.post("/auth/login", response_model=TokenResponse)
+def login(payload: LoginRequest, sess: Session = Depends(get_db)):
+    try:
+        user = am.authenticate_user(sess, Accounts, email=payload.email, password=payload.password)
+    except am.InvalidCredentials:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access = create_access_token(user_id=user.UserID)
+    refresh = generate_refresh_token()
+
+    user.refresh_token_hash = hash_refresh_token(refresh)
+    user.refresh_expires_at = refresh_expiry()
+
+    sess.add(user)
+    sess.commit()
+
+    return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
 """
 @app.post("/accounts/{user_id}/reset_password")

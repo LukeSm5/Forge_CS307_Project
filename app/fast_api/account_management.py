@@ -78,7 +78,7 @@ def get_user_by_username(db: Session, User, username: str):
 
 
 def get_user_by_id(db: Session, User, user_id: int):
-    return db.scalar(select(User).where(User.id == user_id))
+    return db.scalar(select(User).where(User.UserID == user_id))
 
 
 @dataclass(frozen=True)
@@ -149,7 +149,7 @@ def update_profile(db: Session, User, *, user_id: int, payload: UpdateProfileInp
 
         if username_n.lower() != user.username.lower():
             existing = get_user_by_username(db, User, username_n)
-            if existing and existing.id != user.id:
+            if existing and existing.UserID != user.UserID:
                 raise UsernameAlreadyInUse()
             user.username = username_n
 

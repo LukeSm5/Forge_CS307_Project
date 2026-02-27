@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, Text, ForeignKey, Float
+    Column, Integer, Text, ForeignKey, Float, DateTime
 )
 from sqlalchemy.orm import declarative_base
 
@@ -7,11 +7,14 @@ Base = declarative_base()
 
 
 class Accounts(Base):
-    __tablename__ = 'Accounts'
+    __tablename__ = "Accounts"
     UserID = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(Text, nullable=False)
-    password = Column(Text, nullable=False)         # encrypt ?
-    bio = Column(Text)                              # could also add feature for Remember Me log ins 
+    email = Column(Text, nullable=False, unique=True)          
+    username = Column(Text, nullable=False, unique=True)
+    password_hash = Column(Text, nullable=False)               
+    bio = Column(Text)
+    refresh_token_hash = Column(Text, nullable=True)
+    refresh_expires_at = Column(DateTime(timezone=True), nullable=True)
 
 class Profiles(Base):
     __tablename__ = 'Profiles'
@@ -22,6 +25,7 @@ class Profiles(Base):
     gender = Column(Text, nullable=False)
     health_status = Column(Text)
     health_goals = Column(Text)
+
 
 
 class Splits(Base):                                                         # static                             
