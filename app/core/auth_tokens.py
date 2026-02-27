@@ -1,16 +1,14 @@
-from __future__ import annotations
 
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any
 
 # JSON Object Signing and Encryption 
-from jose import jwt, JWTError  # pip install python-jose
+from jose import jwt, JWTError  
 
 
-# ====== CONFIG ======
-JWT_SECRET = "N0t_SuSPiCiOUs_S3CreT_ME55Ag3"   # put in env var later
+JWT_SECRET = "N0t_SuSPiCiOUs_S3CreT_ME55Ag3"
 JWT_ALG = "HS256"
 
 ACCESS_TOKEN_MINUTES = 2    # workout or cooking session length
@@ -23,7 +21,7 @@ def now() -> datetime:
 
 def create_access_token(*, user_id: int, minutes: int = ACCESS_TOKEN_MINUTES) -> str:
     now = now()
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=minutes)).timestamp()),

@@ -79,9 +79,9 @@ class TokenResponse(BaseModel):
 
 
 @app.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, sess: Session = Depends(get_db)):
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
     try:
-        user = am.authenticate_user(sess, Accounts, email=payload.email, password=payload.password)
+        user = am.authenticate_user(db, Accounts, email=payload.email, password=payload.password)
     except am.InvalidCredentials:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -91,10 +91,52 @@ def login(payload: LoginRequest, sess: Session = Depends(get_db)):
     user.refresh_token_hash = hash_refresh_token(refresh)
     user.refresh_expires_at = refresh_expiry()
 
-    sess.add(user)
-    sess.commit()
+    db.add(user)
+    db.commit()
 
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
+
+
+
+
+@app.post("/auth/refresh", response_model=TokenResponse)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    """
+    actually executes the remember me login
+    find user that matches hashed token of current payload and log them in
+    generates new refresh token to extend the new log in window
+    """
+    token_hash = hash_refresh_token(payload.refresh_token)
+
+    user = db.query(Accounts).filter(Accounts.refresh_token_hash == token_hash).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    if not user.refresh_expires_at or user.refresh_expires_at < utcnow():
+        raise HTTPException(status_code=401, detail="Expired refresh token")
+
+    # New short-lived access token
+    access = create_access_token(user_id=user.UserID)
+
+    # Rotate refresh token 
+    new_refresh = generate_refresh_token()
+    user.refresh_token_hash = hash_refresh_token(new_refresh)
+    user.refresh_expires_at = refresh_expiry()
+
+    db.add(user)
+    db.commit()
+
+    return TokenResponse(access_token=access, refresh_token=new_refresh, expires_in=2 * 60)
+
+
+
+@app.post("/auth/logout")
+def logout(me: Accounts = Depends(repos.lookup_account_by_token), db: Session = Depends(get_db)):
+    me.refresh_token_hash = None
+    me.refresh_expires_at = None
+    db.add(me)
+    db.commit()
+    return {"ok": True}
 
 """
 @app.post("/accounts/{user_id}/reset_password")

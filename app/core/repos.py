@@ -2,14 +2,7 @@
 from sqlalchemy.orm import Session
 from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients
 from fastapi import HTTPException, Header
-from app.core.auth_tokens import (
-    create_access_token,
-    decode_access_token,
-    generate_refresh_token,
-    hash_refresh_token,
-    refresh_expiry,
-    utcnow,
-)
+from app.core.auth_tokens import decode_access_token
 
 
 # fill all these lists out 
@@ -91,7 +84,7 @@ def create_account(sess: Session, username: str, password: str, bio: str) -> boo
 
 def lookup_account_by_token(sess: Session, authorization: str = Header(None)) -> Accounts:
     """
-    token decreypted to UserID then lookks up and returns Accounts object if exists
+    hashed token decrypted to UserID then looks up and returns Accounts object if exists
     """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
@@ -122,7 +115,6 @@ def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
     """
     profile = sess.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
     return profile if profile else None
-
 
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
