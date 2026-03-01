@@ -42,6 +42,32 @@ class Exercises(Base):
     __tablename__ = 'Exercises'                                             # static
     ExerciseID = Column(Integer, primary_key=True, autoincrement=True)      # populate with 'bicep curl', 'bench press', 'pull up'
     name = Column(Text, nullable=False)
+    
+class MuscleGroupTags(Base):
+    __tablename__ = 'MuscleGroupTags'
+    MuscleGroupID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class DifficultyTags(Base):
+    __tablename__ = 'DifficultyTags'
+    DifficultyID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class ExerciseTypeTags(Base):
+    __tablename__ = 'ExerciseTypeTags'
+    ExerciseTypeID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class exercise_tags(Base):
+    __tablename__ = 'exercise_tags'
+    ExerciseID     = Column(Integer, ForeignKey('Exercises.ExerciseID'), primary_key=True, nullable=False)
+    DifficultyID   = Column(Integer, ForeignKey('DifficultyTags.DifficultyID'), nullable=False)
+    ExerciseTypeID = Column(Integer, ForeignKey('ExerciseTypeTags.ExerciseTypeID'), nullable=False)
+
+class exercise_muscle_groups(Base):
+    __tablename__ = 'exercise_muscle_groups'
+    ExerciseID    = Column(Integer, ForeignKey('Exercises.ExerciseID'), primary_key=True, nullable=False)
+    MuscleGroupID = Column(Integer, ForeignKey('MuscleGroupTags.MuscleGroupID'), primary_key=True, nullable=False)
 
 class Machines(Base):
     __tablename__ = 'Machines'                                              # static
@@ -119,4 +145,5 @@ class meal_ingredients(Base):
 class menu_meals(Base):
     __tablename__ = 'menu_meals'
     MenuMealID = Column(Integer, primary_key=True, autoincrement=True)
+
     MealID = Column(Integer, ForeignKey('Meals.MealID'), nullable=False)
