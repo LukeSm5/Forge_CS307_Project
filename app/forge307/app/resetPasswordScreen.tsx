@@ -2,9 +2,13 @@ import React from 'react';
 import ResetPasswordButton from '@/components/resetPassword/ResetPasswordButton';
 import ResetPasswordTextBox from '@/components/resetPassword/ResetPasswordTextBox';
 import { StyleSheet, View, Text } from 'react-native';
+import { useRouter } from 'expo-router/build/exports';
 
 // Reset Password Screen to navigate to when the user clicks the Reset Password Button
+
+// NOTE: Not tested, may or may not work properly
 const ResetPasswordScreen = () => {
+    const router = useRouter();
     const [newPassword, setNewPassword] = React.useState('');
     const [confirmPassword, setConfirmPassword] = React.useState('');
 
@@ -61,7 +65,7 @@ const ResetPasswordScreen = () => {
                 isVisible={false}
             />
             <ResetPasswordButton onPress={handleResetPassword} title="Reset Password"/>
-            <ResetPasswordButton onPress={() => {}} title="Cancel"/>
+            <ResetPasswordButton onPress={() => { router.back() }} title="Cancel"/>
         </View>
     );
 };

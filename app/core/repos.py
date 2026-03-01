@@ -21,7 +21,14 @@ def populate_splits(sess):
 
 def populate_workouts(sess):
     w = [
-        Workouts(name='back')
+        Workouts(name='back'),
+        Workouts(name='bicep'),
+        Workouts(name='chest'),
+        Workouts(name='triceps')
+        Workouts(name='shoulders'),
+        Workouts(name='legs'),
+        Workouts(name='core'),
+        Workouts(name='cardio'),
     ]
 
     for obj in w:
