@@ -8,10 +8,10 @@ from typing import Any
 from jose import jwt, JWTError  
 
 
-JWT_SECRET = "N0t_SuSPiCiOUs_S3CreT_ME55Ag3"
+JWT_SECRET = "ilovecs307"
 JWT_ALG = "HS256"
 
-ACCESS_TOKEN_MINUTES = 2    # workout or cooking session length
+ACCESS_TOKEN_MINUTES = 90    # workout or cooking session length
 REFRESH_TOKEN_DAYS = 7
 
 
