@@ -1,7 +1,17 @@
 const tintColorLight = '#2f95dc';
 const tintColorDark = '#fff';
 
-export default {
+export type ColorScheme = {
+  text: string,
+  background: string,
+  tint: string,
+  tabIconDefault: string,
+  tabIconSelected: string
+}
+
+export type ColorSchemes = Record<string, ColorScheme>
+
+export const Schemes: ColorSchemes = {
   light: {
     text: '#000',
     background: '#fff',
