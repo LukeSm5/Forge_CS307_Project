@@ -18,6 +18,9 @@ REFRESH_TOKEN_DAYS = 7
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
 
 def create_access_token(*, user_id: int, minutes: int = ACCESS_TOKEN_MINUTES) -> str:
     now = now()

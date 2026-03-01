@@ -4,12 +4,14 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
+from app.core.db import Base
+from app.core.seed import engine
+
 from app.core.db import Workouts, workout_exercises, Exercises
 from app.core.db import Accounts
 from app.core import repos
 from app.core.seed import SessionLocal
-from app.core import db
-from app.core import account_management as am  
+from app.fast_api import account_management as am
 from app.core.auth_tokens import (
     create_access_token,
     decode_access_token,
@@ -20,6 +22,7 @@ from app.core.auth_tokens import (
 )
 
 app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -28,15 +31,30 @@ def get_db():
     finally:
         db.close()
 
+def get_current_account(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+) -> Accounts:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    token = parts[1]
+    return repos.lookup_account_by_token(db, token)
+
 class ResetPasswordRequest(BaseModel):
     new_password: str
     user_id: int
 
 class WorkoutExerciseIn(BaseModel):
     exercise_id: int
+    machine_id: int
     sets: int = Field(ge=1, le=50)
     reps: int = Field(ge=1, le=1000)
-    weight: Optional[float] = None
+    weight: Optional[int] = None
     notes: Optional[str] = None
 
 class CreateWorkoutRequest(BaseModel):
@@ -53,9 +71,10 @@ class CreateWorkoutResponse(BaseModel):
 class WorkoutExerciseOut(BaseModel):
     exercise_id: int
     exercise_name: str
-    set_number: int
+    machine_id: int
+    sets: int
     reps: int
-    weight: Optional[float]
+    weight: Optional[int]
     notes: Optional[str]
 
 class WorkoutOut(BaseModel):
@@ -131,7 +150,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/logout")
-def logout(me: Accounts = Depends(repos.lookup_account_by_token), db: Session = Depends(get_db)):
+def logout(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
     me.refresh_token_hash = None
     me.refresh_expires_at = None
     db.add(me)
@@ -187,94 +206,86 @@ def delete_account(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/workouts", response_model=CreateWorkoutResponse)
-def create_or_save_workout(payload: CreateWorkoutRequest):
-    try:
-        # 1) Ensure workout exists by name
-        workout = db.query(Workouts).filter(Workouts.WorkoutName == payload.workout_name).first()
-        if workout is None:
-            workout = Workouts(WorkoutName=payload.workout_name)
-            db.add(workout)
-            db.commit()
-            db.refresh(workout)
-
-        workout_id = workout.WorkoutID
-
-        # 2) Optionally overwrite existing saved sets for this profile/workout
-        if payload.overwrite:
-            db.query(workout_exercises).filter(
-                workout_exercises.ProfileID == payload.profile_id,
-                workout_exercises.WorkoutID == workout_id
-            ).delete(synchronize_session=False)
-            db.commit()
-
-        # 3) Insert sets (one row per set)
-        inserted = 0
-        for ex in payload.exercises:
-            for set_num in range(1, ex.sets + 1):
-                row = workout_exercises(
-                    ProfileID=payload.profile_id,
-                    WorkoutID=workout_id,
-                    ExerciseID=ex.exercise_id,
-                    SetNumber=set_num,
-                    RepNumber=ex.reps,
-                    Weight=ex.weight,
-                    Notes=ex.notes
-                )
-                db.add(row)
-                inserted += 1
-
+def create_or_save_workout(payload: CreateWorkoutRequest, db: Session = Depends(get_db)):
+    # 1) Ensure workout exists by name
+    workout = db.query(Workouts).filter(Workouts.name == payload.workout_name).first()
+    if workout is None:
+        workout = Workouts(name=payload.workout_name)
+        db.add(workout)
         db.commit()
+        db.refresh(workout)
 
-        return CreateWorkoutResponse(
-            workout_id=workout_id,
-            workout_name=workout.WorkoutName,
-            inserted_sets=inserted
+    workout_id = workout.WorkoutID
+
+    # 2) overwrite existing saved sets for this profile/workout
+    db.query(workout_exercises).filter(
+        workout_exercises.ProfileID == payload.profile_id,
+        workout_exercises.WorkoutID == workout_id
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    # 3) Insert sets (one row per set)
+    inserted = 0
+    for ex in payload.exercises:
+        row = workout_exercises(
+            ProfileID=payload.profile_id,
+            WorkoutID=workout_id,
+            ExerciseID=ex.exercise_id,
+            MachineID = ex.machine_id,
+            sets=ex.sets,
+            reps=ex.reps,
+            weight=ex.weight,
+            notes=ex.notes,
         )
+        db.add(row)
+        inserted += ex.sets
 
-    finally:
-        db.close()
+    db.commit()
+
+    return CreateWorkoutResponse(
+        workout_id=workout_id,
+        workout_name=workout.name,
+        inserted_sets=inserted
+    )
 
 
 @app.get("/workouts/{profile_id}", response_model=List[WorkoutOut])
-def get_workouts_for_profile(profile_id: int):
-    try:
-        # Fetch all rows for this profile, with workout + exercise names
-        rows = (
-            db.query(
-                workout_exercises.WorkoutID,
-                Workouts.WorkoutName,
-                workout_exercises.ExerciseID,
-                Exercises.ExerciseName,
-                workout_exercises.SetNumber,
-                workout_exercises.RepNumber,
-                workout_exercises.Weight,
-                workout_exercises.Notes
-            )
-            .join(Workouts, Workouts.WorkoutID == workout_exercises.WorkoutID)
-            .join(Exercises, Exercises.ExerciseID == workout_exercises.ExerciseID)
-            .filter(workout_exercises.ProfileID == profile_id)
-            .order_by(workout_exercises.WorkoutID, workout_exercises.ExerciseID, workout_exercises.SetNumber)
-            .all()
+def get_workouts_for_profile(profile_id: int, db: Session = Depends(get_db)):
+    # Fetch all rows for this profile, with workout + exercise names
+    rows = (
+        db.query(
+            workout_exercises.WorkoutID,
+            Workouts.name,
+            workout_exercises.ExerciseID,
+            Exercises.name,
+            workout_exercises.MachineID,
+            workout_exercises.sets,
+            workout_exercises.reps,
+            workout_exercises.weight,
+            workout_exercises.notes,
         )
+        .join(Workouts, Workouts.WorkoutID == workout_exercises.WorkoutID)
+        .join(Exercises, Exercises.ExerciseID == workout_exercises.ExerciseID)
+        .filter(workout_exercises.ProfileID == profile_id)
+        .order_by(workout_exercises.WorkoutID, workout_exercises.ExerciseID)
+        .all()
+    )
+    # Group into workouts
+    grouped: Dict[int, WorkoutOut] = {}
+    for r in rows:
+        w_id = r[0]
+        w_name = r[1]
+        ex_out = WorkoutExerciseOut(
+            exercise_id=r[2],
+            exercise_name=r[3],
+            machine_id =r[4],
+            sets=r[5],
+            reps=r[6],
+            weight=r[7],
+            notes=r[8],
+        )
+        if w_id not in grouped:
+            grouped[w_id] = WorkoutOut(workout_id=w_id, workout_name=w_name, exercises=[])
+        grouped[w_id].exercises.append(ex_out)
 
-        # Group into workouts
-        grouped: Dict[int, WorkoutOut] = {}
-        for r in rows:
-            w_id = r[0]
-            w_name = r[1]
-            ex_out = WorkoutExerciseOut(
-                exercise_id=r[2],
-                exercise_name=r[3],
-                set_number=r[4],
-                reps=r[5],
-                weight=r[6],
-                notes=r[7],
-            )
-            if w_id not in grouped:
-                grouped[w_id] = WorkoutOut(workout_id=w_id, workout_name=w_name, exercises=[])
-            grouped[w_id].exercises.append(ex_out)
-
-        return list(grouped.values())
-
-    finally:
-        db.close()
+    return list(grouped.values())

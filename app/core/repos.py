@@ -24,7 +24,7 @@ def populate_workouts(sess):
         Workouts(name='back'),
         Workouts(name='bicep'),
         Workouts(name='chest'),
-        Workouts(name='triceps')
+        Workouts(name='triceps'),
         Workouts(name='shoulders'),
         Workouts(name='legs'),
         Workouts(name='core'),
