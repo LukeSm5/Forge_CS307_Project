@@ -4,3 +4,4 @@ forge.db
 # Python
 __pycache__/
 *.py[cod]
+.expo
