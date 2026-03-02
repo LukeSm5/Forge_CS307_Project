@@ -219,10 +219,37 @@ def ingest_menu_meals():
 
 
 
-if __name__ == '__main__':
-    df1 = pd.read_csv('app/core/first5.csv', encoding="utf-8")
-    df2 = pd.read_csv('app/core/chickfila.csv', encoding="utf-8")
-    df3 = pd.read_csv('app/core/shakeshack.csv', encoding="utf-8")
+def derive_features():
+    """
+    attaching features to menu meals that can be used as criteria for queries
+    - show all meals with chicken
+    - show low calorie meals 
+    """
+    df = pd.read_csv('./app/core/menu_meals.csv')
 
+    # ----------
+    # chicken
+    # ----------
+    chick_fil_a = ['Chicken', 'Chick-n-Minis', 'Heart-Shaped', 'Chick-n-Strips', 'Nuggets', 'Filet', 'Sandwich']
+    cfa_pattern = '|'.join(chick_fil_a)
+
+    df['chicken'] = (
+        ((df['restaurant'] == 'Chick-fil-A') & (df['product'].str.contains(cfa_pattern, case=False, na=False))) |
+        ((df['restaurant'] == 'McDonalds') & (df['product'].str.contains('chicken', case=False, na=False))) |
+        ((df['restaurant'] == 'Shake Shack') & (df['product'].str.contains('chicken', case=False, na=False)))
+    )
+
+
+
+if __name__ == '__main__':
+    # df1 = pd.read_csv('./first5.csv', encoding="utf-8")
+    # df2 = pd.read_csv('./chickfila.csv', encoding="utf-8")
+    # df3 = pd.read_csv('./shakeshack.csv', encoding="utf-8")
     # combine(df1, df2, df3)
 
+    df = pd.read_csv('./app/core/menu_meals.csv')
+    with pd.option_context("display.max_rows", None):
+        print(df[
+            (df["restaurant"] == "KFC")
+        ])
+            
