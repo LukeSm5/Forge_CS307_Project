@@ -10,6 +10,7 @@ from app.core.seed import engine
 from app.core.db import Workouts, workout_exercises, Exercises
 from app.core.db import Accounts
 from app.core import repos
+from app.core.notifications import NotificationService, get_notification_service
 from app.core.seed import SessionLocal
 from app.fast_api import account_management as am
 from app.core.auth_tokens import (
@@ -94,6 +95,108 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class UpdateAccountProfileRequest(BaseModel):
+    username: Optional[str] = None
+    bio: Optional[str] = None
+
+
+class ChangeAccountPasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class AccountUpdateResponse(BaseModel):
+    user_id: int
+    email: str
+    username: str
+    message: str
+
+
+def _send_account_update_notification(
+    notifier: NotificationService,
+    *,
+    account: Accounts,
+    update_type: str,
+) -> None:
+    notifier.send_update_notification(
+        recipient_email=account.email,
+        username=account.username,
+        update_type=update_type,
+    )
+
+
+@app.patch("/accounts/{user_id}/profile", response_model=AccountUpdateResponse)
+def update_account_profile(
+    user_id: int,
+    payload: UpdateAccountProfileRequest,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
+    if payload.username is None and payload.bio is None:
+        raise HTTPException(status_code=400, detail="Provide at least one field to update")
+
+    try:
+        updated = am.update_profile(
+            db,
+            Accounts,
+            user_id=user_id,
+            payload=am.UpdateProfileInput(username=payload.username, bio=payload.bio),
+        )
+    except am.NotFound:
+        raise HTTPException(status_code=404, detail="Account not found")
+    except am.UsernameAlreadyInUse:
+        raise HTTPException(status_code=409, detail="Username already in use")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    _send_account_update_notification(
+        notifier,
+        account=updated,
+        update_type="profile updated",
+    )
+
+    return AccountUpdateResponse(
+        user_id=updated.UserID,
+        email=updated.email,
+        username=updated.username,
+        message="Profile updated and notification sent",
+    )
+
+
+@app.post("/accounts/{user_id}/change_password")
+def change_account_password(
+    user_id: int,
+    payload: ChangeAccountPasswordRequest,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
+    try:
+        am.change_password(
+            db,
+            Accounts,
+            user_id=user_id,
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+        )
+    except am.NotFound:
+        raise HTTPException(status_code=404, detail="Account not found")
+    except am.InvalidCredentials:
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    except am.InvalidPassword as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    account = am.get_user_by_id(db, Accounts, user_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    _send_account_update_notification(
+        notifier,
+        account=account,
+        update_type="password changed",
+    )
+    return {"ok": True, "message": "Password changed and notification sent"}
 
 
 
