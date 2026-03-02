@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients, MuscleGroupTags, DifficultyTags, ExerciseTypeTags, exercise_tags, exercise_muscle_groups
+from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients, MuscleGroupTags, DifficultyTags, ExerciseTypeTags, exercise_tags, exercise_muscle_groups, menu_meals
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
+from app.core.ingest_menu_meals import ingest_menu_meals
 
 
 # fill all these lists out 
@@ -75,6 +76,13 @@ def populate_meals(sess):
             sess.add(obj)
     sess.commit()
     return m
+
+
+def populate_menu_meals(sess):
+    records_dict = ingest_menu_meals()
+    sess.bulk_insert_mappings(menu_meals, records_dict) 
+    sess.commit()
+    return True
 
 
 

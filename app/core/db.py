@@ -141,9 +141,21 @@ class meal_ingredients(Base):
 
 
 
-# need to find some good chain restaurant menu data first
+
 class menu_meals(Base):
     __tablename__ = 'menu_meals'
     MenuMealID = Column(Integer, primary_key=True, autoincrement=True)
-
-    MealID = Column(Integer, ForeignKey('Meals.MealID'), nullable=False)
+    restaurant = Column(Text, nullable=False)           # Pizza Hut, Burger King, Starbucks, McDonalds, KFC, Dominos, Chick fil A, Shack Shack
+    category = Column(Text, nullable=False)             #                           ***         ***                                    ***
+    product = Column(Text, nullable=False)              # Large French Fries
+    serving_size = Column(Float)                        # mix of g, ml, oz  -->  guess from product name?
+    energy_kcal = Column(Float)
+    carbohydrates_g = Column(Float) 	
+    protein_g = Column(Float)	
+    fiber_g	= Column(Float)
+    sugar_g	= Column(Float)
+    total_fat_g	= Column(Float)
+    saturated_fat_g	= Column(Float)
+    trans_fat_g	= Column(Float)
+    cholesterol_mg	= Column(Float)
+    sodium_mg = Column(Float)
