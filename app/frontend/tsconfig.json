@@ -1,11 +1,12 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
+    "baseUrl": ".", // This makes paths relative to the project root
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/assets/*": ["assets/*"],
+      "@/scripts/*": ["scripts/*"],
+      "@/components/*": ["src/components/*"], // Map @/components to the actual path
+      "@/*": ["src/*"] // A common catch-all alias for the src folder
     }
   },
   "include": [
