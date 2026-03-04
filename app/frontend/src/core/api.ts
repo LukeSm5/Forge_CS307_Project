@@ -53,6 +53,9 @@ export const api = {
   changePassword: async (e: ApiEvent) => {
     return TEST_USER;
   },
+  submitOnboarding: async (e: SubmitOnboardingEvent) => {
+    return true;
+  }
 };
 
 export type User = {
@@ -62,3 +65,5 @@ export type User = {
 };
 
 export type ApiEvent = any;
+
+export type SubmitOnboardingEvent = {};
