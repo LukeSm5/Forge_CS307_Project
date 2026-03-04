@@ -25,28 +25,32 @@ export type QuestionInput =
     | { type: "Slider", min: number, max: number }
     | { type: "TextBox", maxlen: number }
     | { type: "MultipleChoice", options: string[], maxSelect: number }
-    | { type: "Checkbox", label: string }
 
 export type Question = {
     textPrompt: string,
     inputType: QuestionInput
 }
 
-export default function QuizQuestion({ question }: { question: Question }) {
-    let inputComponent;
+export default function QuizQuestion({ question, onUpdate }: { question: Question, onUpdate?: (val: number | string) => void} ) {
+    let inputComponent: React.JSX.Element;
     switch (question.inputType.type) {
-        case "Slider":
+        case "Slider": {
+            const defaultValue = Math.round((question.inputType.min + question.inputType.max) / 2);
+
             inputComponent = (
                 <View>
                     <Slider
                         style={{ width: 200, height: 40 }}
                         minimumValue={question.inputType.min}
                         maximumValue={question.inputType.max}
+                        value={defaultValue}
                         step={1}
+                        onValueChange={val => onUpdate(val)}
                     />
                 </View>
             );
             break;
+        }
 
         case "TextBox":
             inputComponent = (
@@ -54,6 +58,7 @@ export default function QuizQuestion({ question }: { question: Question }) {
                     <TextInput
                         style={{ height: 40, borderColor: 'gray', borderWidth: 1, width: 200, padding: 10 }}
                         maxLength={question.inputType.maxlen}
+                        onChangeText={val => onUpdate(val)}
                     />
                 </View>
             );
@@ -61,9 +66,10 @@ export default function QuizQuestion({ question }: { question: Question }) {
 
         case "MultipleChoice": {
             const radioButtons = [];
-            for (let option of question.inputType.options) {
+            for (let i = 0; i < question.inputType.options.length; i++) {
+                const option = question.inputType.options[i];
                 radioButtons.push({
-                    id: option,
+                    id: i,
                     label: option,
                     value: option,
                 });
@@ -74,29 +80,11 @@ export default function QuizQuestion({ question }: { question: Question }) {
                 <View>
                     <RadioGroup
                         radioButtons={radioButtons}
-                        onPress={setSelectedId}
+                        onPress={id => {
+                            setSelectedId(id);
+                            onUpdate(id);
+                        }}
                         selectedId={selectedId}
-                    />
-                </View>
-            );
-            break;
-        }
-
-        // TODO: Checkboxes cannot be unchecked. Should probably fix
-        // or lowkey maybe remove checkbox input type :P
-        // or make my own checkbox component
-        case "Checkbox": {
-            const [checked, setChecked] = useState(false);
-            inputComponent = (
-                <View>
-                    <RadioGroup
-                        radioButtons={[{
-                            id: '1',
-                            label: question.inputType.label,
-                            value: question.inputType.label
-                        }]}
-                        onPress={() => setChecked(!checked)}
-                        selectedId={checked ? '1' : undefined}
                     />
                 </View>
             );

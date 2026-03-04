@@ -66,4 +66,17 @@ export type User = {
 
 export type ApiEvent = any;
 
-export type SubmitOnboardingEvent = {};
+export type SubmitOnboardingEvent = {
+  /** The user's health score on a scale of [0, 100] */
+  healthScore: number,
+
+  /** The user's response to what their fitness goals are, used for prompting. */
+  goals: string,
+  
+  /** The user's response about their previous lifting experience, used for prompting. */
+  previousExperience: string,
+
+  /** The user's preferred bio for their profile. */
+  bio: string
+};
+

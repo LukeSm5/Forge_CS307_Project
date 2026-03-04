@@ -2,33 +2,103 @@ import React, {useState} from 'react';
 
 import { StyleSheet } from 'react-native';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
 import QuizText from '@/components/onboarding/QuizText';
 import QuizButton from '@/components/onboarding/QuizButton';
 import QuizQuestion, { Question, QuestionInput } from '@/components/onboarding/QuizQuestion';
 import { Text, View } from '@/components/Themed';
 import { Button } from 'react-native';
+import { api } from '@/core/api';
 
 // Test questions for demo purposes
 // TODO: real questions
 const QUESTIONS: Question[] = [
     {
-        textPrompt: "Are you healthy",
-        inputType: { type: "Checkbox", label: "Yes" }
+        textPrompt: "How much experience do you have in the gym on a scale from 1 to 10, with 1 being not experienced at all, and 10 being extremely experienced?",
+        inputType: { type: "Slider", min: 1, max: 10 }
     },
     {
-        textPrompt: "How are you doing today :D",
-        inputType: { type: "MultipleChoice", options: ["Fine", "Horrible", "Could be better"], maxSelect: 1 }
+        textPrompt: "How much experience do you have dieting on a scale from 1 to 10, with 1 being not experienced at all, and 10 being extremely experienced?",
+        inputType: { type: "Slider", min: 1, max: 10 }
     },
     {
-        textPrompt: "Tell me about your best lift ever",
+        textPrompt: "How frequently do you go to the gym?",
+        inputType: { type: "MultipleChoice", options: [
+            "Never",
+            "Once per week",
+            "2-3 times per week",
+            "4+ times per week"
+        ], maxSelect: 1}
+    },
+    {
+        textPrompt: "Do you frequently perform active exercise, such as cardio or strength training?",
+        inputType: { type: "MultipleChoice", options: [
+            "Yes",
+            "Sometimes",
+            "No",
+        ], maxSelect: 1}
+    },
+    {
+        textPrompt: "Do you diet, such as counting calories and macros?",
+        inputType: { type: "MultipleChoice", options: [
+            "Yes",
+            "Sometimes",
+            "No",
+        ], maxSelect: 1}
+    },
+    {
+        textPrompt: "What goals would you like to accomplish in your health journey?",
         inputType: { type: "TextBox", maxlen: 200 }
     },
     {
-        textPrompt: "Rank your coolness from 1 to 10",
-        inputType: { type: "Slider", min: 1, max: 10 }
-    }
+        textPrompt: "What previous health and fitness experience do you have?",
+        inputType: { type: "TextBox", maxlen: 200 }
+    },
+    {
+        textPrompt: "What would you like others to know about you in your bio?",
+        inputType: { type: "TextBox", maxlen: 200 }
+    },
 ];
+
+/**
+ * Takes a bunch of shi from onboarding quiz, calculates health score on [0, 100]
+ * @param gymExperience Gym experience from 1-10
+ * @param dietExperience Dieting experience from 1-10
+ * @param gymFrequency Gym frequency, indexing [Never, 1x/Week, 2-3x/Week, 4x+/Week]
+ * @param exerciseActivity Do you exercise?, indexing [Yes/Sometimes/No]
+ * @param dietingActivity Do you diet?, indexing [Yes/Sometimes/No]
+ */
+function calculateHealthScore(gymExperience: number, dietExperience: number, gymFrequency: number,
+                                exerciseActivity: number, dietingActivity: number): number {
+    let score = 0;
+    // 0-20pts
+    // 20/100
+    score += gymExperience * 2;
+    // 0-20pts
+    // 40/100
+    score += dietExperience * 2;
+    // 0-15pts
+    // 55/100
+    score += gymFrequency * 5;
+    // 0-24pts
+    // 79/100
+    score += (2 - exerciseActivity) * 12;
+    // 0-21pts
+    // 100/100
+    score += (2 - dietingActivity) * 10.5;
+    // return 🤯
+    return score;
+}
+
+function responsiveHealthScore(responses: (string | number)[]): number {
+    let healthScore = 0;
+    const healthResponses = responses.slice(0, 5);
+    if (healthResponses.every(r => typeof r === "number"))
+        healthScore = calculateHealthScore(
+            healthResponses[0], healthResponses[1], healthResponses[2],
+            healthResponses[3], healthResponses[4]
+        );
+    return healthScore;
+}
 
 export default function OnboardingScreen() {
     /*
@@ -72,19 +142,50 @@ export default function OnboardingScreen() {
 
     const startQuiz = () => setQuizState(2);
 
-    // TODO: remember question inputs n stuff
+    const [currentResponse, setCurrentResponse] = useState<string | number>(0);
+    const [responses, setResponses] = useState<(string | number)[]>([]);
+
     const submitQuestion = () => {
+        // Add question response
+        if (currentResponse == -1)
+            return false;
+
+        setResponses([...responses, currentResponse]);
+        setCurrentResponse(-1);
+
         if (questionIndex < QUESTIONS.length - 1) {
             setQuestionIndex(questionIndex + 1);
         } else {
             setQuizState(3);
         }
+        return true;
     }
 
-    // TODO: Actually complete quiz
     const completeQuiz = () => {
+        const healthScore = responsiveHealthScore(responses);
+        
+        let goals = "";
+        if (typeof responses[5] === "string")
+            goals = responses[5];
+        
+        let previousExperience = "";
+        if (typeof responses[6] === "string")
+            previousExperience = responses[6];
+        
+        let bio = "";
+        if (typeof responses[7] === "string")
+            bio = responses[7];
+        
+        
         setQuizState(1);
         setQuestionIndex(0);
+        api.submitOnboarding({
+            healthScore,
+            goals,
+            previousExperience,
+            bio
+        });
+        setResponses([]);
     }
 
     const startComponent = (<View>
@@ -93,16 +194,16 @@ export default function OnboardingScreen() {
     </View>);
 
     const questionComponent = (<View>
-        <QuizQuestion question={QUESTIONS[questionIndex]} />
+        <QuizQuestion key={questionIndex} question={QUESTIONS[questionIndex]} onUpdate={setCurrentResponse} />
         <QuizButton text="Submit" onPress={submitQuestion} />
     </View>);
 
     const endComponent = (<View>
-        <QuizText text="Onboarding Complete! Your health score is 100%!" />
+        <QuizText text={`Onboarding Complete! Your health score is ${responsiveHealthScore(responses)}%!`} />
         <QuizButton text="Continue" onPress={completeQuiz} />
     </View>);
 
-    let component;
+    let component: React.JSX.Element;
     switch (quizState) {
         case 1:
             component = startComponent;
