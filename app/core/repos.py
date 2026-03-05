@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients, MuscleGroupTags, DifficultyTags, ExerciseTypeTags, exercise_tags, exercise_muscle_groups, menu_meals
+from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients, MuscleGroupTags, DifficultyTags, ExerciseTypeTags, exercise_tags, exercise_muscle_groups, menu_meals, SpiceLevelTags, CuisineTags, ComplexityTags,
+    GoalTags, PrepTimeTags, CookTimeTags, DietaryTags, meal_tags, meal_dietary_tags
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
 from app.core.ingest_menu_meals import ingest_menu_meals
@@ -182,10 +183,6 @@ def populate_exercise_types(sess: Session):
     sess.commit()
 
 def tag_exercise(sess: Session, exercise_id: int, difficulty_id: int, exercise_type_id: int, muscle_group_ids: list[int]) -> bool:
-    """
-    Attach difficulty, exercise type, and muscle group tags to an exercise.
-    Replaces any existing tags on that exercise. Returns True if successful.
-    """
     if not sess.query(Exercises).filter_by(ExerciseID=exercise_id).first():
         raise HTTPException(status_code=404, detail="Exercise not found")
     sess.merge(exercise_tags(ExerciseID=exercise_id, DifficultyID=difficulty_id, ExerciseTypeID=exercise_type_id))
@@ -206,13 +203,85 @@ def get_exercise_tags(sess: Session, exercise_id: int) -> dict:
     return {"tags": tag, "muscle_groups": muscles}
 
 def get_all_tag_options(sess: Session) -> dict:
-    """
-    Returns all valid values for muscle groups, difficulties, and exercise types.
-    Useful for populating dropdowns in the frontend.
-    """
     return {
         "muscle_groups": sess.query(MuscleGroupTags).all(),
         "difficulties":  sess.query(DifficultyTags).all(),
         "exercise_types": sess.query(ExerciseTypeTags).all(),
     }
+def populate_spice_levels(sess: Session):
+    for name in ["mild", "medium", "hot", "extra_hot"]:
+        if not sess.query(SpiceLevelTags).filter_by(name=name).first():
+            sess.add(SpiceLevelTags(name=name))
+    sess.commit()
+
+def populate_cuisines(sess: Session):
+    for name in ["american", "italian", "mexican", "asian", "mediterranean", "indian", "middle_eastern", "other"]:
+        if not sess.query(CuisineTags).filter_by(name=name).first():
+            sess.add(CuisineTags(name=name))
+    sess.commit()
+
+def populate_complexities(sess: Session):
+    for name in ["simple", "moderate", "complex"]:
+        if not sess.query(ComplexityTags).filter_by(name=name).first():
+            sess.add(ComplexityTags(name=name))
+    sess.commit()
+
+def populate_goals(sess: Session):
+    for name in ["fat_loss", "muscle_gain", "maintenance"]:
+        if not sess.query(GoalTags).filter_by(name=name).first():
+            sess.add(GoalTags(name=name))
+    sess.commit()
+
+def populate_prep_times(sess: Session):
+    for name in ["quick", "medium", "long"]:
+        if not sess.query(PrepTimeTags).filter_by(name=name).first():
+            sess.add(PrepTimeTags(name=name))
+    sess.commit()
+
+def populate_cook_times(sess: Session):
+    for name in ["quick", "medium", "long"]:
+        if not sess.query(CookTimeTags).filter_by(name=name).first():
+            sess.add(CookTimeTags(name=name))
+    sess.commit()
+
+def populate_dietary_tags(sess: Session):
+    for name in ["vegetarian", "vegan", "gluten_free", "dairy_free", "nut_free", "halal", "kosher", "low_carb", "high_protein"]:
+        if not sess.query(DietaryTags).filter_by(name=name).first():
+            sess.add(DietaryTags(name=name))
+    sess.commit()
+
+def tag_meal(sess: Session, meal_id: int, spice_level_id: int, cuisine_id: int,
+             complexity_id: int, goal_id: int, prep_time_id: int, cook_time_id: int,
+             dietary_tag_ids: list[int] = []) -> bool:
+    if not sess.query(Meals).filter_by(MealID=meal_id).first():
+        raise HTTPException(status_code=404, detail="Meal not found")
+    sess.merge(meal_tags(
+        MealID=meal_id, SpiceLevelID=spice_level_id, CuisineID=cuisine_id,
+        ComplexityID=complexity_id, GoalID=goal_id,
+        PrepTimeID=prep_time_id, CookTimeID=cook_time_id,
+    ))
+    sess.query(meal_dietary_tags).filter_by(MealID=meal_id).delete()
+    for dietary_id in dietary_tag_ids:
+        sess.add(meal_dietary_tags(MealID=meal_id, DietaryID=dietary_id))
+    sess.commit()
+    return True
+
+def get_meal_tags(sess: Session, meal_id: int) -> dict:
+    tag = sess.query(meal_tags).filter_by(MealID=meal_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="No tags found for this meal")
+    dietary = sess.query(meal_dietary_tags).filter_by(MealID=meal_id).all()
+    return {"tags": tag, "dietary_tags": dietary}
+
+def get_all_meal_tag_options(sess: Session) -> dict:
+    return {
+        "spice_levels":  sess.query(SpiceLevelTags).all(),
+        "cuisines":      sess.query(CuisineTags).all(),
+        "complexities":  sess.query(ComplexityTags).all(),
+        "goals":         sess.query(GoalTags).all(),
+        "prep_times":    sess.query(PrepTimeTags).all(),
+        "cook_times":    sess.query(CookTimeTags).all(),
+        "dietary_tags":  sess.query(DietaryTags).all(),
+    }
+
 
