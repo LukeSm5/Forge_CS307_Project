@@ -53,7 +53,26 @@ def populate_workouts(sess):
 
 def populate_exercises(sess):
     e = [
-        Exercises(name='pull up')
+        Exercises(name='pull up'),
+        Exercises(name='bicep curl'),
+        Exercises(name='bench press'),
+        Exercises(name='skull crushers'),
+        Exercises(name='tricep pushdown'),
+        Exercises(name='shoulder press'),
+        Exercises(name='bulgarian split squat'),
+        Exercises(name='romanian deadlift'),
+        Exercises(name='shrugs'),
+        Exercises(name='power clean'),
+        Exercises(name='incline press'),
+        Exercises(name='decline press'),
+        Exercises(name='face pull'),
+        Exercises(name='push ups'),
+        Exercises(name='sit ups'),
+        Exercises(name='burpees'),
+        Exercises(name='sled push'),
+        Exercises(name='russian twists'),
+        Exercises(name='sled pulls'),
+        Exercises(name='box jumps'),
     ]
 
     for obj in e:
@@ -67,6 +86,9 @@ def populate_exercises(sess):
 def populate_machines(sess):
     m = [
         Machines(name='dumbbell'),
+        Machines(name='barbell'),
+        Machines(name='body'),
+        Machines(name='cable'),
         Machines(name='lat pulldown'),
         Machines(name='pec deck'),
         Machines(name='preacher curls'),
@@ -76,7 +98,6 @@ def populate_machines(sess):
         Machines(name='leg curl'),
         Machines(name='ab crunch'),
         Machines(name='rows'),
-        Machines(name='russian twists'),
         Machines(name='back extension'),
         Machines(name='dip machine'),
         Machines(name='kickback'),
@@ -313,6 +334,7 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
 
 
 
