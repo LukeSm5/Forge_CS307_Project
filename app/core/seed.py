@@ -22,6 +22,13 @@ def seed_static(session):
     repos.populate_muscle_groups(session)
     repos.populate_difficulties(session)
     repos.populate_exercise_types(session)
+    repos.populate_spice_levels(session)
+    repos.populate_cuisines(session)
+    repos.populate_complexities(session)
+    repos.populate_goals(session)
+    repos.populate_prep_times(session)
+    repos.populate_cook_times(session)
+    repos.populate_dietary_tags(session)
 
 def bootstrap(drop_all: bool = False, seed: bool = True):
     if drop_all:
