@@ -1,0 +1,15 @@
+Implementation Details
+
+app/frontend/components/genericComponents:
+Contains generic UI components such as buttons and textboxes so we can implement the button
+in our UIs to our needs, but so we only have to fill out one style sheet for simplicity.
+(If this does not seem like a good idea, let me know)
+
+App Navigation:
+I plan to use expo-router in my code, as I think that is the easiest navigation between pages.
+
+Functions:
+router.back puts you back to the last page you were on (useful for back on login and create account,
+or other pages that should only be able to go back to the previous page)
+router.push('/screenName') takes you to screenName, and adds that to the stack,
+generally good for all purposes.
