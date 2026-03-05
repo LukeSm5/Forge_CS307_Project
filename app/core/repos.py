@@ -38,7 +38,7 @@ def populate_workouts(sess):
         Workouts(name='glutes'),
         Workouts(name='calves'),
         Workouts(name='hip_flexors'),
-        Workouts(name='full_body'),
+        Workouts(name='full_body')
     ]
 
     for obj in w:
@@ -64,6 +64,23 @@ def populate_exercises(sess):
 
 def populate_machines(sess):
     m = [
+        Machines(name='dumbbell'),
+        Machines(name='lat pulldown'),
+        Machines(name='pec deck'),
+        Machines(name='preacher curls'),
+        Machines(name='tricep extension'),
+        Machines(name='lateral raise'),
+        Machines(name='leg extension'),
+        Machines(name='leg curl'),
+        Machines(name='ab crunch'),
+        Machines(name='rows'),
+        Machines(name='russian twists'),
+        Machines(name='back extension'),
+        Machines(name='dip machine'),
+        Machines(name='kickback'),
+        Machines(name='calf extension'),
+        Machines(name='hip adduction'),
+        Machines(name='hip abduction'),
         Machines(name='dumbbell')
     ]
     for obj in m:
@@ -77,6 +94,7 @@ def populate_machines(sess):
 def populate_meals(sess):
     m = [
         Meals(name='chicken & rice')
+        
     ]
 
     for obj in m:
@@ -291,6 +309,7 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
 
 
 
