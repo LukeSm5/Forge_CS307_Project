@@ -36,26 +36,50 @@ const TEST_USER: User = {
 
 export const api = {
   deleteAccount: (userId: number) => del(`/accounts/${userId}`),
-  me: async () => { 
+  me: async (): Promise<User | undefined> => { 
     return TEST_USER;
   },
-  register: async (e: ApiEvent) => {
+  register: async (e: ApiEvent): Promise<User | undefined> => {
     return TEST_USER;
   },
-  login: async (e: ApiEvent) => {
+  login: async (e: ApiEvent): Promise<{ access_token: string | undefined }> => {
     return {
       access_token: 'API.LOGIN DEMO TOKEN'
     };
   },
-  updateMe: async (e: ApiEvent) => {
+  updateMe: async (e: ApiEvent): Promise<User | undefined> => {
     return TEST_USER;
   },
-  changePassword: async (e: ApiEvent) => {
+  changePassword: async (e: ApiEvent): Promise<User | undefined> => {
     return TEST_USER;
   },
-  submitOnboarding: async (e: SubmitOnboardingEvent) => {
+  submitOnboarding: async (e: SubmitOnboardingEvent): Promise<boolean> => {
     return true;
-  }
+  },
+  searchCardioMachine: async (e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]> => {
+    // Prompt LLM with user object goals and cardio machie description
+    // LLM returns a list of SearchCardioMachineResponse[]
+    const usr = await api.me();
+    if (typeof usr === "undefined")
+      throw new Error("User not signed in.");
+    
+    // Fetch logged in user to get goals and bio
+    // TODO: LLM call
+    return [
+      {
+        name: 'Treadmill',
+        desc: 'Useful for basic stamina training and calorie burn'
+      },
+      {
+        name: 'Stairmaster',
+        desc: 'A more advanced and difficult cardio machine, burns a lot of calories fast'
+      },
+      {
+        name: 'Elliptical Machine',
+        desc: 'It\'s fun idk man'
+      }
+    ]
+  },
 };
 
 export type User = {
@@ -78,5 +102,14 @@ export type SubmitOnboardingEvent = {
 
   /** The user's preferred bio for their profile. */
   bio: string
+};
+
+export type SearchCardioMachineResponse = {
+  name: string,
+  desc: string,
+};
+
+export type SearchCardioMachineEvent = {
+  desc: string
 };
 

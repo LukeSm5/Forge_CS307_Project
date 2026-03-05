@@ -33,6 +33,9 @@ export default function App() {
     setStatus(null);
     try {
       const me = await api.me();
+      if (typeof me === "undefined")
+        throw new Error("User not signed in.");
+
       setUser(me);
       setPUsername(me.username ?? "");
       setPBio(me.bio ?? "");
@@ -58,6 +61,9 @@ export default function App() {
         password: rPassword,
         bio: rBio || "",
       });
+
+      if (typeof created === "undefined")
+        throw new Error("Registration failed");
       setStatus({ type: "ok", msg: `Registered user ${created.username}. Now log in.` });
       setREmail(""); setRUsername(""); setRPassword(""); setRBio("");
     } catch (e: any) {
@@ -72,6 +78,9 @@ export default function App() {
     setStatus(null);
     try {
       const tok = await api.login({ email: lEmail, password: lPassword });
+
+      if (typeof tok.access_token === "undefined")
+        throw new Error("Invalid Login");
       setToken(tok.access_token);
       setStatus({ type: "ok", msg: "Logged in." });
       await refreshMe();
@@ -96,7 +105,12 @@ export default function App() {
         username: pUsername || undefined,
         bio: pBio ?? "",
       });
+
+      if (typeof updated === "undefined")
+        throw new Error("User not signed in");
+
       setUser(updated);
+
       setStatus({ type: "ok", msg: "Profile updated." });
     } catch (e: any) {
       setStatus({ type: "err", msg: e.message });
@@ -109,7 +123,10 @@ export default function App() {
     setLoading(true);
     setStatus(null);
     try {
-      await api.changePassword({ current_password: cCurrent, new_password: cNew });
+      const res = await api.changePassword({ current_password: cCurrent, new_password: cNew });
+      if (typeof res === "undefined")
+        throw new Error("Password change failed.");
+
       setCCurrent(""); setCNew("");
       setStatus({ type: "ok", msg: "Password changed." });
     } catch (e: any) {

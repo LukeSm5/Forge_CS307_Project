@@ -184,6 +184,9 @@ export default function OnboardingScreen() {
             goals,
             previousExperience,
             bio
+        }).then(success => {
+            if (!success)
+                console.error('Error uploading onboarding data.')
         });
         setResponses([]);
     }

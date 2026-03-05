@@ -4,49 +4,49 @@ The following is a list of functions that are defined and exported by [api.ts](/
 
 ## me
 
-Returns the current signed in `User` object.
+Returns the current signed in `User` object, or `undefined` if not logged in.
 
 Currently returns a predefined `TEST_USER`.
 ```ts
-async function me(): User
+async function me(): Promise<User | undefined>
 ```
 
 ## register
 
 Takes an unimplemented `ApiEvent` type, and registers an account, returning the
-corresponding `User` object.
+corresponding `User` object, or `undefined` on failure.
 
 Currently returns a predefined `TEST_USER`.
 ```ts
-async function register(e: ApiEvent): User
+async function register(e: ApiEvent): Promise<User | undefined>
 ```
 
 ## login
 
 Takes an unimplemented `ApiEvent` type, and logs in an account, returning the
-corresponding login token as a header.
+corresponding login token as a header, or `undefined` if login fails.
 
 Currently returns a predefined test token.
 ```ts
-async function login(e: ApiEvent): { access_token: string }
+async function login(e: ApiEvent): Promise<{ access_token: string | undefined }>
 ```
 ## changePassword
 
 Takes an unimplemented `ApiEvent` type, and changes an account's password, returning the
-updated `User` object.
+updated `User` object, or `undefined` on failure.
 
 Currently returns a predefined `TEST_USER`.
 ```ts
-async function changePassword(e: ApiEvent): User
+async function changePassword(e: ApiEvent): Promise<User | undefined>
 ```
 
 ## updateMe
 
-Takes an unimplemented `ApiEvent` type, and returns an updated signed in `User` object.
+Takes an unimplemented `ApiEvent` type, and returns an updated signed in `User` object, or `undefined` if not signed in.
 
 Currently returns a predefined `TEST_USER`.
 ```ts
-async function updateMe(e: ApiEvent): User
+async function updateMe(e: ApiEvent): Promise<User | undefined>
 ```
 
 ## completeOnboarding
@@ -69,6 +69,6 @@ type SubmitOnboardingEvent = {
   bio: string
 };
 
-async function completeOnboarding(e: SubmitOnboardingEvent): boolean
+async function completeOnboarding(e: SubmitOnboardingEvent): Promise<boolean>
 ```
 
