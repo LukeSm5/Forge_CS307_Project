@@ -183,6 +183,24 @@ def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
     return profile if profile else None
 
 
+
+def lookup_menumeal_by_restaurant(sess: Session, restaurant: str) -> menu_meals:
+    """
+    return menu_meals object(s) meeting criteria if exists
+    """
+    menu_meals = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
+    return menu_meals if menu_meals else None
+
+
+def lookup_menumeal_by_protein(sess: Session, protein: str) -> menu_meals:
+    """
+    return menu_meals object(s) meeting criteria if exists
+    """
+    if protein == 'chicken':
+        menu_meals = sess.query(menu_meals).filter(menu_meals.chicken == True).all()
+    return menu_meals if menu_meals else None
+
+
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
     """
     Deletes an account by UserID, returning True if deleted and False otherwise.\n

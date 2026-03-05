@@ -239,6 +239,11 @@ def derive_features():
         ((df['restaurant'] == 'Shake Shack') & (df['product'].str.contains('chicken', case=False, na=False)))
     )
 
+    print(df['chicken'])
+
+    df.copy().to_csv('./app/core/menu_meals.csv')
+    
+
 
 
 if __name__ == '__main__':
@@ -246,10 +251,5 @@ if __name__ == '__main__':
     # df2 = pd.read_csv('./chickfila.csv', encoding="utf-8")
     # df3 = pd.read_csv('./shakeshack.csv', encoding="utf-8")
     # combine(df1, df2, df3)
-
-    df = pd.read_csv('./app/core/menu_meals.csv')
-    with pd.option_context("display.max_rows", None):
-        print(df[
-            (df["restaurant"] == "KFC")
-        ])
             
+    print()
