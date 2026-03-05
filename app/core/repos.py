@@ -93,8 +93,10 @@ def populate_machines(sess):
 
 def populate_meals(sess):
     m = [
-        Meals(name='chicken & rice')
-        
+        Meals(name='chicken & rice'),
+        Meals(name='salmon and broccoli'),
+        Meals(name='cheesy 5-layer burrito'),
+        Meals(name='oatmeal')
     ]
 
     for obj in m:
@@ -309,6 +311,7 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
 
 
 
