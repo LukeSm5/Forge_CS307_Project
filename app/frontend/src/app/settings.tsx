@@ -1,10 +1,12 @@
-import React from "react";
-import { StyleSheet, View, Pressable } from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Pressable, TextInput, ScrollView, ActivityIndicator } from "react-native";
 import Slider from "@react-native-community/slider";
 
 import { Text } from "@/components/Themed";
 import { useAccessibility, ColorMode } from "@/core/accessibility";
-
+import { api, setToken, User } from "@/core/api";
+import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
+type Status = { type: "ok" | "err"; msg: string } | null;
 function ModeButton({
   label,
   selected,
@@ -20,69 +22,277 @@ function ModeButton({
     </Pressable>
   );
 }
-
-export default function SettingsScreen() {
-  const { colorMode, setColorMode, textScale, setTextScale } = useAccessibility();
-
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionHeader}>{title}</Text>;
+}
+function StatusBanner({ status }: { status: Status }) {
+  if (!status) return null;
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Accessibility</Text>
-
-      <Text style={styles.sectionTitle}>Theme</Text>
-      <View style={styles.modeRow}>
-        <ModeButton
-          label="System"
-          selected={colorMode === "system"}
-          onPress={() => setColorMode("system")}
-        />
-        <ModeButton
-          label="Light"
-          selected={colorMode === "light"}
-          onPress={() => setColorMode("light")}
-        />
-        <ModeButton
-          label="Dark"
-          selected={colorMode === "dark"}
-          onPress={() => setColorMode("dark")}
-        />
-      </View>
-
-      <Text style={styles.sectionTitle}>Text Size</Text>
-      <Text style={styles.helper}>
-        Adjust the slider. This will scale text across the app.
-      </Text>
-
-      <Slider
-        style={{ width: "100%", height: 40 }}
-        minimumValue={1.0}
-        maximumValue={1.4}
-        step={0.05}
-        value={textScale}
-        onValueChange={(v) => setTextScale(v)}
-        minimumTrackTintColor="#2f80ed"
-      />
-
-      <View style={styles.previewCard}>
-        <Text style={{ fontSize: 18, fontWeight: "700" }}>Preview</Text>
-        <Text style={{ marginTop: 8 }}>
-          This is how your text will look with the current setting.
-        </Text>
-      </View>
-
-      <Text style={styles.footerNote}>
-        Settings are saved automatically and will persist after restarting the app.
-      </Text>
+    <View style={[styles.statusBanner, status.type === "ok" ? styles.statusOk : styles.statusErr]}>
+      <Text style={styles.statusText}>{status.msg}</Text>
     </View>
   );
 }
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  multiline?: boolean;
+}) {
+  return (
+    <View style={styles.fieldWrapper}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={[styles.input, multiline && styles.inputMultiline]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        secureTextEntry={secureTextEntry}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        placeholderTextColor="rgba(0,0,0,0.35)"
+      />
+    </View>
+  );
+}
+function ActionButton({
+  label,
+  onPress,
+  disabled,
+  variant,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "danger";
+}) {
+  const variantStyle =
+    variant === "danger"
+      ? styles.btnDanger
+      : variant === "secondary"
+      ? styles.btnSecondary
+      : styles.btnPrimary;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.btn, variantStyle, disabled && styles.btnDisabled]}
+    >
+      <Text style={[styles.btnText, variant === "secondary" && styles.btnTextSecondary]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+export default function SettingsScreen() {
+  const { colorMode, setColorMode, textScale, setTextScale } = useAccessibility();
+  const [status, setStatus] = useState<Status>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [rEmail, setREmail] = useState("");
+  const [rUsername, setRUsername] = useState("");
+  const [rPassword, setRPassword] = useState("");
+  const [rBio, setRBio] = useState("");
+  const [lEmail, setLEmail] = useState("");
+  const [lPassword, setLPassword] = useState("");
+  const [pUsername, setPUsername] = useState("");
+  const [pBio, setPBio] = useState("");
+  const [cCurrent, setCCurrent] = useState("");
+  const [cNew, setCNew] = useState("");
+  async function refreshMe() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      const me = await api.me();
+      if (typeof me === "undefined") throw new Error("User not signed in.");
+      setUser(me);
+      setPUsername(me.username ?? "");
+      setPBio(me.bio ?? "");
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    refreshMe();
+  }, []);
+  async function doRegister() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      const created = await api.register({
+        email: rEmail,
+        username: rUsername,
+        password: rPassword,
+        bio: rBio || "",
+      });
+      if (typeof created === "undefined") throw new Error("Registration failed");
+      setStatus({ type: "ok", msg: `Registered ${created.username}. Now log in.` });
+      setREmail(""); setRUsername(""); setRPassword(""); setRBio("");
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function doLogin() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      const tok = await api.login({ email: lEmail, password: lPassword });
+      if (typeof tok.access_token === "undefined") throw new Error("Invalid Login");
+      setToken(tok.access_token);
+      setStatus({ type: "ok", msg: "Logged in." });
+      await refreshMe();
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+  function doLogout() {
+    setToken(null);
+    setUser(null);
+    setStatus({ type: "ok", msg: "Logged out." });
+  }
+  async function doUpdateProfile() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      const updated = await api.updateMe({ username: pUsername || undefined, bio: pBio ?? "" });
+      if (typeof updated === "undefined") throw new Error("User not signed in");
+      setUser(updated);
+      setStatus({ type: "ok", msg: "Profile updated." });
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function doChangePassword() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      const res = await api.changePassword({ current_password: cCurrent, new_password: cNew });
+      if (typeof res === "undefined") throw new Error("Password change failed.");
+      setCCurrent(""); setCNew("");
+      setStatus({ type: "ok", msg: "Password changed." });
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.container}>
+        <StatusBanner status={status} />
+        <Text style={styles.pageTitle}>Settings</Text>
 
+        <SectionHeader title="Appearance" />
+
+        <Text style={styles.sectionTitle}>Theme</Text>
+        <View style={styles.modeRow}>
+          <ModeButton label="System" selected={colorMode === "system"} onPress={() => setColorMode("system")} />
+          <ModeButton label="Light"  selected={colorMode === "light"}  onPress={() => setColorMode("light")} />
+          <ModeButton label="Dark"   selected={colorMode === "dark"}   onPress={() => setColorMode("dark")} />
+        </View>
+        <Text style={styles.sectionTitle}>Text Size</Text>
+        <Text style={styles.helper}>Adjust the slider to scale text across the app.</Text>
+        <Slider
+          style={{ width: "100%", height: 40 }}
+          minimumValue={1.0}
+          maximumValue={1.4}
+          step={0.05}
+          value={textScale}
+          onValueChange={(v) => setTextScale(v)}
+          minimumTrackTintColor="#2f80ed"
+        />
+        <View style={styles.previewCard}>
+          <Text style={{ fontSize: 18, fontWeight: "700" }}>Preview</Text>
+          <Text style={{ marginTop: 8 }}>
+            This is how your text will look with the current setting.
+          </Text>
+        </View>
+        <Text style={styles.footerNote}>
+          Settings are saved automatically and will persist after restarting the app.
+        </Text>
+        <SectionHeader title="Account" />
+        {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
+        <Text style={[styles.helper, { marginBottom: 12 }]}>
+          {user
+            ? `Signed in as ${user.username} (${user.email})`
+            : "Not signed in."}
+        </Text>
+        <Text style={styles.sectionTitle}>Register</Text>
+        <Field label="Email"    value={rEmail}    onChangeText={setREmail}    placeholder="you@example.com" />
+        <Field label="Username" value={rUsername} onChangeText={setRUsername} placeholder="username_123" />
+        <Field label="Password" value={rPassword} onChangeText={setRPassword} placeholder="8+ chars" secureTextEntry />
+        <Field label="Bio"      value={rBio}      onChangeText={setRBio}      placeholder="Optional" multiline />
+        <ActionButton label="Register" onPress={doRegister} disabled={loading} />
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Login</Text>
+        <Field label="Email"    value={lEmail}    onChangeText={setLEmail}    placeholder="you@example.com" />
+        <Field label="Password" value={lPassword} onChangeText={setLPassword} secureTextEntry />
+        <View style={styles.rowBtns}>
+          <ActionButton label="Login"   onPress={doLogin}   disabled={loading} />
+          <ActionButton label="Refresh" onPress={refreshMe} disabled={loading} variant="secondary" />
+          <ActionButton label="Logout"  onPress={doLogout}  disabled={loading} variant="secondary" />
+        </View>
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Update Profile</Text>
+        {!user && <Text style={styles.helper}>Log in to edit your profile.</Text>}
+        <Field label="Username" value={pUsername} onChangeText={setPUsername} placeholder="New username" />
+        <Field label="Bio"      value={pBio}      onChangeText={setPBio}      placeholder="Bio (≤280 chars)" multiline />
+        <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading || !user} />
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Change Password</Text>
+        {!user && <Text style={styles.helper}>Log in to change your password.</Text>}
+        <Field label="Current password" value={cCurrent} onChangeText={setCCurrent} secureTextEntry />
+        <Field label="New password"     value={cNew}     onChangeText={setCNew}     secureTextEntry />
+        <ActionButton label="Change Password" onPress={doChangePassword} disabled={loading || !user} />}
+        {user && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.sectionTitle}>Danger Zone</Text>
+            <DeleteAccountButton
+              userId={(user as any).UserID ?? (user as any).user_id ?? (user as any).id}
+              onDeleted={() => {
+                setToken(null);
+                setUser(null);
+                setStatus({ type: "ok", msg: "Account deleted." });
+              }}
+            />
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
 const styles = StyleSheet.create({
+  scrollContent: { flexGrow: 1 },
   container: { flex: 1, padding: 16 },
-  title: { fontSize: 22, fontWeight: "800", marginBottom: 12 },
-
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 18, marginBottom: 8 },
-  helper: { opacity: 0.7 },
-
+  pageTitle: { fontSize: 22, fontWeight: "800", marginBottom: 12 },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    opacity: 0.45,
+    marginTop: 28,
+    marginBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.15)",
+    paddingBottom: 6,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 14, marginBottom: 6 },
+  helper: { opacity: 0.65, fontSize: 13, marginBottom: 4 },
   modeRow: { flexDirection: "row", gap: 10, marginTop: 6 },
   modeBtn: {
     paddingHorizontal: 12,
@@ -91,20 +301,53 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(0,0,0,0.25)",
   },
-  modeBtnSelected: {
-    backgroundColor: "#2f80ed",
-    borderColor: "#2f80ed",
-  },
+  modeBtnSelected: { backgroundColor: "#2f80ed", borderColor: "#2f80ed" },
   modeBtnText: { fontWeight: "700" },
   modeBtnTextSelected: { color: "white" },
-
   previewCard: {
-    marginTop: 18,
+    marginTop: 14,
     padding: 14,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(0,0,0,0.2)",
   },
-
-  footerNote: { marginTop: 18, opacity: 0.65 },
+  footerNote: { marginTop: 14, opacity: 0.55, fontSize: 12 },
+  statusBanner: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  statusOk: { backgroundColor: "#d4edda" },
+  statusErr: { backgroundColor: "#f8d7da" },
+  statusText: { fontWeight: "600", fontSize: 13 },
+  fieldWrapper: { marginBottom: 10 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4, opacity: 0.75 },
+  input: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.25)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 15,
+  },
+  inputMultiline: { minHeight: 72, textAlignVertical: "top" },
+  rowBtns: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 4 },
+  btn: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  btnPrimary: { backgroundColor: "#2f80ed" },
+  btnSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.3)",
+  },
+  btnDanger: { backgroundColor: "#e53935" },
+  btnDisabled: { opacity: 0.45 },
+  btnText: { color: "white", fontWeight: "700", fontSize: 14 },
+  btnTextSecondary: { color: "#2f80ed" },
 });
