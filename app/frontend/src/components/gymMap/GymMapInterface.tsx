@@ -9,7 +9,8 @@ import { api, SearchCardioMachineResponse } from '@/core/api';
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
-const GOOGLE_API_KEY = "AIzaSyDQ2jFZs7NEWcl_xsKR6wvyiAgup0FkLaQ";
+// Eventually gonna add .env file support, or something.
+const GOOGLE_API_KEY = "GOOGLE_API_KEY";
 
 export default function GymMapInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
     if (!visible)
