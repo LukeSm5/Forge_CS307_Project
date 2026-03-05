@@ -26,11 +26,11 @@ export default function TabLayout() {
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
       }}>
-      <Tabs.Screen
+      <Tabs.Screen 
         name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+        options={{ 
+          title: "Home",
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
           headerRight: () => (
             <Link href="/settings" asChild>
               <Pressable>
@@ -54,12 +54,26 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
         }}
       />
-      <Tabs.Screen 
-        name="calendar"
-        options={{ 
-          title: "Calendar",
-          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
-        }} 
+      <Tabs.Screen
+        name="test_index"
+        options={{
+          title: 'Testing Tab',
+          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          headerRight: () => (
+            <Link href="/settings" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                  name="gear"
+                  size={24}
+                  color={Schemes[colorScheme ?? "light"].text}
+                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                />
+              )}
+            </Pressable>
+          </Link>
+          ),
+        }}
       />
     </Tabs>
   );
