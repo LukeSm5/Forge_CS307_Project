@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import CardioSearchInterface from "@/components/cardioSearch/CardioSearchInterface";
+import ForgeButton from '../ForgeButton';
 
 
 export default function CardioButton() {
@@ -9,9 +10,7 @@ export default function CardioButton() {
     const cardioInterface = <CardioSearchInterface visible={isOpen} setVisible={setOpen}/>
 
     return (<>
-        <TouchableOpacity style={styles.button} onPress={() => setOpen(true)}>
-            <Text style={styles.buttonText}>{"Search Cardio Machines"}</Text>
-        </TouchableOpacity>
+        <ForgeButton text="Search Cardio Machines" onPress={() => setOpen(true)}/>
 
         {cardioInterface}
     </>);

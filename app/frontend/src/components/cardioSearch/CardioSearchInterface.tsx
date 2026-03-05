@@ -6,6 +6,7 @@ import CardioButton from '@/components/cardioSearch/CardioButton';
 import CardioMachineResult from '@/components/cardioSearch/CardioMachineResult';
 import React, { useState } from 'react';
 import { api, SearchCardioMachineResponse } from '@/core/api';
+import ForgeButton from '../ForgeButton';
 
 export default function CardioSearchInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
     if (!visible)
@@ -58,9 +59,8 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
                 {searchComponent}
 
-                <TouchableOpacity style={styles.button} onPress={() => setVisible(false)}>
-                    <Text style={styles.buttonText}>{"Close Cardio Machine Search"}</Text>
-                </TouchableOpacity>
+
+                <ForgeButton text="Close Cardio Machine Search" onPress={() => setVisible(false)}/>
             </View>
         </View>
     );

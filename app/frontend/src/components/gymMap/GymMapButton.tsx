@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import GymMapInterface from "@/components/gymMap/GymMapInterface";
+import ForgeButton from '../ForgeButton';
 
 
 export default function GymMapButton() {
@@ -9,9 +10,7 @@ export default function GymMapButton() {
     const gymMapInterface = <GymMapInterface visible={isOpen} setVisible={setOpen}/>
 
     return (<>
-        <TouchableOpacity style={styles.button} onPress={() => setOpen(true)}>
-            <Text style={styles.buttonText}>{"Search Nearby Gyms"}</Text>
-        </TouchableOpacity>
+        <ForgeButton text="Search Nearby Gyms" onPress={() => setOpen(true)}/>
 
         {gymMapInterface}
     </>);

@@ -4,13 +4,11 @@ import { StyleSheet } from 'react-native';
 
 import QuizText from '@/components/onboarding/QuizText';
 import QuizButton from '@/components/onboarding/QuizButton';
-import QuizQuestion, { Question, QuestionInput } from '@/components/onboarding/QuizQuestion';
+import QuizQuestion, { Question } from '@/components/onboarding/QuizQuestion';
 import { Text, View } from '@/components/Themed';
-import { Button } from 'react-native';
 import { api } from '@/core/api';
 
 // Test questions for demo purposes
-// TODO: real questions
 const QUESTIONS: Question[] = [
     {
         textPrompt: "How much experience do you have in the gym on a scale from 1 to 10, with 1 being not experienced at all, and 10 being extremely experienced?",

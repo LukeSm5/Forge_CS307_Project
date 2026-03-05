@@ -1,8 +1,6 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
 import { Text, View } from '@/components/Themed';
-import CardioButton from '@/components/cardioSearch/CardioButton';
 
 export default function CardioMachineResult({ name, desc }: { name: string, desc: string }) {
     return (
