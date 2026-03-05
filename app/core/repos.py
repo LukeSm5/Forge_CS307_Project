@@ -10,7 +10,9 @@ from app.core.ingest_menu_meals import ingest_menu_meals
 
 def populate_splits(sess):
     s = [
-        Splits(name="back & bi")
+        Splits(name="back & bicep"),
+        Splits(name='chest, shoulder, tricep'),
+        Splits(name='calisthenics')
     ]
 
     for obj in s:
@@ -311,6 +313,7 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
 
 
 
