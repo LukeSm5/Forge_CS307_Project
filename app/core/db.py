@@ -68,6 +68,57 @@ class exercise_muscle_groups(Base):
     __tablename__ = 'exercise_muscle_groups'
     ExerciseID    = Column(Integer, ForeignKey('Exercises.ExerciseID'), primary_key=True, nullable=False)
     MuscleGroupID = Column(Integer, ForeignKey('MuscleGroupTags.MuscleGroupID'), primary_key=True, nullable=False)
+    
+class SpiceLevelTags(Base):
+    __tablename__ = 'SpiceLevelTags'
+    SpiceLevelID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class CuisineTags(Base):
+    __tablename__ = 'CuisineTags'
+    CuisineID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class ComplexityTags(Base):
+    __tablename__ = 'ComplexityTags'
+    ComplexityID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class GoalTags(Base):
+    __tablename__ = 'GoalTags'
+    GoalID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class PrepTimeTags(Base):
+    __tablename__ = 'PrepTimeTags'
+    PrepTimeID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class CookTimeTags(Base):
+    __tablename__ = 'CookTimeTags'
+    CookTimeID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class DietaryTags(Base):
+    __tablename__ = 'DietaryTags'
+    DietaryID = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False, unique=True)
+
+class meal_tags(Base):
+    __tablename__ = 'meal_tags'
+    MealID       = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
+    SpiceLevelID = Column(Integer, ForeignKey('SpiceLevelTags.SpiceLevelID'), nullable=False)
+    CuisineID    = Column(Integer, ForeignKey('CuisineTags.CuisineID'), nullable=False)
+    ComplexityID = Column(Integer, ForeignKey('ComplexityTags.ComplexityID'), nullable=False)
+    GoalID       = Column(Integer, ForeignKey('GoalTags.GoalID'), nullable=False)
+    PrepTimeID   = Column(Integer, ForeignKey('PrepTimeTags.PrepTimeID'), nullable=False)
+    CookTimeID   = Column(Integer, ForeignKey('CookTimeTags.CookTimeID'), nullable=False)
+
+class meal_dietary_tags(Base):
+    __tablename__ = 'meal_dietary_tags'
+    MealID     = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
+    DietaryID  = Column(Integer, ForeignKey('DietaryTags.DietaryID'), primary_key=True, nullable=False)
+
 
 class Machines(Base):
     __tablename__ = 'Machines'                                              # static
@@ -159,3 +210,4 @@ class menu_meals(Base):
     trans_fat_g	= Column(Float)
     cholesterol_mg	= Column(Float)
     sodium_mg = Column(Float)
+
