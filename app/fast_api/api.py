@@ -392,3 +392,14 @@ def get_workouts_for_profile(profile_id: int, db: Session = Depends(get_db)):
         grouped[w_id].exercises.append(ex_out)
 
     return list(grouped.values())
+
+
+
+@app.get("/meals/{restaurant}")
+def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
+    return repos.lookup_menumeal_by_restaurant(db, restaurant)
+
+
+@app.get("/meals/{protein}")
+def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
+    return repos.lookup_menumeal_by_restaurant(db, protein)

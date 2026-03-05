@@ -10,7 +10,9 @@ from app.core.ingest_menu_meals import ingest_menu_meals
 
 def populate_splits(sess):
     s = [
-        Splits(name="back & bi")
+        Splits(name="back & bicep"),
+        Splits(name='chest, shoulder, tricep'),
+        Splits(name='calisthenics')
     ]
 
     for obj in s:
@@ -28,9 +30,17 @@ def populate_workouts(sess):
         Workouts(name='chest'),
         Workouts(name='triceps'),
         Workouts(name='shoulders'),
-        Workouts(name='legs'),
-        Workouts(name='core'),
+        Workouts(name='quads'),
+        Workouts(name='abs'),
         Workouts(name='cardio'),
+        Workouts(name='forearms'),
+        Workouts(name='obliques'),
+        Workouts(name='lower_back'),
+        Workouts(name='hamstrings'),
+        Workouts(name='glutes'),
+        Workouts(name='calves'),
+        Workouts(name='hip_flexors'),
+        Workouts(name='full_body')
     ]
 
     for obj in w:
@@ -43,7 +53,26 @@ def populate_workouts(sess):
 
 def populate_exercises(sess):
     e = [
-        Exercises(name='pull up')
+        Exercises(name='pull up'),
+        Exercises(name='bicep curl'),
+        Exercises(name='bench press'),
+        Exercises(name='skull crushers'),
+        Exercises(name='tricep pushdown'),
+        Exercises(name='shoulder press'),
+        Exercises(name='bulgarian split squat'),
+        Exercises(name='romanian deadlift'),
+        Exercises(name='shrugs'),
+        Exercises(name='power clean'),
+        Exercises(name='incline press'),
+        Exercises(name='decline press'),
+        Exercises(name='face pull'),
+        Exercises(name='push ups'),
+        Exercises(name='sit ups'),
+        Exercises(name='burpees'),
+        Exercises(name='sled push'),
+        Exercises(name='russian twists'),
+        Exercises(name='sled pulls'),
+        Exercises(name='box jumps'),
     ]
 
     for obj in e:
@@ -56,6 +85,25 @@ def populate_exercises(sess):
 
 def populate_machines(sess):
     m = [
+        Machines(name='dumbbell'),
+        Machines(name='barbell'),
+        Machines(name='body'),
+        Machines(name='cable'),
+        Machines(name='lat pulldown'),
+        Machines(name='pec deck'),
+        Machines(name='preacher curls'),
+        Machines(name='tricep extension'),
+        Machines(name='lateral raise'),
+        Machines(name='leg extension'),
+        Machines(name='leg curl'),
+        Machines(name='ab crunch'),
+        Machines(name='rows'),
+        Machines(name='back extension'),
+        Machines(name='dip machine'),
+        Machines(name='kickback'),
+        Machines(name='calf extension'),
+        Machines(name='hip adduction'),
+        Machines(name='hip abduction'),
         Machines(name='dumbbell')
     ]
     for obj in m:
@@ -68,7 +116,10 @@ def populate_machines(sess):
 
 def populate_meals(sess):
     m = [
-        Meals(name='chicken & rice')
+        Meals(name='chicken & rice'),
+        Meals(name='salmon and broccoli'),
+        Meals(name='cheesy 5-layer burrito'),
+        Meals(name='oatmeal')
     ]
 
     for obj in m:
@@ -130,6 +181,24 @@ def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
     """
     profile = sess.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
     return profile if profile else None
+
+
+
+def lookup_menumeal_by_restaurant(sess: Session, restaurant: str) -> menu_meals:
+    """
+    return menu_meals object(s) meeting criteria if exists
+    """
+    menu_meals = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
+    return menu_meals if menu_meals else None
+
+
+def lookup_menumeal_by_protein(sess: Session, protein: str) -> menu_meals:
+    """
+    return menu_meals object(s) meeting criteria if exists
+    """
+    if protein == 'chicken':
+        menu_meals = sess.query(menu_meals).filter(menu_meals.chicken == True).all()
+    return menu_meals if menu_meals else None
 
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
@@ -283,5 +352,10 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
+
+
+
+
 
 
