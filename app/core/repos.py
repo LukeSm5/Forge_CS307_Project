@@ -28,9 +28,17 @@ def populate_workouts(sess):
         Workouts(name='chest'),
         Workouts(name='triceps'),
         Workouts(name='shoulders'),
-        Workouts(name='legs'),
-        Workouts(name='core'),
+        Workouts(name='quads'),
+        Workouts(name='abs'),
         Workouts(name='cardio'),
+        Workouts(name='forearms'),
+        Workouts(name='obliques'),
+        Workouts(name='lower_back'),
+        Workouts(name='hamstrings'),
+        Workouts(name='glutes'),
+        Workouts(name='calves'),
+        Workouts(name='hip_flexors'),
+        Workouts(name='full_body'),
     ]
 
     for obj in w:
@@ -283,5 +291,6 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+
 
 
