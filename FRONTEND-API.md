@@ -72,3 +72,20 @@ type SubmitOnboardingEvent = {
 async function completeOnboarding(e: SubmitOnboardingEvent): Promise<boolean>
 ```
 
+## searchCardioMachine
+
+Takes a `SearchCardioMachineEvent` type, and prompts the LLM to search for cardio machines based on the user's profile and request in the search event. Returns an array of `SearchCardioMachineResponse`, which include data for each cardio machine the LLM returns to display.
+
+```ts
+type SearchCardioMachineResponse = {
+  name: string,
+  desc: string,
+};
+
+type SearchCardioMachineEvent = {
+  desc: string
+};
+
+async function searchCardioMachine(e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]>
+```
+
