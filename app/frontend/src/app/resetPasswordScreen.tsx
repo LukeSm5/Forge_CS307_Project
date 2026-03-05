@@ -1,6 +1,6 @@
 import React from 'react';
-import ResetPasswordButton from '@/components/resetPassword/resetPasswordButton';
-import ResetPasswordTextBox from '@/components/resetPassword/resetPasswordTextBox';
+import ForgeButton from '@/components/ForgeButton';
+import ForgeTextBox from '@/components/ForgeTextBox';
 import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 
@@ -50,22 +50,22 @@ const ResetPasswordScreen = () => {
     return (
         <View style = {styles.container}>
             <Text style={styles.title}>Reset Password</Text>
-            <ResetPasswordTextBox
+            <ForgeTextBox
                 label="New Password"
                 value={newPassword}
                 onChangeText={setNewPassword}
                 maxLength={20}
                 isVisible={false}
             />
-            <ResetPasswordTextBox
+            <ForgeTextBox
                 label="Confirm Password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 maxLength={20}
                 isVisible={false}
             />
-            <ResetPasswordButton onPress={handleResetPassword} title="Reset Password"/>
-            <ResetPasswordButton onPress={() => { router.back() }} title="Cancel"/>
+            <ForgeButton onPress={handleResetPassword} text="Reset Password"/>
+            <ForgeButton onPress={() => { router.back() }} text="Cancel"/>
         </View>
     );
 };
