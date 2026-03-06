@@ -37,6 +37,8 @@ import {
   C,
 } from '../mealTypes';
 
+import { api } from '../../core/api'
+
 type FilterState = Partial<Omit<MealTagSet, 'dietary'>> & { dietary: Dietary[] };
 
 type RestaurantMeal = {
@@ -414,7 +416,7 @@ export default function Diet() {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await api.searchByRestaurant(trimmed);
       setRestaurantMeals(Array.isArray(data) ? data : []);
     } catch (err) {
       setRestaurantMeals([]);
@@ -446,7 +448,7 @@ export default function Diet() {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await api.searchByProtein(protein);
       setRestaurantMeals(Array.isArray(data) ? data : []);
       setProteinFilter(protein);
     } catch (err) {
