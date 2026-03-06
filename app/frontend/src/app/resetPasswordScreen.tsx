@@ -4,10 +4,13 @@ import ForgeTextBox from '@/components/ForgeTextBox';
 import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Reset Password Screen to navigate to when the user clicks the Reset Password Button
-const BASE_URL = __DEV__ 
-    ? `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
+const BASE_URL = __DEV__
+    ? Platform.OS === 'web'
+        ? 'http://localhost:8000'
+        : `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
     : 'https://example.com';
     
 // NOTE: Not tested, may or may not work properly
@@ -19,7 +22,7 @@ const ResetPasswordScreen = () => {
 
     const resetPassword = async () => {
         try {            
-            const response = await fetch(`${BASE_URL}/reset-password`, {
+            const response = await fetch(`${BASE_URL}/auth/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
