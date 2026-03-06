@@ -1,5 +1,5 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, Tabs } from 'expo-router';
 import { Pressable } from 'react-native';
 
@@ -9,10 +9,17 @@ import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
+  focused: boolean;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return (
+    <Ionicons
+      size={24}
+      style={{ marginBottom: -2, opacity: props.focused ? 1 : 0.82 }}
+      {...props}
+    />
+  );
 }
 
 export default function TabLayout() {
@@ -22,6 +29,13 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Schemes[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor: Schemes[colorScheme ?? 'light'].tabIconDefault,
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: {
+          height: 70,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
@@ -30,17 +44,19 @@ export default function TabLayout() {
         name="index"
         options={{ 
           title: "Home",
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
+          ),
           headerRight: () => (
             <Link href="/settings" asChild>
               <Pressable>
                 {({ pressed }) => (
-                  <FontAwesome
-                  name="gear"
-                  size={24}
-                  color={Schemes[colorScheme ?? "light"].text}
-                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                />
+                  <Ionicons
+                    name="settings-outline"
+                    size={24}
+                    color={Schemes[colorScheme ?? "light"].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
               )}
             </Pressable>
           </Link>
@@ -51,21 +67,27 @@ export default function TabLayout() {
         name="workout"
         options={{
           title: 'Workout',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heartbeat" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'barbell' : 'barbell-outline'} color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="diet"
         options={{
           title: 'Diet',
-          tabBarIcon: ({ color }) => <TabBarIcon name="cutlery" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'restaurant' : 'restaurant-outline'} color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="social"
         options={{
           title: 'Social',
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+          ),
         }}
       />
     </Tabs>
