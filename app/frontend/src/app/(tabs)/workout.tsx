@@ -41,6 +41,7 @@ export default function WorkoutTabScreen() {
   const [deleteConfirmLog, setDeleteConfirmLog] = useState<LoggedWorkout | null>(null);
   const [editingLog, setEditingLog] = useState<LoggedWorkout | null>(null);
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const router = useRouter();
 
@@ -231,10 +232,34 @@ export default function WorkoutTabScreen() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredWorkoutHistory = workoutHistory.filter((log) => {
+    if (!normalizedSearchQuery) return true;
+    const matchesTitle = log.title.toLowerCase().includes(normalizedSearchQuery);
+    const matchesExercise = log.exercises.some((exercise) =>
+      exercise.exercise_name.toLowerCase().includes(normalizedSearchQuery)
+    );
+    return matchesTitle || matchesExercise;
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>My Workouts</Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <FontAwesome name="search" size={14} color="#64748b" />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search workouts"
+          placeholderTextColor="#94a3b8"
+          autoCorrect={false}
+          autoCapitalize="none"
+          clearButtonMode="while-editing"
+        />
       </View>
 
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
@@ -245,10 +270,14 @@ export default function WorkoutTabScreen() {
         )}
 
         {!loadingHistory && !historyError && workoutHistory.length === 0 && (
-          <Text style={styles.statusText}>No workout history yet.</Text>
+          <Text style={styles.statusText}>No workouts added</Text>
         )}
 
-        {!loadingHistory && !historyError && workoutHistory.map((log) => {
+        {!loadingHistory && !historyError && workoutHistory.length > 0 && filteredWorkoutHistory.length === 0 && (
+          <Text style={styles.statusText}>No workouts match "{searchQuery.trim()}".</Text>
+        )}
+
+        {!loadingHistory && !historyError && filteredWorkoutHistory.map((log) => {
           const isExpanded = expandedLogId === log.id;
           const isRunning = runningLogId === log.id;
           const elapsed = elapsedByLogSeconds[log.id] ?? 0;
@@ -439,6 +468,24 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: '700',
+  },
+  searchContainer: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#d5dee9',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 42,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0f172a',
+    paddingVertical: 0,
   },
   listContainer: {
     marginTop: 18,

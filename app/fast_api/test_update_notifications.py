@@ -30,7 +30,19 @@ class RecordingNotificationService(NotificationService):
         )
 
 
-def _build_test_client():
+class FailingNotificationService(NotificationService):
+    def send_update_notification(
+        self,
+        *,
+        recipient_email: str,
+        username: str,
+        update_type: str,
+        updated_at=None,
+    ) -> None:
+        raise RuntimeError("notification provider unavailable")
+
+
+def _build_test_client(notifier: NotificationService | None = None):
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -67,7 +79,7 @@ def _build_test_client():
     session.refresh(exercise)
     session.refresh(machine)
 
-    notifier = RecordingNotificationService()
+    notifier = notifier or RecordingNotificationService()
 
     def override_get_db():
         try:
@@ -197,5 +209,42 @@ def test_delete_workout_failure_does_not_trigger_notification():
         response = client.delete(f"/workouts/{user_id}/99999")
         assert response.status_code == 404
         assert len(notifier.calls) == 0
+    finally:
+        _teardown_test_client(session)
+
+
+def test_profile_update_succeeds_when_notification_fails():
+    client, session, _, user_id, _, _ = _build_test_client(FailingNotificationService())
+    try:
+        response = client.patch(
+            f"/accounts/{user_id}/profile",
+            json={"bio": "after update"},
+        )
+        assert response.status_code == 200
+        assert response.json()["message"] == "Profile updated (notification failed)"
+    finally:
+        _teardown_test_client(session)
+
+
+def test_create_workout_succeeds_when_notification_fails():
+    client, session, _, user_id, exercise_id, machine_id = _build_test_client(FailingNotificationService())
+    try:
+        response = client.post(
+            "/workouts",
+            json={
+                "profile_id": user_id,
+                "workout_name": "Notification fail workout",
+                "exercises": [
+                    {
+                        "exercise_id": exercise_id,
+                        "machine_id": machine_id,
+                        "sets": 2,
+                        "reps": 8,
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["workout_name"] == "Notification fail workout"
     finally:
         _teardown_test_client(session)

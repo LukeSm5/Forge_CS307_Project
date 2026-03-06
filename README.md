@@ -23,13 +23,22 @@ User Story 21 is implemented in the FastAPI backend:
 
 Email provider integration is configured with environment variables:
 - `EMAIL_NOTIFICATIONS_ENABLED` (`true`/`false`)
-- `EMAIL_PROVIDER` (`smtp`)
+- `EMAIL_PROVIDER` (`smtp` or `log`)
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_FROM_EMAIL`
 - `SMTP_USERNAME`
 - `SMTP_PASSWORD`
 - `SMTP_USE_TLS` (`true`/`false`)
+
+Quick dev setup (no real email sending, logs notification events in backend console):
+- `EMAIL_NOTIFICATIONS_ENABLED=true`
+- `EMAIL_PROVIDER=log`
+
+SMTP setup (sends real emails):
+- `EMAIL_NOTIFICATIONS_ENABLED=true`
+- `EMAIL_PROVIDER=smtp`
+- plus all `SMTP_*` variables above
 
 Trigger-focused tests are in:
 - `app/fast_api/test_update_notifications.py`

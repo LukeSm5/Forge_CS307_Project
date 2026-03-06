@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import logging
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
@@ -24,6 +25,7 @@ from app.core.auth_tokens import (
 )
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -129,12 +131,21 @@ def _send_account_update_notification(
     *,
     account: Accounts,
     update_type: str,
-) -> None:
-    notifier.send_update_notification(
-        recipient_email=account.email,
-        username=account.username,
-        update_type=update_type,
-    )
+) -> bool:
+    try:
+        notifier.send_update_notification(
+            recipient_email=account.email,
+            username=account.username,
+            update_type=update_type,
+        )
+        return True
+    except Exception:
+        logger.exception(
+            "Failed to send notification for user_id=%s update_type=%s",
+            account.UserID,
+            update_type,
+        )
+        return False
 
 @app.post("/auth/create_account", response_model=TokenResponse)
 def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db)):
@@ -164,11 +175,11 @@ def _send_profile_update_notification(
     db: Session,
     profile_id: int,
     update_type: str,
-) -> None:
+) -> bool:
     account = repos.lookup_account_by_id(db, profile_id)
     if not account:
-        return
-    _send_account_update_notification(
+        return False
+    return _send_account_update_notification(
         notifier,
         account=account,
         update_type=update_type,
@@ -199,7 +210,7 @@ def update_account_profile(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    _send_account_update_notification(
+    notification_sent = _send_account_update_notification(
         notifier,
         account=updated,
         update_type="profile updated",
@@ -209,7 +220,11 @@ def update_account_profile(
         user_id=updated.UserID,
         email=updated.email,
         username=updated.username,
-        message="Profile updated and notification sent",
+        message=(
+            "Profile updated and notification sent"
+            if notification_sent
+            else "Profile updated (notification failed)"
+        ),
     )
 
 
@@ -239,12 +254,19 @@ def change_account_password(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    _send_account_update_notification(
+    notification_sent = _send_account_update_notification(
         notifier,
         account=account,
         update_type="password changed",
     )
-    return {"ok": True, "message": "Password changed and notification sent"}
+    return {
+        "ok": True,
+        "message": (
+            "Password changed and notification sent"
+            if notification_sent
+            else "Password changed (notification failed)"
+        ),
+    }
 
 
 
