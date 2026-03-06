@@ -5,12 +5,12 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
-from app.core.db import Base
+from app.core.session import get_db
 from app.core.seed import engine
 
 from app.core.db import Workouts, workout_exercises, Exercises
 from app.core.db import Accounts
-from app.core import repos
+from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.core.seed import SessionLocal
 from app.fast_api import account_management as am
@@ -34,14 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+session.Base.metadata.create_all(bind=engine)
 
 def get_current_account(
     authorization: str = Header(None),

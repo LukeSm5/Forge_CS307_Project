@@ -9,6 +9,7 @@ fastapi = "*"
 python-jose = "*"
 pandas = "*"
 dotenv = "*"
+uvicorn = "*"
 
 [dev-packages]
 
