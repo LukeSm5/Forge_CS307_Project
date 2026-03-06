@@ -56,6 +56,19 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+
+  if (res.ok) return (await res.json()) as T;
+
+  const data = await res.json().catch(() => ({}));
+  throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+}
+
 const TEST_USER: User = {
   profile_id: 1,
   email: 'tester@forge307.dev',
@@ -73,8 +86,8 @@ export const api = {
   addWorkoutLog: async (payload: CreateWorkoutLogRequest): Promise<CreateWorkoutLogResponse> => {
     return post<CreateWorkoutLogResponse>('/workouts', payload);
   },
-  me: async (): Promise<User | undefined> => { 
-    return TEST_USER;
+  me: async (): Promise<User | undefined> => {
+    return get<User>('/auth/me');
   },
   register: async (e: ApiEvent): Promise<User | undefined> => {
     return TEST_USER;
@@ -84,27 +97,41 @@ export const api = {
       access_token: 'API.LOGIN DEMO TOKEN'
     };
   },
-  updateMe: async (e: ApiEvent): Promise<User | undefined> => {
-    return TEST_USER;
+  updateMe: async (e: { username?: string; bio?: string }): Promise<User | undefined> => {
+    const me = await api.me();
+    if (!me) throw new Error("User not signed in.");
+
+    const updated = await patch<{ user_id: number; email: string; username: string }>(
+      `/accounts/${me.profile_id}/profile`,
+      e
+    );
+
+    return {
+      profile_id: updated.user_id,
+      email: updated.email,
+      username: updated.username,
+      bio: e.bio ?? me.bio ?? "",
+    };
   },
-  changePassword: async (e: ApiEvent): Promise<User | undefined> => {
-    return TEST_USER;
+  changePassword: async (e: { current_password: string; new_password: string }): Promise<User | undefined> => {
+    const me = await api.me();
+    if (!me) throw new Error("User not signed in.");
+
+    await post<{ ok: boolean; message?: string }>(`/accounts/${me.profile_id}/change_password`, e);
+    return me;
   },
   submitOnboarding: async (e: SubmitOnboardingEvent): Promise<boolean> => {
     return true;
   },
-  // TODO: add this lol!
   getExercises: async (): Promise<Record<string, number>> => {
-    return {
-      'Bicep Curls': 0,
-      'Bench Press': 1,
-      'Leg Extensions': 2,
-      'Barbell Squat': 3,
-      'Cable Rows': 4,
-      'Preacher Curls': 5,
-      'Tricep Extensions': 6,
-      'JM Press': 7
-    };
+    const rows = await get<ExerciseLookupRow[]>('/exercises');
+    return rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.name] = row.exercise_id;
+      return acc;
+    }, {});
+  },
+  getMachines: async (): Promise<MachineLookupRow[]> => {
+    return get<MachineLookupRow[]>('/machines');
   },
   searchCardioMachine: async (e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]> => {
     // Prompt LLM with user object goals and cardio machie description
@@ -179,6 +206,16 @@ export type SearchCardioMachineResponse = {
 
 export type SearchCardioMachineEvent = {
   desc: string
+};
+
+export type ExerciseLookupRow = {
+  exercise_id: number;
+  name: string;
+};
+
+export type MachineLookupRow = {
+  machine_id: number;
+  name: string;
 };
 
 export type WorkoutExerciseLog = {

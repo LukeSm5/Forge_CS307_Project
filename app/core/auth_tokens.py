@@ -23,11 +23,11 @@ def utcnow() -> datetime:
 
 
 def create_access_token(*, user_id: int, minutes: int = ACCESS_TOKEN_MINUTES) -> str:
-    now = now()
+    current_time = now()
     payload: dict[str, Any] = {
         "sub": str(user_id),
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=minutes)).timestamp()),
+        "iat": int(current_time.timestamp()),
+        "exp": int((current_time + timedelta(minutes=minutes)).timestamp()),
         "type": "access",
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)

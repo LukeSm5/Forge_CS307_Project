@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
@@ -48,6 +49,12 @@ export default function WorkoutTabScreen() {
   useEffect(() => {
     loadWorkoutHistory();
   }, [profileId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadWorkoutHistory();
+    }, [profileId])
+  );
 
   async function loadWorkoutHistory() {
     setLoadingHistory(true);

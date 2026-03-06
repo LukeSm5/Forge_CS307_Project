@@ -4,6 +4,7 @@ import Slider from "@react-native-community/slider";
 import { Text } from "@/components/Themed";
 import { useAccessibility } from "@/core/accessibility";
 import { api, setToken, User } from "@/core/api";
+import { useAuth } from "@/core/auth";
 import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
 type Status = { type: "ok" | "err"; msg: string } | null;
 function ModeButton({
@@ -94,6 +95,7 @@ function ActionButton({
 }
 export default function SettingsScreen() {
   const { colorMode, setColorMode, textScale, setTextScale } = useAccessibility();
+  const { currentUser, setCurrentUser, setLoggedIn } = useAuth();
   const [status, setStatus] = useState<Status>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
@@ -182,7 +184,11 @@ export default function SettingsScreen() {
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
         <Text style={[styles.helper, { marginBottom: 12 }]}>
-          {user ? `Signed in as ${user.username} (${user.email})` : ""}
+          {currentUser
+            ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
+            : user
+              ? `Signed in as ${user.username} (${user.email})`
+              : ""}
         </Text>
         <Text style={styles.sectionTitle}>Profile</Text>
         <Field label="Username" value={pUsername} onChangeText={setPUsername} placeholder="New username" />
@@ -202,6 +208,8 @@ export default function SettingsScreen() {
               onDeleted={() => {
                 setToken(null);
                 setUser(null);
+                setCurrentUser(null);
+                setLoggedIn(false);
                 setStatus({ type: "ok", msg: "Account deleted." });
               }}
             />

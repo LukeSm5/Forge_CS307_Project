@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -127,8 +128,16 @@ def authenticate_user(db: Session, User, *, email: str, password: str):
     user = get_user_by_email(db, User, email)
     if not user:
         raise InvalidCredentials()
-    if not verify_password(password, user.password_hash):
-        raise InvalidCredentials()
+    try:
+        if not verify_password(password, user.password_hash):
+            raise InvalidCredentials()
+    except UnknownHashError:
+        # Backward-compatibility: migrate legacy plain-text passwords.
+        if password != user.password_hash:
+            raise InvalidCredentials()
+        user.password_hash = hash_password(password)
+        db.add(user)
+        db.commit()
     return user
 
 

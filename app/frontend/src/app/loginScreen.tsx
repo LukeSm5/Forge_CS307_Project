@@ -4,13 +4,22 @@ import LoginTextBox from '../components/ForgeTextBox';
 import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { useAuth } from '@/core/auth';
+import { setToken } from '@/core/api';
 
-const BASE_URL = __DEV__ 
-    ? `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
-    : 'https://example.com';
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const BASE_URL =
+    process.env.EXPO_PUBLIC_API_BASE_URL ??
+    (Platform.OS === 'web'
+        ? 'http://localhost:8000'
+        : expoHost
+            ? `http://${expoHost}:8000`
+            : 'http://localhost:8000');
 
 const LoginScreen = () => {
     const router = useRouter();
+    const { setLoggedIn, setCurrentUser } = useAuth();
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
 
@@ -24,16 +33,28 @@ const LoginScreen = () => {
                     password: password
                 })
             });
-            const data = await response.json();
+            const raw = await response.text();
+            let data: any = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch {
+                data = {};
+            }
             if (!response.ok) {
-                alert(`Error: ${data.detail}`);
+                alert(`Error: ${data?.detail ?? raw ?? 'Request failed'}`);
             } else {
                 console.log(data.access_token);
                 console.log(data.refresh_token);
+                setToken(data.access_token ?? null);
+                setCurrentUser({
+                    email: email,
+                    username: email.split('@')[0],
+                });
+                setLoggedIn(true);
                 router.push('/(tabs)')
             }
         } catch (error) {
-            alert('Server did not connect properly.');
+            alert(`Server did not connect properly. API: ${BASE_URL}`);
         }
     }
     return (
@@ -52,7 +73,7 @@ const LoginScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
-            <LoginButton onPress={() => router.push('/(tabs)')} text="Login"/>
+            <LoginButton onPress={handleLogin} text="Login"/>
             <LoginButton onPress={() => router.push('/createAccountScreen')} text="Create Account"/>
             <LoginButton onPress={() => router.push('/resetPasswordScreen')} text="Reset Password"/>
         </View>
