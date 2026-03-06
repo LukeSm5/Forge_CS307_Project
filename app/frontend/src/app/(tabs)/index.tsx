@@ -217,7 +217,7 @@ export default function CalendarScreen() {
       />
 
       <View style={styles.rowBetween}>
-        <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
+        <Text style={styles.listHeaderText}>{`Scheduled for ${selectedDate}`}</Text>
 
         <Pressable style={styles.addButton} onPress={openAdd}>
           <Text style={styles.addButtonText}>+ Add workout</Text>
