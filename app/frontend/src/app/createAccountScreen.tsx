@@ -53,7 +53,7 @@ const CreateAccountScreen = () => {
                     username: username,
                 });
                 setLoggedIn(true);
-                router.push('/(tabs)')
+                router.push('/(tabs)/onboarding');
             }
         } catch (error) {
             console.log('Full error:', error);
