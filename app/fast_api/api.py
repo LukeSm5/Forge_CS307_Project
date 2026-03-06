@@ -59,7 +59,7 @@ def get_current_account(
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
-    user_id: int
+    user_email: str
 
 class WorkoutExerciseIn(BaseModel):
     exercise_id: int
@@ -97,6 +97,12 @@ class WorkoutOut(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class CreateAccountRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+    bio: Optional[str] = None
 
 class RefreshRequest(BaseModel):
     refresh_token: str
@@ -137,6 +143,27 @@ def _send_account_update_notification(
         update_type=update_type,
     )
 
+@app.post("/auth/create_account", response_model=TokenResponse)
+def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db)):
+    new_account = Accounts(
+        email=payload.email,
+        username=payload.username,
+        password=payload.password,
+        bio=payload.bio
+    )
+    db.add(new_account)
+    db.commit()
+    db.refresh(new_account)
+    access = create_access_token(user_id=new_account.UserID)
+    refresh = generate_refresh_token()
+
+    new_account.refresh_token_hash = hash_refresh_token(refresh)
+    new_account.refresh_expires_at = refresh_expiry()
+
+    db.add(new_account)
+    db.commit()
+
+    return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
 def _send_profile_update_notification(
     notifier: NotificationService,
@@ -288,10 +315,10 @@ def logout(me: Accounts = Depends(get_current_account), db: Session = Depends(ge
     db.commit()
     return {"ok": True}
 
-"""
-@app.post("/accounts/{user_id}/reset_password")
+
+@app.post("/auth/reset_password")
 async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session):
-    user = session.get(Accounts, request.user_id)
+    user = session.query(Accounts).filter(Accounts.email == request.user_email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -303,7 +330,7 @@ async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-"""
+
 def resetPassword(user, newPassword, session):
     if (not isinstance(user, Accounts)):
         raise TypeError("User must be an instance of Accounts")
@@ -474,4 +501,4 @@ def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
 
 @app.get("/meals/protein/{protein}")
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
-    return repos.lookup_menumeal_by_protein(db, protein)
+    return repos.lookup_menumeal_by_restaurant(db, protein)
