@@ -78,7 +78,7 @@ const LoginScreen = () => {
                 value={password}
                 onChangeText={setPassword}
                 maxLength={20}
-                isVisible={false}
+                isVisible={true}
             />
             <Pressable
             onPress={() => setRememberMe(prev => !prev)}
