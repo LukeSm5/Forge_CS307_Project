@@ -421,7 +421,7 @@ export default function Diet() {
     } catch (err) {
       setRestaurantMeals([]);
       setRestaurantError(
-        'Could not load restaurant meals. Check that your API is running and reachable from the app.'
+        'Could not load menu meals. Check that your API is running and reachable from the app.'
       );
     } finally {
       setRestaurantLoading(false);
@@ -734,7 +734,7 @@ export default function Diet() {
           onPress={() => {
             setProteinFilter(null);
           }}
-          text={'Clear Protein Filter'}
+          text={'Clear'}
         />
       </SectionCard>
     </ScrollView>

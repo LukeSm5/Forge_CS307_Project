@@ -10,6 +10,8 @@ python-jose = "*"
 pandas = "*"
 dotenv = "*"
 uvicorn = "*"
+psycopg2-binary = "*"
+passlib = "*"
 
 [dev-packages]
 
