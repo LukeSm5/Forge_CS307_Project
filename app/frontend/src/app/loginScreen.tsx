@@ -30,7 +30,6 @@ const LoginScreen = () => {
             } else {
                 console.log(data.access_token);
                 console.log(data.refresh_token);
-                router.push('/homeScreen');
             }
         } catch (error) {
             alert('Server did not connect properly.');
