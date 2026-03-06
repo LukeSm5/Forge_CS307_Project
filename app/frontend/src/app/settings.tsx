@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, Pressable, TextInput, ScrollView, ActivityIndicator } from "react-native";
 import Slider from "@react-native-community/slider";
-
 import { Text } from "@/components/Themed";
-import { useAccessibility, ColorMode } from "@/core/accessibility";
+import { useAccessibility } from "@/core/accessibility";
 import { api, setToken, User } from "@/core/api";
 import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
 type Status = { type: "ok" | "err"; msg: string } | null;
@@ -98,12 +97,6 @@ export default function SettingsScreen() {
   const [status, setStatus] = useState<Status>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-  const [rEmail, setREmail] = useState("");
-  const [rUsername, setRUsername] = useState("");
-  const [rPassword, setRPassword] = useState("");
-  const [rBio, setRBio] = useState("");
-  const [lEmail, setLEmail] = useState("");
-  const [lPassword, setLPassword] = useState("");
   const [pUsername, setPUsername] = useState("");
   const [pBio, setPBio] = useState("");
   const [cCurrent, setCCurrent] = useState("");
@@ -126,45 +119,6 @@ export default function SettingsScreen() {
   useEffect(() => {
     refreshMe();
   }, []);
-  async function doRegister() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      const created = await api.register({
-        email: rEmail,
-        username: rUsername,
-        password: rPassword,
-        bio: rBio || "",
-      });
-      if (typeof created === "undefined") throw new Error("Registration failed");
-      setStatus({ type: "ok", msg: `Registered ${created.username}. Now log in.` });
-      setREmail(""); setRUsername(""); setRPassword(""); setRBio("");
-    } catch (e: any) {
-      setStatus({ type: "err", msg: e.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-  async function doLogin() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      const tok = await api.login({ email: lEmail, password: lPassword });
-      if (typeof tok.access_token === "undefined") throw new Error("Invalid Login");
-      setToken(tok.access_token);
-      setStatus({ type: "ok", msg: "Logged in." });
-      await refreshMe();
-    } catch (e: any) {
-      setStatus({ type: "err", msg: e.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-  function doLogout() {
-    setToken(null);
-    setUser(null);
-    setStatus({ type: "ok", msg: "Logged out." });
-  }
   async function doUpdateProfile() {
     setLoading(true);
     setStatus(null);
@@ -198,9 +152,7 @@ export default function SettingsScreen() {
       <View style={styles.container}>
         <StatusBanner status={status} />
         <Text style={styles.pageTitle}>Settings</Text>
-
         <SectionHeader title="Appearance" />
-
         <Text style={styles.sectionTitle}>Theme</Text>
         <View style={styles.modeRow}>
           <ModeButton label="System" selected={colorMode === "system"} onPress={() => setColorMode("system")} />
@@ -230,34 +182,18 @@ export default function SettingsScreen() {
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
         <Text style={[styles.helper, { marginBottom: 12 }]}>
-          {user
-            ? `Signed in as ${user.username} (${user.email})`
-            : "Not signed in."}
+          {user ? `Signed in as ${user.username} (${user.email})` : ""}
         </Text>
-        <Text style={styles.sectionTitle}>Register</Text>
-        <Field label="Email"    value={rEmail}    onChangeText={setREmail}    placeholder="you@example.com" />
-        <Field label="Username" value={rUsername} onChangeText={setRUsername} placeholder="username_123" />
-        <Field label="Password" value={rPassword} onChangeText={setRPassword} placeholder="8+ chars" secureTextEntry />
-        <Field label="Bio"      value={rBio}      onChangeText={setRBio}      placeholder="Optional" multiline />
-        <ActionButton label="Register" onPress={doRegister} disabled={loading} />
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Login</Text>
-        <Field label="Email"    value={lEmail}    onChangeText={setLEmail}    placeholder="you@example.com" />
-        <Field label="Password" value={lPassword} onChangeText={setLPassword} secureTextEntry />
-        <View style={styles.rowBtns}>
-          <ActionButton label="Login"   onPress={doLogin}   disabled={loading} />
-          <ActionButton label="Refresh" onPress={refreshMe} disabled={loading} variant="secondary" />
-          <ActionButton label="Logout"  onPress={doLogout}  disabled={loading} variant="secondary" />
-        </View>
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Update Profile</Text>
-        {!user && <Text style={styles.helper}>Log in to edit your profile.</Text>}
+        <Text style={styles.sectionTitle}>Profile</Text>
         <Field label="Username" value={pUsername} onChangeText={setPUsername} placeholder="New username" />
         <Field label="Bio"      value={pBio}      onChangeText={setPBio}      placeholder="Bio (≤280 chars)" multiline />
-        <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading || !user} />
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Change Password</Text>
-        {!user && <Text style={styles.helper}>Log in to change your password.</Text>}
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Change Password</Text>
         <Field label="Current password" value={cCurrent} onChangeText={setCCurrent} secureTextEntry />
         <Field label="New password"     value={cNew}     onChangeText={setCNew}     secureTextEntry />
-        <ActionButton label="Change Password" onPress={doChangePassword} disabled={loading || !user} />}
+        <View style={styles.rowBtns}>
+          <ActionButton label="Save Profile"    onPress={doUpdateProfile}   disabled={loading} />
+          <ActionButton label="Change Password" onPress={doChangePassword}  disabled={loading || !cCurrent || !cNew} variant="secondary" />
+        </View>
         {user && (
           <View style={{ marginTop: 20 }}>
             <Text style={styles.sectionTitle}>Danger Zone</Text>
@@ -275,6 +211,7 @@ export default function SettingsScreen() {
     </ScrollView>
   );
 }
+// Style
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   container: { flex: 1, padding: 16 },
