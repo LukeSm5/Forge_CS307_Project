@@ -7,11 +7,10 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
 } from 'react-native';
 
 import ForgeButton from '@/components/ForgeButton'; // Adjust path if needed
-import { Text } from '@/components/Themed';
+import { Text, View } from '@/components/Themed';
 import {
   TaggedMeal,
   MealTagSet,
@@ -93,13 +92,13 @@ function Pill({
       style={({ pressed }) => [
         styles.pill,
         {
-          borderColor: active ? color : '#2d3748',
-          backgroundColor: active ? colorWithAlpha(color, '24') : '#15181f',
+          borderColor: active ? color : '#d4d8e1',
+          backgroundColor: active ? colorWithAlpha(color, '24') : '#ffffff',
           opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
-      <Text style={[styles.pillText, { color: active ? color : '#d1d5db' }]}>
+      <Text style={[styles.pillText, { color: active ? color : '#2e2f30' }]}>
         {icon ? `${icon} ${formatLabel(label)}` : formatLabel(label)}
       </Text>
     </Pressable>
@@ -743,7 +742,7 @@ export default function Diet() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: C?.bg ?? '#0b0d12',
+    backgroundColor: C?.bg ?? '#ffffff',
   },
   content: {
     padding: 20,
@@ -759,28 +758,28 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   pageTitle: {
-    color: C?.text ?? '#f9fafb',
+    color: C?.text ?? '#000000',
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 4,
   },
   sectionCard: {
-    backgroundColor: C?.surface ?? '#11151c',
+    backgroundColor: C?.surface ?? '#ffffff',
     borderWidth: 1,
-    borderColor: C?.border ?? '#232834',
+    borderColor: C?.border ?? '#ffffff',
     borderRadius: 16,
     padding: 16,
     gap: 14,
   },
   sectionEyebrow: {
-    color: C?.muted ?? '#9ca3af',
+    color: C?.muted ?? '#5a5757',
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
   inputLabel: {
-    color: C?.muted ?? '#9ca3af',
+    color: C?.muted ?? '#666b75',
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -789,16 +788,16 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     borderWidth: 1.5,
-    borderColor: C?.border ?? '#2a3140',
+    borderColor: C?.border ?? '#8a93a7',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: C?.text ?? '#f9fafb',
-    backgroundColor: '#121720',
+    color: C?.text ?? '#000000',
+    backgroundColor: '#ffffff',
     fontSize: 15,
   },
   sectionLabel: {
-    color: C?.text ?? '#f9fafb',
+    color: C?.text ?? '#000000',
     fontSize: 15,
     fontWeight: '700',
     marginTop: 4,
@@ -844,9 +843,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   mealCard: {
-    backgroundColor: '#0f131a',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: C?.border ?? '#232834',
+    borderColor: C?.border ?? '#898f9f',
     borderRadius: 14,
     padding: 14,
     gap: 12,
@@ -857,7 +856,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mealCardTitle: {
-    color: C?.text ?? '#f9fafb',
+    color: C?.text ?? '#000000',
     fontSize: 18,
     fontWeight: '800',
     flex: 1,
@@ -866,14 +865,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   resultsLabel: {
-    color: C?.muted ?? '#9ca3af',
+    color: C?.muted ?? '#40454e',
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   emptyText: {
-    color: '#9ca3af',
+    color: '#474d56',
     fontSize: 14,
     lineHeight: 20,
   },
@@ -897,9 +896,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   restaurantMealRow: {
-    backgroundColor: '#0f131a',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: C?.border ?? '#232834',
+    borderColor: C?.border ?? '#9199ab',
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -912,13 +911,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   restaurantMealName: {
-    color: C?.text ?? '#f9fafb',
+    color: C?.text ?? '#000000',
     fontSize: 15,
     fontWeight: '700',
     flex: 1,
   },
   restaurantMealProtein: {
-    color: C?.muted ?? '#9ca3af',
+    color: C?.muted ?? '#434850',
     fontSize: 13,
     fontWeight: '600',
   },
