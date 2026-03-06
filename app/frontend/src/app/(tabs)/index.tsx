@@ -7,19 +7,48 @@ import {
   TextInput,
   Pressable,
   Alert,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Text } from "@/components/Themed";
+
+type ExerciseItem = {
+  id: string;
+  name: string;
+  sets: string;
+  reps: string;
+};
 
 type CalendarItem = {
   id: string;
   title: string;
   time?: string;
+  exercises?: ExerciseItem[];
 };
 
 const INITIAL_DATA: Record<string, CalendarItem[]> = {
-  "2026-02-22": [{ id: "1", title: "Push workout", time: "6:00 PM" }],
-  "2026-02-23": [{ id: "3", title: "Legs workout", time: "5:30 PM" }],
+  "2026-02-22": [
+    {
+      id: "1",
+      title: "Push workout",
+      time: "6:00 PM",
+      exercises: [
+        { id: "e1", name: "Bench Press", sets: "3", reps: "10" },
+      ],
+    },
+  ],
+  "2026-02-23": [
+    {
+      id: "3",
+      title: "Legs workout",
+      time: "5:30 PM",
+      exercises: [
+        { id: "e2", name: "Squat", sets: "4", reps: "8" },
+      ],
+    },
+  ],
 };
 
 const SUGGESTED_WORKOUTS = [
@@ -32,17 +61,29 @@ const SUGGESTED_WORKOUTS = [
   "Rest day",
 ];
 
+function formatTime(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function CalendarScreen() {
   const today = new Date().toISOString().slice(0, 10);
 
   const [selectedDate, setSelectedDate] = useState(today);
-
   const [eventsByDate, setEventsByDate] =
     useState<Record<string, CalendarItem[]>>(INITIAL_DATA);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newTime, setNewTime] = useState("");
+  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [includeTime, setIncludeTime] = useState(true);
+
+  const [exerciseName, setExerciseName] = useState("");
+  const [exerciseSets, setExerciseSets] = useState("");
+  const [exerciseReps, setExerciseReps] = useState("");
+  const [extraExercises, setExtraExercises] = useState<ExerciseItem[]>([]);
 
   const itemsForDay = eventsByDate[selectedDate] ?? [];
 
@@ -66,7 +107,12 @@ export default function CalendarScreen() {
 
   function openAdd() {
     setNewTitle("");
-    setNewTime("");
+    setSelectedTime(new Date());
+    setIncludeTime(true);
+    setExerciseName("");
+    setExerciseSets("");
+    setExerciseReps("");
+    setExtraExercises([]);
     setIsAddOpen(true);
   }
 
@@ -74,19 +120,64 @@ export default function CalendarScreen() {
     setIsAddOpen(false);
   }
 
+  function addExerciseField() {
+    if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
+      Alert.alert(
+        "Missing exercise info",
+        "Enter exercise name, sets, and reps before adding it."
+      );
+      return;
+    }
+
+    const newExercise: ExerciseItem = {
+      id: `${Date.now()}`,
+      name: exerciseName.trim(),
+      sets: exerciseSets.trim(),
+      reps: exerciseReps.trim(),
+    };
+
+    setExtraExercises((prev) => [...prev, newExercise]);
+    setExerciseName("");
+    setExerciseSets("");
+    setExerciseReps("");
+  }
+
+  function removeExerciseField(id: string) {
+    setExtraExercises((prev) => prev.filter((exercise) => exercise.id !== id));
+  }
+
   function addWorkout() {
     const title = newTitle.trim();
-    const time = newTime.trim();
 
     if (!title) {
       Alert.alert("Missing workout name", "Please enter a workout name.");
       return;
     }
 
+    const exercises: ExerciseItem[] = [...extraExercises];
+
+    if (exerciseName.trim() || exerciseSets.trim() || exerciseReps.trim()) {
+      if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
+        Alert.alert(
+          "Incomplete exercise",
+          "Finish the current exercise or clear it before saving."
+        );
+        return;
+      }
+
+      exercises.push({
+        id: `${Date.now()}-current`,
+        name: exerciseName.trim(),
+        sets: exerciseSets.trim(),
+        reps: exerciseReps.trim(),
+      });
+    }
+
     const item: CalendarItem = {
       id: `${Date.now()}`,
       title,
-      time: time || undefined,
+      time: includeTime ? formatTime(selectedTime) : undefined,
+      exercises,
     };
 
     setEventsByDate((prev) => {
@@ -144,64 +235,171 @@ export default function CalendarScreen() {
             onLongPress={() =>
               Alert.alert("Delete", "Remove this workout from the calendar?", [
                 { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => deleteItem(item.id) },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => deleteItem(item.id),
+                },
               ])
             }
           >
             <View style={styles.card}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               {!!item.time && <Text style={styles.cardTime}>{item.time}</Text>}
+
+              {!!item.exercises?.length && (
+                <View style={styles.exerciseList}>
+                  {item.exercises.map((exercise) => (
+                    <View key={exercise.id} style={styles.exerciseRow}>
+                      <Text style={styles.exerciseName}>{exercise.name}</Text>
+                      <Text style={styles.exerciseMeta}>
+                        {exercise.sets} sets × {exercise.reps} reps
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <Text style={styles.hint}>Long-press to delete</Text>
             </View>
           </Pressable>
         )}
       />
 
-      {/* Add Workout Modal */}
       <Modal visible={isAddOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add workout</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Add workout</Text>
 
-            <Text style={styles.label}>Workout name</Text>
-            <TextInput
-              style={styles.input}
-              value={newTitle}
-              onChangeText={setNewTitle}
-              placeholder="e.g., Push workout"
-              autoCapitalize="sentences"
-            />
+              <Text style={styles.label}>Workout name</Text>
+              <TextInput
+                style={styles.input}
+                value={newTitle}
+                onChangeText={setNewTitle}
+                placeholder="e.g., Push workout"
+                autoCapitalize="sentences"
+              />
 
-            <View style={styles.suggestionsRow}>
-              {SUGGESTED_WORKOUTS.slice(0, 4).map((w) => (
+              <View style={styles.suggestionsRow}>
+                {SUGGESTED_WORKOUTS.slice(0, 4).map((w) => (
+                  <Pressable
+                    key={w}
+                    style={styles.suggestionChip}
+                    onPress={() => setNewTitle(w)}
+                  >
+                    <Text style={styles.suggestionText}>{w}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Time</Text>
+              <Pressable
+                style={[
+                  styles.timeToggle,
+                  includeTime ? styles.timeToggleActive : null,
+                ]}
+                onPress={() => setIncludeTime((prev) => !prev)}
+              >
+                <Text style={styles.timeToggleText}>
+                  {includeTime
+                    ? `Selected time: ${formatTime(selectedTime)}`
+                    : "Tap to add a time"}
+                </Text>
+              </Pressable>
+
+              {includeTime && (
+                <View style={styles.pickerWrapper}>
+                  <DateTimePicker
+                    value={selectedTime}
+                    mode="time"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={(_, pickedTime) => {
+                      if (pickedTime) {
+                        setSelectedTime(pickedTime);
+                      }
+                    }}
+                  />
+                </View>
+              )}
+
+              <Text style={styles.sectionHeader}>Exercises</Text>
+
+              {!!extraExercises.length && (
+                <View style={styles.savedExercisesWrap}>
+                  {extraExercises.map((exercise) => (
+                    <View key={exercise.id} style={styles.savedExerciseCard}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.exerciseName}>{exercise.name}</Text>
+                        <Text style={styles.exerciseMeta}>
+                          {exercise.sets} sets × {exercise.reps} reps
+                        </Text>
+                      </View>
+
+                      <Pressable
+                        style={styles.removeExerciseBtn}
+                        onPress={() => removeExerciseField(exercise.id)}
+                      >
+                        <Text style={styles.removeExerciseText}>Remove</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.label}>Exercise name</Text>
+              <TextInput
+                style={styles.input}
+                value={exerciseName}
+                onChangeText={setExerciseName}
+                placeholder="e.g., Bench Press"
+                autoCapitalize="words"
+              />
+
+              <View style={styles.exerciseInputRow}>
+                <View style={styles.exerciseInputCol}>
+                  <Text style={styles.label}>Sets</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={exerciseSets}
+                    onChangeText={setExerciseSets}
+                    placeholder="3"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.exerciseInputCol}>
+                  <Text style={styles.label}>Reps</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={exerciseReps}
+                    onChangeText={setExerciseReps}
+                    placeholder="10"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <Pressable style={styles.addExerciseInlineButton} onPress={addExerciseField}>
+                <Text style={styles.addButtonText}>+ Add exercise</Text>
+              </Pressable>
+
+              <View style={styles.modalActions}>
                 <Pressable
-                  key={w}
-                  style={styles.suggestionChip}
-                  onPress={() => setNewTitle(w)}
+                  style={[styles.actionBtn, styles.cancelBtn]}
+                  onPress={closeAdd}
                 >
-                  <Text style={styles.suggestionText}>{w}</Text>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
-              ))}
-            </View>
 
-            <Text style={styles.label}>Time (optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={newTime}
-              onChangeText={setNewTime}
-              placeholder="e.g., 6:00 PM"
-              autoCapitalize="none"
-            />
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.actionBtn, styles.cancelBtn]} onPress={closeAdd}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable style={[styles.actionBtn, styles.saveBtn]} onPress={addWorkout}>
-                <Text style={styles.saveText}>Save</Text>
-              </Pressable>
-            </View>
+                <Pressable
+                  style={[styles.actionBtn, styles.saveBtn]}
+                  onPress={addWorkout}
+                >
+                  <Text style={styles.saveText}>Save workout</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -230,6 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#2f80ed",
   },
+
   addButtonText: { color: "white", fontWeight: "700" },
 
   emptyText: { marginTop: 10, opacity: 0.7 },
@@ -241,8 +440,32 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.15)",
     marginBottom: 10,
   },
+
   cardTitle: { fontSize: 16, fontWeight: "600" },
   cardTime: { marginTop: 4, opacity: 0.7 },
+
+  exerciseList: {
+    marginTop: 10,
+  },
+
+  exerciseRow: {
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+
+  exerciseName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  exerciseMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    opacity: 0.7,
+  },
+
   hint: { marginTop: 8, opacity: 0.5, fontSize: 12 },
 
   modalBackdrop: {
@@ -252,16 +475,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 16,
   },
+
   modalCard: {
     width: "100%",
     maxWidth: 480,
+    maxHeight: "90%",
     borderRadius: 14,
     padding: 16,
     backgroundColor: "white",
   },
+
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
 
-  label: { fontSize: 14, fontWeight: "600", marginTop: 8, marginBottom: 6 },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 8,
+    marginBottom: 6,
+  },
+
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 18,
+    marginBottom: 8,
+  },
+
   input: {
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.2)",
@@ -276,6 +515,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+
   suggestionChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -284,15 +524,94 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.15)",
     backgroundColor: "rgba(0,0,0,0.03)",
   },
+
   suggestionText: { fontSize: 12, fontWeight: "600" },
+
+  timeToggle: {
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.2)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "white",
+  },
+
+  timeToggleActive: {
+    borderColor: "#2f80ed",
+    backgroundColor: "rgba(47,128,237,0.06)",
+  },
+
+  timeToggleText: {
+    fontSize: 14,
+  },
+
+  pickerWrapper: {
+    marginTop: 10,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#f7f7f7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  savedExercisesWrap: {
+    marginBottom: 8,
+  },
+
+  savedExerciseCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+
+  removeExerciseBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+
+  removeExerciseText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  exerciseInputRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  exerciseInputCol: {
+    flex: 1,
+  },
+
+  addExerciseInlineButton: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#27ae60",
+    alignItems: "center",
+  },
 
   modalActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 10,
-    marginTop: 16,
+    marginTop: 18,
+    marginBottom: 4,
   },
-  actionBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+
+  actionBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+
   cancelBtn: { backgroundColor: "rgba(0,0,0,0.08)" },
   saveBtn: { backgroundColor: "#2f80ed" },
   cancelText: { fontWeight: "700" },
