@@ -7,6 +7,8 @@ import { api, setToken, User } from "@/core/api";
 import { useAuth } from "@/core/auth";
 import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
 type Status = { type: "ok" | "err"; msg: string } | null;
+import DeleteAccountBanner from '@/components/deleteAccount/DeleteAccountBanner';
+import { useRouter } from 'expo-router';
 function ModeButton({
   label,
   selected,
@@ -103,6 +105,7 @@ export default function SettingsScreen() {
   const [pBio, setPBio] = useState("");
   const [cCurrent, setCCurrent] = useState("");
   const [cNew, setCNew] = useState("");
+  const [accountDeleted, setAccountDeleted] = useState(false);
   async function refreshMe() {
     setLoading(true);
     setStatus(null);
@@ -151,6 +154,10 @@ export default function SettingsScreen() {
   }
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
+      <DeleteAccountBanner
+        visible={accountDeleted}
+        onFinished={() => router.replace('/login')}
+      />
       <View style={styles.container}>
         <StatusBanner status={status} />
         <Text style={styles.pageTitle}>Settings</Text>
