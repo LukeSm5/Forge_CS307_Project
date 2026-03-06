@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, Text, ForeignKey, Float, DateTime
+    Column, Integer, Text, ForeignKey, Float, DateTime, Boolean
 )
 from app.core.session import Base
 
@@ -208,4 +208,5 @@ class menu_meals(Base):
     trans_fat_g	= Column(Float)
     cholesterol_mg	= Column(Float)
     sodium_mg = Column(Float)
+    chicken = Column(Boolean)
 

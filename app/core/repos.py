@@ -211,8 +211,8 @@ def lookup_menumeal_by_restaurant(sess: Session, restaurant: str) -> menu_meals:
     """
     return menu_meals object(s) meeting criteria if exists
     """
-    menu_meals = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
-    return menu_meals if menu_meals else None
+    results = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
+    return results if results else []
 
 
 def lookup_menumeal_by_protein(sess: Session, protein: str) -> menu_meals:

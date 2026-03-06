@@ -571,7 +571,7 @@ def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
 
 @app.get("/meals/protein/{protein}")
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
-    return repos.lookup_menumeal_by_restaurant(db, protein)
+    return repos.lookup_menumeal_by_protein(db, protein)
 
 
 if __name__ == "__main__":
