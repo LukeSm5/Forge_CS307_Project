@@ -286,7 +286,7 @@ export default function AddWorkoutScreen({ editing }: AddScreenProps) {
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
 
       {exerciseList.length == 0 && <Text>No exercises added</Text>}
-      {exerciseList.map((e, idx) => (<>
+      {exerciseList.map((e, idx) => (
         <View key={idx} style={{
           width: "100%",
           padding: 15,
@@ -305,7 +305,7 @@ export default function AddWorkoutScreen({ editing }: AddScreenProps) {
           <View style={styles.separator} lightColor="#a4a4a4ff" darkColor="rgba(87, 87, 87, 0.1)" />
           <Text>{`${e.sets} set${e.sets > 1 ? 's' : ''} of ${e.weight}lbs for ${e.reps} rep${e.reps > 1 ? 's' : ''}.`}</Text>
         </View>
-      </>))}
+      ))}
 
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
 
@@ -314,7 +314,7 @@ export default function AddWorkoutScreen({ editing }: AddScreenProps) {
       <div>
         <Text style={labelStyle}>Exercise Name</Text>
         <Dropdown
-          onChange={setCexName}
+          onChange={v => setCexName(v.value)}
           data={Object.keys(exerciseMapping).map(key => ({
             label: key
               .replace(/_/g, " ")
