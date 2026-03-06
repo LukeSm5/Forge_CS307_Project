@@ -73,7 +73,7 @@ import { AccessibilityProvider, useAccessibility } from "@/core/accessibility";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "loginScreen",
 };
 
 SplashScreen.preventAutoHideAsync();
