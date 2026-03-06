@@ -127,6 +127,14 @@ export const api = {
       }
     ]
   },
+
+  searchByRestaurant: async (restaurant: string): Promise<MenuMeal[]> => {
+    return get<MenuMeal[]>(`/meals/restaurant/${encodeURIComponent(restaurant)}`);
+  },
+
+  searchByProtein: async (protein: string): Promise<MenuMeal[]> => {
+    return get<MenuMeal[]>(`/meals/protein/${encodeURIComponent(protein)}`);
+  },
 };
 
 export type User = {
@@ -205,4 +213,13 @@ export type CreateWorkoutLogResponse = {
   workout_id: number;
   workout_name: string;
   inserted_sets: number;
+};
+
+export type MenuMeal = {
+  id: number;
+  restaurant: string;
+  category: string;
+  product: string;
+  energy_kcal?: number;
+  chicken?: boolean;
 };
