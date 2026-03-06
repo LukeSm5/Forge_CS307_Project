@@ -60,15 +60,15 @@ export const EMPTY_TAGS: MealTagSet = {
   goal: null, prepTime: null, cookTime: null, dietary: [],
 };
 export const C = {
-  bg:      "#111214",
-  surface: "#1a1c20",
-  border:  "#2a2d33",
+  bg:      "#eef3fd",
+  surface: "#ffffff",
+  border:  "#b3bed4",
   orange:  "#f97316",
   amber:   "#fbbf24",
   gold:    "#f59e0b",
-  muted:   "#6b7280",
-  dimmer:  "#374151",
-  text:    "#f3f4f6",
+  muted:   "#929cb0",
+  dimmer:  "#879ec4",
+  text:    "#000000",
 };
 export const chip = (bg: string, color: string, extra: CSSProperties = {}): CSSProperties => ({
   background: bg, color, borderRadius: 4,
