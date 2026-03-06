@@ -5,15 +5,21 @@ import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { useAuth } from '@/core/auth';
+import { setToken } from '@/core/api';
 
-const BASE_URL = __DEV__
-    ? Platform.OS === 'web'
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const BASE_URL =
+    process.env.EXPO_PUBLIC_API_BASE_URL ??
+    (Platform.OS === 'web'
         ? 'http://localhost:8000'
-        : `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
-    : 'https://example.com';
+        : expoHost
+            ? `http://${expoHost}:8000`
+            : 'http://localhost:8000');
 
 const CreateAccountScreen = () => {
     const router = useRouter();
+    const { setLoggedIn, setCurrentUser } = useAuth();
     const [email, setEmail] = React.useState('');
     const [username, setUsername] = React.useState('');
     const [password, setPassword] = React.useState('');
@@ -29,22 +35,34 @@ const CreateAccountScreen = () => {
                     password: password
                 })
             });
-            const data = await response.json();
+            const raw = await response.text();
+            let data: any = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch {
+                data = {};
+            }
             if (!response.ok) {
-                alert(`Error: ${data.detail}`);
+                alert(`Error: ${data?.detail ?? raw ?? 'Request failed'}`);
             } else {
                 console.log(data.access_token);
                 console.log(data.refresh_token);
+                setToken(data.access_token ?? null);
+                setCurrentUser({
+                    email: email,
+                    username: username,
+                });
+                setLoggedIn(true);
                 router.push('/(tabs)')
             }
         } catch (error) {
             console.log('Full error:', error);
-            alert('Server did not connect properly.');
+            alert(`Server did not connect properly. API: ${BASE_URL}`);
         }
     }
     return (
         <View style = {styles.container}>
-            <Text style={styles.title}>Login</Text>
+            <Text style={styles.title}>Create Account</Text>
             <LoginTextBox
                 label="Email"
                 value={email}
@@ -64,7 +82,7 @@ const CreateAccountScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
-            <LoginButton onPress={() => router.push('/(tabs)')} text="Create Account"/>
+            <LoginButton onPress={createAccount} text="Create Account"/>
         </View>
     );
 }

@@ -67,8 +67,9 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
-import { Redirect } from "expo-router";
+import { Redirect, useSegments } from "expo-router";
 import { AccessibilityProvider, useAccessibility } from "@/core/accessibility";
+import { AuthProvider, useAuth } from "@/core/auth";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -96,14 +97,22 @@ export default function RootLayout() {
 
   return (
     <AccessibilityProvider>
-      <RootLayoutNav />
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
     </AccessibilityProvider>
   );
 }
 
 function RootLayoutNav() {
   const { effectiveScheme } = useAccessibility();
-  const isLoggedIn = false;
+  const { isLoggedIn } = useAuth();
+  const segments = useSegments();
+  const currentRoot = segments[0] ?? "";
+  const isPublicAuthRoute =
+    currentRoot === "loginScreen" ||
+    currentRoot === "createAccountScreen" ||
+    currentRoot === "resetPasswordScreen";
 
   return (
     <ThemeProvider value={effectiveScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -113,7 +122,7 @@ function RootLayoutNav() {
         <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
-      {!isLoggedIn && <Redirect href="/loginScreen" />}
+      {!isLoggedIn && !isPublicAuthRoute && <Redirect href="/loginScreen" />}
     </ThemeProvider>
   );
 }

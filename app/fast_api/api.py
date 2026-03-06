@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.core.session import get_db
 from app.core.seed import engine
 
-from app.core.db import Workouts, workout_exercises, Exercises
+from app.core.db import Workouts, workout_exercises, Exercises, Machines
 from app.core.db import Accounts
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
@@ -49,8 +49,7 @@ def get_current_account(
     if len(parts) != 2 or parts[0].lower() != "bearer":
         raise HTTPException(status_code=401, detail="Invalid Authorization header")
 
-    token = parts[1]
-    return repos.lookup_account_by_token(db, token)
+    return repos.lookup_account_by_token(db, authorization)
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -89,6 +88,14 @@ class WorkoutOut(BaseModel):
     workout_name: str
     exercises: List[WorkoutExerciseOut]
 
+class ExerciseLookupOut(BaseModel):
+    exercise_id: int
+    name: str
+
+class MachineLookupOut(BaseModel):
+    machine_id: int
+    name: str
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -125,6 +132,12 @@ class AccountUpdateResponse(BaseModel):
     username: str
     message: str
 
+class AccountMeResponse(BaseModel):
+    profile_id: int
+    email: str
+    username: str
+    bio: Optional[str] = None
+
 
 def _send_account_update_notification(
     notifier: NotificationService,
@@ -149,15 +162,26 @@ def _send_account_update_notification(
 
 @app.post("/auth/create_account", response_model=TokenResponse)
 def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db)):
-    new_account = Accounts(
-        email=payload.email,
-        username=payload.username,
-        password=payload.password,
-        bio=payload.bio
-    )
-    db.add(new_account)
-    db.commit()
-    db.refresh(new_account)
+    try:
+        new_account = am.register_user(
+            db,
+            Accounts,
+            am.RegisterInput(
+                email=payload.email,
+                username=payload.username,
+                password=payload.password,
+                bio=payload.bio or "",
+            ),
+        )
+    except am.EmailAlreadyInUse:
+        raise HTTPException(status_code=409, detail="Email already in use")
+    except am.UsernameAlreadyInUse:
+        raise HTTPException(status_code=409, detail="Username already in use")
+    except am.InvalidPassword as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     access = create_access_token(user_id=new_account.UserID)
     refresh = generate_refresh_token()
 
@@ -289,6 +313,16 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
 
+@app.get("/auth/me", response_model=AccountMeResponse)
+def auth_me(me: Accounts = Depends(get_current_account)):
+    return AccountMeResponse(
+        profile_id=me.UserID,
+        email=me.email,
+        username=me.username,
+        bio=me.bio,
+    )
+
+
 
 
 @app.post("/auth/refresh", response_model=TokenResponse)
@@ -332,8 +366,10 @@ def logout(me: Accounts = Depends(get_current_account), db: Session = Depends(ge
 
 
 @app.post("/auth/reset_password")
-async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session):
-    user = session.query(Accounts).filter(Accounts.email == request.user_email).first()
+async def resetPasswordEndpoint(
+    request: ResetPasswordRequest, session: Session = Depends(get_db)
+):
+    user = am.get_user_by_email(session, Accounts, request.user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -344,6 +380,8 @@ async def resetPasswordEndpoint(request: ResetPasswordRequest, session: Session)
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except am.InvalidPassword as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def resetPassword(user, newPassword, session):
@@ -351,11 +389,10 @@ def resetPassword(user, newPassword, session):
         raise TypeError("User must be an instance of Accounts")
     if (newPassword == None):
         raise ValueError("New password cannot be empty")
-    if (len(newPassword) > 20):
-        raise ValueError("New password cannot exceed 20 characters")
-    if (len(newPassword) < 8):
-        raise ValueError("New password must be at least 8 characters long")
-    user.password = newPassword
+    am.validate_new_password(newPassword)
+    user.password_hash = am.hash_password(newPassword)
+    user.refresh_token_hash = None
+    user.refresh_expires_at = None
     session.commit()
 
 
@@ -431,6 +468,24 @@ def create_or_save_workout(
         workout_name=workout.name,
         inserted_sets=inserted
     )
+
+
+@app.get("/exercises", response_model=List[ExerciseLookupOut])
+def get_exercises(db: Session = Depends(get_db)):
+    rows = db.query(Exercises).order_by(Exercises.name.asc()).all()
+    return [
+        ExerciseLookupOut(exercise_id=row.ExerciseID, name=row.name)
+        for row in rows
+    ]
+
+
+@app.get("/machines", response_model=List[MachineLookupOut])
+def get_machines(db: Session = Depends(get_db)):
+    rows = db.query(Machines).order_by(Machines.MachineID.asc()).all()
+    return [
+        MachineLookupOut(machine_id=row.MachineID, name=row.name)
+        for row in rows
+    ]
 
 
 @app.get("/workouts/{profile_id}", response_model=List[WorkoutOut])
@@ -517,7 +572,6 @@ def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
 @app.get("/meals/protein/{protein}")
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_restaurant(db, protein)
-
 
 
 if __name__ == "__main__":
