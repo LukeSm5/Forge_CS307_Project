@@ -134,7 +134,16 @@ export type SubmitOnboardingEvent = {
   previousExperience: string,
 
   /** The user's preferred bio for their profile. */
-  bio: string
+  bio: string,
+
+  /** The user's description of their age. */
+  age: string,
+
+  /** The user's description of their height. */
+  height: string,
+
+  /** The user's description of their weight. */
+  weight: string
 };
 
 export type SearchCardioMachineResponse = {

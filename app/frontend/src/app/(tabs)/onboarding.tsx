@@ -11,6 +11,18 @@ import { api } from '@/core/api';
 // Test questions for demo purposes
 const QUESTIONS: Question[] = [
     {
+        textPrompt: "What is your age?",
+        inputType: { type: "TextBox", maxlen: 4 }
+    },
+    {
+        textPrompt: "What is your height?",
+        inputType: { type: "TextBox", maxlen: 10 }
+    },
+    {
+        textPrompt: "What is your weight?",
+        inputType: { type: "TextBox", maxlen: 10 }
+    },
+    {
         textPrompt: "How much experience do you have in the gym on a scale from 1 to 10, with 1 being not experienced at all, and 10 being extremely experienced?",
         inputType: { type: "Slider", min: 1, max: 10 }
     },
@@ -92,8 +104,8 @@ function responsiveHealthScore(responses: (string | number)[]): number {
     const healthResponses = responses.slice(0, 5);
     if (healthResponses.every(r => typeof r === "number"))
         healthScore = calculateHealthScore(
-            healthResponses[0], healthResponses[1], healthResponses[2],
-            healthResponses[3], healthResponses[4]
+            healthResponses[3], healthResponses[4], healthResponses[5],
+            healthResponses[6], healthResponses[7]
         );
     return healthScore;
 }
@@ -163,22 +175,37 @@ export default function OnboardingScreen() {
         const healthScore = responsiveHealthScore(responses);
         
         let goals = "";
-        if (typeof responses[5] === "string")
-            goals = responses[5];
+        if (typeof responses[8] === "string")
+            goals = responses[8];
         
         let previousExperience = "";
-        if (typeof responses[6] === "string")
-            previousExperience = responses[6];
+        if (typeof responses[9] === "string")
+            previousExperience = responses[9];
         
         let bio = "";
-        if (typeof responses[7] === "string")
-            bio = responses[7];
+        if (typeof responses[10] === "string")
+            bio = responses[10];
         
+        let age = "";
+        if (typeof responses[0] === "string")
+            age = responses[0];
+
+        let height = "";
+        if (typeof responses[1] === "string")
+            height = responses[1];
+
+        let weight = "";
+        if (typeof responses[2] === "string")
+            weight = responses[2];
+
         
         setQuizState(1);
         setQuestionIndex(0);
         api.submitOnboarding({
             healthScore,
+            age,
+            height,
+            weight,
             goals,
             previousExperience,
             bio
