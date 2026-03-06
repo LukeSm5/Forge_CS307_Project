@@ -467,11 +467,11 @@ def delete_workout_log(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/meals/{restaurant}")
+@app.get("/meals/restaurant/{restaurant}")
 def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_restaurant(db, restaurant)
 
 
-@app.get("/meals/{protein}")
+@app.get("/meals/protein/{protein}")
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
-    return repos.lookup_menumeal_by_restaurant(db, protein)
+    return repos.lookup_menumeal_by_protein(db, protein)
