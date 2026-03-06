@@ -4,23 +4,28 @@ import LoginTextBox from '../components/ForgeTextBox';
 import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const BASE_URL = __DEV__ 
-    ? `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
+const BASE_URL = __DEV__
+    ? Platform.OS === 'web'
+        ? 'http://localhost:8000'
+        : `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
     : 'https://example.com';
 
 const CreateAccountScreen = () => {
     const router = useRouter();
     const [email, setEmail] = React.useState('');
+    const [username, setUsername] = React.useState('');
     const [password, setPassword] = React.useState('');
 
     const createAccount = async () => {
         try {
-            const response = await fetch(`${BASE_URL}/auth/register`, {
+            const response = await fetch(`${BASE_URL}/auth/create_account`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: email,
+                    username: username,
                     password: password
                 })
             });
@@ -33,6 +38,7 @@ const CreateAccountScreen = () => {
                 router.push('/(tabs)')
             }
         } catch (error) {
+            console.log('Full error:', error);
             alert('Server did not connect properly.');
         }
     }
@@ -43,6 +49,13 @@ const CreateAccountScreen = () => {
                 label="Email"
                 value={email}
                 onChangeText={setEmail}
+                isVisible={true}
+            />
+            <LoginTextBox
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+                isVisible={true}
             />
             <LoginTextBox
                 label="Password"
@@ -51,7 +64,7 @@ const CreateAccountScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
-            <LoginButton onPress={createAccount} text="Create Account"/>
+            <LoginButton onPress={() => router.push('/(tabs)')} text="Create Account"/>
         </View>
     );
 }

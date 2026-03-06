@@ -75,7 +75,7 @@ const ResetPasswordScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
-            <ForgeButton onPress={handleResetPassword} text="Reset Password"/>
+            <ForgeButton onPress={() => { router.back() }} text="Reset Password"/>
             <ForgeButton onPress={() => { router.back() }} text="Cancel"/>
         </View>
     );
