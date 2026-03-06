@@ -1,12 +1,15 @@
 import React from 'react';
 import LoginButton from '../components/ForgeButton';
 import LoginTextBox from '../components/ForgeTextBox';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { useAuth } from '@/core/auth';
 import { setToken } from '@/core/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
@@ -22,6 +25,7 @@ const LoginScreen = () => {
     const { setLoggedIn, setCurrentUser } = useAuth();
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
+    const [rememberMe, setRememberMe] = React.useState(false);
 
     const handleLogin = async () => {
         try {
@@ -46,6 +50,9 @@ const LoginScreen = () => {
                 console.log(data.access_token);
                 console.log(data.refresh_token);
                 setToken(data.access_token ?? null);
+                if (rememberMe) {
+                await AsyncStorage.setItem('refresh_token', data.refresh_token);
+                }
                 setCurrentUser({
                     email: email,
                     username: email.split('@')[0],
@@ -73,6 +80,20 @@ const LoginScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
+            <Pressable
+            onPress={() => setRememberMe(prev => !prev)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}
+            >
+            <View style={{
+                width: 20, height: 20, borderRadius: 4,
+                borderWidth: 1.5, borderColor: '#2f80ed',
+                backgroundColor: rememberMe ? '#2f80ed' : 'transparent',
+                justifyContent: 'center', alignItems: 'center'
+            }}>
+                {rememberMe && <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>✓</Text>}
+            </View>
+            <Text style={{ fontSize: 14 }}>Remember me</Text>
+            </Pressable>
             <LoginButton onPress={handleLogin} text="Login"/>
             <LoginButton onPress={() => router.push('/createAccountScreen')} text="Create Account"/>
             <LoginButton onPress={() => router.push('/resetPasswordScreen')} text="Reset Password"/>
