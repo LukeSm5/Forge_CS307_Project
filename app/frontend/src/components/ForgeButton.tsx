@@ -8,6 +8,8 @@ type ForgeButtonProps = {
   disabled?: boolean;
   compact?: boolean;
   style?: ViewStyle;
+  color?: string;
+  textColor?: string;
 };
 
 export default function ForgeButton({
@@ -17,20 +19,27 @@ export default function ForgeButton({
   disabled = false,
   compact = false,
   style,
+  color,
+  textColor,
 }: ForgeButtonProps) {
   const selectedTheme = forgeButtonThemes[theme];
+  if (!color)
+        color = selectedTheme.backgroundColor;
+    if (!textColor)
+        textColor = selectedTheme.textColor;
+
   return (
     <TouchableOpacity
       style={[
         styles.button,
         compact && styles.compactButton,
-        { backgroundColor: selectedTheme.backgroundColor },
+        { backgroundColor: color },
         disabled && styles.disabled,
         style,
       ]}
       onPress={onPress}
       disabled={disabled}>
-      <Text style={[styles.buttonText, { color: selectedTheme.textColor }]}>{text}</Text>
+      <Text style={[styles.buttonText, { color: textColor }]}>{text}</Text>
     </TouchableOpacity>
   );
 }
@@ -49,7 +58,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
