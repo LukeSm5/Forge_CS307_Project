@@ -80,7 +80,7 @@ const CreateAccountScreen = () => {
                 value={password}
                 onChangeText={setPassword}
                 maxLength={20}
-                isVisible={false}
+                isVisible={true}
             />
             <LoginButton onPress={createAccount} text="Create Account"/>
         </View>

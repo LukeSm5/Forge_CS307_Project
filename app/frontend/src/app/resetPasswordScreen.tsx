@@ -85,14 +85,14 @@ const ResetPasswordScreen = () => {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 maxLength={20}
-                isVisible={false}
+                isVisible={true}
             />
             <ForgeTextBox
                 label="Confirm Password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 maxLength={20}
-                isVisible={false}
+                isVisible={true}
             />
             <ForgeButton onPress={handleResetPassword} text="Reset Password"/>
             <ForgeButton onPress={() => { router.back() }} text="Cancel"/>
