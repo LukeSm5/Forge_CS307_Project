@@ -1,7 +1,10 @@
 
+import Constants from 'expo-constants';
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const fallbackBaseUrl = expoHost ? `http://${expoHost}:8000` : 'http://localhost:8000';
+
+const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? fallbackBaseUrl;
 
 // If you use auth tokens, wire this up later:
 let token: string | null = null;

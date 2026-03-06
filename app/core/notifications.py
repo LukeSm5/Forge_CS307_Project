@@ -5,7 +5,10 @@ import smtplib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import EmailMessage
+import logging
 from typing import Protocol
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService(Protocol):
@@ -95,6 +98,25 @@ class NoopNotificationService:
         return
 
 
+class LoggingNotificationService:
+    def send_update_notification(
+        self,
+        *,
+        recipient_email: str,
+        username: str,
+        update_type: str,
+        updated_at: datetime | None = None,
+    ) -> None:
+        when = (updated_at or datetime.now(timezone.utc)).isoformat()
+        logger.info(
+            "Notification (log provider) recipient=%s username=%s update_type=%s updated_at=%s",
+            recipient_email,
+            username,
+            update_type,
+            when,
+        )
+
+
 def get_notification_service() -> NotificationService:
     enabled = os.getenv("EMAIL_NOTIFICATIONS_ENABLED", "false").lower() in {"1", "true", "yes"}
     if not enabled:
@@ -103,5 +125,7 @@ def get_notification_service() -> NotificationService:
     provider = os.getenv("EMAIL_PROVIDER", "smtp").lower()
     if provider == "smtp":
         return SMTPNotificationService(SMTPSettings.from_env())
+    if provider == "log":
+        return LoggingNotificationService()
 
     raise ValueError(f"Unsupported EMAIL_PROVIDER: {provider}")
