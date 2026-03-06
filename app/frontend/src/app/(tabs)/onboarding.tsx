@@ -7,6 +7,7 @@ import QuizButton from '@/components/onboarding/QuizButton';
 import QuizQuestion, { Question } from '@/components/onboarding/QuizQuestion';
 import { Text, View } from '@/components/Themed';
 import { api } from '@/core/api';
+import { useRouter } from 'expo-router';
 
 // Test questions for demo purposes
 const QUESTIONS: Question[] = [
@@ -155,6 +156,8 @@ export default function OnboardingScreen() {
     const [currentResponse, setCurrentResponse] = useState<string | number>(0);
     const [responses, setResponses] = useState<(string | number)[]>([]);
 
+    const router = useRouter();
+
     const submitQuestion = () => {
         // Add question response
         if (currentResponse == -1)
@@ -212,6 +215,7 @@ export default function OnboardingScreen() {
         }).then(success => {
             if (!success)
                 console.error('Error uploading onboarding data.')
+            router.push('/(tabs)');
         });
         setResponses([]);
     }

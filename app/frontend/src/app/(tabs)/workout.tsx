@@ -7,6 +7,7 @@ import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
 import { api, CreateWorkoutLogExercise, WorkoutExerciseLog, WorkoutLog } from '@/core/api';
 import { useRouter } from 'expo-router';
+import CardioButton from '@/components/cardioSearch/CardioButton';
 
 type LoggedWorkout = {
   id: string;
@@ -368,6 +369,9 @@ export default function WorkoutTabScreen() {
       <View style={styles.actionsRow}>
         <ForgeButton text="Log Workout" theme="primary" style={styles.actionButton} onPress={handleLogWorkout} />
         <ForgeButton text="Generate Workout" theme="teal" style={styles.actionButton} onPress={handleGenerateWorkout} />
+      </View>
+      <View style={styles.actionsRow}>
+        <CardioButton />
       </View>
 
       <Modal visible={!!editingLog} animationType="slide" transparent>
