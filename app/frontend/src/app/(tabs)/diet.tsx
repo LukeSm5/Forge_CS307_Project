@@ -730,12 +730,7 @@ export default function Diet() {
           {proteinFilter ? ' matching protein filter' : ' available'}
         </Text>
 
-        <ForgeButton
-          onPress={() => {
-            setProteinFilter(null);
-          }}
-          text={'Clear'}
-        />
+
       </SectionCard>
     </ScrollView>
   );
