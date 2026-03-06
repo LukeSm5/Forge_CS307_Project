@@ -1,9 +1,7 @@
 from sqlalchemy import (
     Column, Integer, Text, ForeignKey, Float, DateTime
 )
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from app.core.session import Base
 
 
 class Accounts(Base):

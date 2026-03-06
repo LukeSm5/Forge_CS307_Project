@@ -198,7 +198,7 @@ export default function SettingsScreen() {
           <View style={{ marginTop: 20 }}>
             <Text style={styles.sectionTitle}>Danger Zone</Text>
             <DeleteAccountButton
-              userId={(user as any).UserID ?? (user as any).user_id ?? (user as any).id}
+              userId={user.profile_id}
               onDeleted={() => {
                 setToken(null);
                 setUser(null);

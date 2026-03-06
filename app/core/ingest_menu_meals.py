@@ -236,7 +236,9 @@ def derive_features():
     df['chicken'] = (
         ((df['restaurant'] == 'Chick-fil-A') & (df['product'].str.contains(cfa_pattern, case=False, na=False))) |
         ((df['restaurant'] == 'McDonalds') & (df['product'].str.contains('chicken', case=False, na=False))) |
-        ((df['restaurant'] == 'Shake Shack') & (df['product'].str.contains('chicken', case=False, na=False)))
+        ((df['restaurant'] == 'Shake Shack') & (df['product'].str.contains('chicken', case=False, na=False))) |
+        (df['product'].str.contains('chicken', case=False, na=False)) |
+        ((df['restaurant'] == 'KFC') & ~(df['product'].str.contains('veg', case=False, na=False)))
     )
 
     print(df['chicken'])
@@ -247,9 +249,9 @@ def derive_features():
 
 
 if __name__ == '__main__':
-    # df1 = pd.read_csv('./first5.csv', encoding="utf-8")
-    # df2 = pd.read_csv('./chickfila.csv', encoding="utf-8")
-    # df3 = pd.read_csv('./shakeshack.csv', encoding="utf-8")
-    # combine(df1, df2, df3)
+    df1 = pd.read_csv('./app/core/first5.csv', encoding="utf-8")
+    df2 = pd.read_csv('./app/core/chickfila.csv', encoding="utf-8")
+    df3 = pd.read_csv('./app/core/shakeshack.csv', encoding="utf-8")
+    #combine(df1, df2, df3)
             
-    print()
+    derive_features()
