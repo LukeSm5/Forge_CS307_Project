@@ -54,6 +54,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 const TEST_USER: User = {
+  profile_id: 1,
   email: 'tester@forge307.dev',
   username: 'Testing',
   bio: 'I love testing forge307'
@@ -89,6 +90,19 @@ export const api = {
   submitOnboarding: async (e: SubmitOnboardingEvent): Promise<boolean> => {
     return true;
   },
+  // TODO: add this lol!
+  getExercises: async (): Promise<Record<string, number>> => {
+    return {
+      'Bicep Curls': 0,
+      'Bench Press': 1,
+      'Leg Extensions': 2,
+      'Barbell Squat': 3,
+      'Cable Rows': 4,
+      'Preacher Curls': 5,
+      'Tricep Extensions': 6,
+      'JM Press': 7
+    };
+  },
   searchCardioMachine: async (e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]> => {
     // Prompt LLM with user object goals and cardio machie description
     // LLM returns a list of SearchCardioMachineResponse[]
@@ -116,6 +130,7 @@ export const api = {
 };
 
 export type User = {
+  profile_id: number,
   email: string,
   username: string,
   bio: string

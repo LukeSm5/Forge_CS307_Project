@@ -5,6 +5,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput } from 'reac
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
 import { api, CreateWorkoutLogExercise, WorkoutExerciseLog, WorkoutLog } from '@/core/api';
+import { useRouter } from 'expo-router';
 
 type LoggedWorkout = {
   id: string;
@@ -41,6 +42,8 @@ export default function WorkoutTabScreen() {
   const [editingLog, setEditingLog] = useState<LoggedWorkout | null>(null);
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
 
+  const router = useRouter();
+
   useEffect(() => {
     loadWorkoutHistory();
   }, [profileId]);
@@ -61,7 +64,7 @@ export default function WorkoutTabScreen() {
   }
 
   function handleLogWorkout() {
-    Alert.alert('Log Workout', 'Workout logging flow will be added in a later stage.');
+    router.push("/AddWorkoutScreen");
   }
 
   function handleGenerateWorkout() {

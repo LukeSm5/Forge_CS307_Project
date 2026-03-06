@@ -2,6 +2,9 @@ import ForgeButton from "@/components/ForgeButton";
 import { useState, useEffect, CSSProperties } from "react";
 import { Text, View } from "@/components/Themed";
 import { ScrollView, StyleProp, StyleSheet, TextStyle } from 'react-native';
+import { useRouter } from "expo-router";
+import { api } from "@/core/api";
+import { Dropdown } from "react-native-element-dropdown";
 
 // Types
 
@@ -24,6 +27,12 @@ export interface TaggedExercise {
 
 // Constants
 
+const MACHINE_IDS: Record<MachineType, number> = {
+  'Barbell': 2,
+  'Body': 1,
+  'Cable': 0,
+  'Dumbbell': 3
+};
 const MUSCLE_SECTIONS: { label: string; muscles: MuscleGroup[] }[] = [
   { label: "Upper Body", muscles: ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Forearms"] },
   { label: "Core",       muscles: ["Abs", "Obliques", "Lower Back"] },
@@ -98,7 +107,37 @@ export interface AddScreenProps {
 
 // Screen
 
-export default function AddWorkoutScreen({ editing, onSave, onCancel }: AddScreenProps) {
+export default function AddWorkoutScreen({ editing }: AddScreenProps) {
+  const router = useRouter();
+
+  const onCancel = () => router.back();
+  const onSave = async () => {
+    const res = await api.addWorkoutLog({
+      profile_id: (await api.me()).profile_id,
+      workout_name: name,
+      exercises: exerciseList.map(ex => {
+        return {
+          exercise_id: exerciseMapping[ex.name],
+          machine_id: MACHINE_IDS[ex.machine],
+          weight: cexWeight,
+          sets: cexSets,
+          reps: cexReps
+        }
+      })
+    });
+  };
+
+  const [exerciseMapping, setExerciseMapping] = useState<Record<string, number>>({});
+  
+  useEffect(() => {
+    async function loadExercises() {
+      const res = await api.getExercises();
+      setExerciseMapping(res);
+    }
+
+    loadExercises();
+  }, []);
+
   const [name,  setName]  = useState<string>(editing?.name ?? "");
   const [tags,  setTags]  = useState<TagSet>(editing?.tags ? { ...editing.tags } : { ...EMPTY_TAGS });
   const [error, setError] = useState<string>("");
@@ -133,7 +172,7 @@ export default function AddWorkoutScreen({ editing, onSave, onCancel }: AddScree
     if (!tags.difficulty)          { setError("Select a difficulty.");              return; }
     if (!tags.exerciseType)        { setError("Select an exercise type.");          return; }
     setError("");
-    onSave(name.trim(), tags, editing?.id);
+    onSave();
     if (!editing) {
       setName("");
       setTags({ ...EMPTY_TAGS });
@@ -274,18 +313,22 @@ export default function AddWorkoutScreen({ editing, onSave, onCancel }: AddScree
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       <div>
         <Text style={labelStyle}>Exercise Name</Text>
-        <input
-          key={2}
-          onChange={e => setCexName(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSave()}
-          placeholder="e.g. Barbell Squat"
+        <Dropdown
+          onChange={setCexName}
+          data={Object.keys(exerciseMapping).map(key => ({
+            label: key
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, c => c.toUpperCase()),
+            value: key
+          }))}
+          placeholder={"Select exercise..."}
           style={{
-            width: "100%", background: "#d7d7d7ff", border: "1.5px solid #1e293b",
-            borderRadius: 8, padding: "12px 16px", color: "#000000ff", fontSize: 14, outline: "none",
-            transition: "border-color 0.15s", boxSizing: "border-box",
+            backgroundColor: "#d7d7d7ff", borderWidth: 1.5, borderColor: "#1e293b", borderStyle: "solid",
+            borderRadius: 8, padding: 12, outline: "none",
+            boxSizing: "border-box",
           }}
-          onFocus={e => (e.target.style.borderColor = "#475569")}
-          onBlur={e  => (e.target.style.borderColor = "#1e293b")}
+          labelField="label"
+          valueField="value"
         />
       </div>
       <div>
