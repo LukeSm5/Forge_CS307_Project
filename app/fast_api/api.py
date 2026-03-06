@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from typing import Optional, List, Dict
@@ -23,6 +24,16 @@ from app.core.auth_tokens import (
 )
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost", "http://127.0.0.1"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -123,6 +134,23 @@ def _send_account_update_notification(
     notifier.send_update_notification(
         recipient_email=account.email,
         username=account.username,
+        update_type=update_type,
+    )
+
+
+def _send_profile_update_notification(
+    notifier: NotificationService,
+    *,
+    db: Session,
+    profile_id: int,
+    update_type: str,
+) -> None:
+    account = repos.lookup_account_by_id(db, profile_id)
+    if not account:
+        return
+    _send_account_update_notification(
+        notifier,
+        account=account,
         update_type=update_type,
     )
 
@@ -309,7 +337,11 @@ def delete_account(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/workouts", response_model=CreateWorkoutResponse)
-def create_or_save_workout(payload: CreateWorkoutRequest, db: Session = Depends(get_db)):
+def create_or_save_workout(
+    payload: CreateWorkoutRequest,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
     # 1) Ensure workout exists by name
     workout = db.query(Workouts).filter(Workouts.name == payload.workout_name).first()
     if workout is None:
@@ -344,6 +376,13 @@ def create_or_save_workout(payload: CreateWorkoutRequest, db: Session = Depends(
         inserted += ex.sets
 
     db.commit()
+
+    _send_profile_update_notification(
+        notifier,
+        db=db,
+        profile_id=payload.profile_id,
+        update_type="workout logged",
+    )
 
     return CreateWorkoutResponse(
         workout_id=workout_id,
@@ -393,6 +432,39 @@ def get_workouts_for_profile(profile_id: int, db: Session = Depends(get_db)):
 
     return list(grouped.values())
 
+
+@app.delete("/workouts/{profile_id}/{workout_id}")
+def delete_workout_log(
+    profile_id: int,
+    workout_id: int,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
+    try:
+        deleted_rows = (
+            db.query(workout_exercises)
+            .filter(
+                workout_exercises.ProfileID == profile_id,
+                workout_exercises.WorkoutID == workout_id,
+            )
+            .delete(synchronize_session=False)
+        )
+        if deleted_rows == 0:
+            raise HTTPException(status_code=404, detail="Workout log not found")
+
+        db.commit()
+        _send_profile_update_notification(
+            notifier,
+            db=db,
+            profile_id=profile_id,
+            update_type="workout deleted",
+        )
+        return {"deleted": True, "profile_id": profile_id, "workout_id": workout_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/meals/{restaurant}")

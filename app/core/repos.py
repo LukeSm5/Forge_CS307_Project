@@ -1,6 +1,29 @@
 from sqlalchemy.orm import Session
-from app.core.db import Accounts, Profiles, Splits, Workouts, Exercises, Machines, Meals, Ingredients, MuscleGroupTags, DifficultyTags, ExerciseTypeTags, exercise_tags, exercise_muscle_groups, menu_meals, SpiceLevelTags, CuisineTags, ComplexityTags,
-    GoalTags, PrepTimeTags, CookTimeTags, DietaryTags, meal_tags, meal_dietary_tags
+from app.core.db import (
+    Accounts,
+    Profiles,
+    Splits,
+    Workouts,
+    Exercises,
+    Machines,
+    Meals,
+    Ingredients,
+    MuscleGroupTags,
+    DifficultyTags,
+    ExerciseTypeTags,
+    exercise_tags,
+    exercise_muscle_groups,
+    menu_meals,
+    SpiceLevelTags,
+    CuisineTags,
+    ComplexityTags,
+    GoalTags,
+    PrepTimeTags,
+    CookTimeTags,
+    DietaryTags,
+    meal_tags,
+    meal_dietary_tags,
+)
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
 from app.core.ingest_menu_meals import ingest_menu_meals

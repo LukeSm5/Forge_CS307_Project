@@ -16,6 +16,18 @@ function headers() {
   };
 }
 
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "GET",
+    headers: headers(),
+  });
+
+  if (res.ok) return (await res.json()) as T;
+
+  const data = await res.json().catch(() => ({}));
+  throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+}
+
 async function del(path: string): Promise<void> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "DELETE",
@@ -23,6 +35,19 @@ async function del(path: string): Promise<void> {
   });
 
   if (res.ok) return;
+
+  const data = await res.json().catch(() => ({}));
+  throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+
+  if (res.ok) return (await res.json()) as T;
 
   const data = await res.json().catch(() => ({}));
   throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
@@ -36,6 +61,14 @@ const TEST_USER: User = {
 
 export const api = {
   deleteAccount: (userId: number) => del(`/accounts/${userId}`),
+  deleteWorkoutLog: (profileId: number, workoutId: number) =>
+    del(`/workouts/${profileId}/${workoutId}`),
+  getWorkoutHistory: async (profileId: number): Promise<WorkoutLog[]> => {
+    return get<WorkoutLog[]>(`/workouts/${profileId}`);
+  },
+  addWorkoutLog: async (payload: CreateWorkoutLogRequest): Promise<CreateWorkoutLogResponse> => {
+    return post<CreateWorkoutLogResponse>('/workouts', payload);
+  },
   me: async (): Promise<User | undefined> => { 
     return TEST_USER;
   },
@@ -113,3 +146,39 @@ export type SearchCardioMachineEvent = {
   desc: string
 };
 
+export type WorkoutExerciseLog = {
+  exercise_id: number;
+  exercise_name: string;
+  machine_id: number;
+  sets: number;
+  reps: number;
+  weight?: number | null;
+  notes?: string | null;
+};
+
+export type WorkoutLog = {
+  workout_id: number;
+  workout_name: string;
+  exercises: WorkoutExerciseLog[];
+};
+
+export type CreateWorkoutLogExercise = {
+  exercise_id: number;
+  machine_id: number;
+  sets: number;
+  reps: number;
+  weight?: number | null;
+  notes?: string | null;
+};
+
+export type CreateWorkoutLogRequest = {
+  profile_id: number;
+  workout_name: string;
+  exercises: CreateWorkoutLogExercise[];
+};
+
+export type CreateWorkoutLogResponse = {
+  workout_id: number;
+  workout_name: string;
+  inserted_sets: number;
+};

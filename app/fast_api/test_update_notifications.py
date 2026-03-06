@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.db import Accounts, Base
+from app.core.db import Accounts, Base, Exercises, Machines, Profiles
 from app.core.notifications import NotificationService
 from app.fast_api import account_management as am
 from app.fast_api.api import app, get_db, get_notification_service
@@ -49,6 +49,23 @@ def _build_test_client():
     session.add(seed_user)
     session.commit()
     session.refresh(seed_user)
+    session.add(
+        Profiles(
+            ProfileID=seed_user.UserID,
+            age=25,
+            weight=170,
+            height_in=70,
+            gender="male",
+            health_status="healthy",
+            health_goals="fitness",
+        )
+    )
+    exercise = Exercises(name="bench press")
+    machine = Machines(name="barbell")
+    session.add_all([exercise, machine])
+    session.commit()
+    session.refresh(exercise)
+    session.refresh(machine)
 
     notifier = RecordingNotificationService()
 
@@ -64,7 +81,7 @@ def _build_test_client():
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_notification_service] = override_get_notification_service
     client = TestClient(app)
-    return client, session, notifier, seed_user.UserID
+    return client, session, notifier, seed_user.UserID, exercise.ExerciseID, machine.MachineID
 
 
 def _teardown_test_client(session):
@@ -73,7 +90,7 @@ def _teardown_test_client(session):
 
 
 def test_profile_update_triggers_notification():
-    client, session, notifier, user_id = _build_test_client()
+    client, session, notifier, user_id, _, _ = _build_test_client()
     try:
         response = client.patch(
             f"/accounts/{user_id}/profile",
@@ -88,7 +105,7 @@ def test_profile_update_triggers_notification():
 
 
 def test_change_password_triggers_notification():
-    client, session, notifier, user_id = _build_test_client()
+    client, session, notifier, user_id, _, _ = _build_test_client()
     try:
         response = client.post(
             f"/accounts/{user_id}/change_password",
@@ -103,13 +120,82 @@ def test_change_password_triggers_notification():
 
 
 def test_change_password_failure_does_not_trigger_notification():
-    client, session, notifier, user_id = _build_test_client()
+    client, session, notifier, user_id, _, _ = _build_test_client()
     try:
         response = client.post(
             f"/accounts/{user_id}/change_password",
             json={"current_password": "WrongPassword", "new_password": "NewPassword9"},
         )
         assert response.status_code == 401
+        assert len(notifier.calls) == 0
+    finally:
+        _teardown_test_client(session)
+
+
+def test_create_workout_triggers_notification():
+    client, session, notifier, user_id, exercise_id, machine_id = _build_test_client()
+    try:
+        response = client.post(
+            "/workouts",
+            json={
+                "profile_id": user_id,
+                "workout_name": "Test workout",
+                "exercises": [
+                    {
+                        "exercise_id": exercise_id,
+                        "machine_id": machine_id,
+                        "sets": 3,
+                        "reps": 10,
+                        "weight": 135,
+                        "notes": "test",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 200
+        assert len(notifier.calls) == 1
+        assert notifier.calls[0]["recipient_email"] == "user@example.com"
+        assert notifier.calls[0]["update_type"] == "workout logged"
+    finally:
+        _teardown_test_client(session)
+
+
+def test_delete_workout_triggers_notification():
+    client, session, notifier, user_id, exercise_id, machine_id = _build_test_client()
+    try:
+        create_response = client.post(
+            "/workouts",
+            json={
+                "profile_id": user_id,
+                "workout_name": "Delete workout test",
+                "exercises": [
+                    {
+                        "exercise_id": exercise_id,
+                        "machine_id": machine_id,
+                        "sets": 2,
+                        "reps": 8,
+                    }
+                ],
+            },
+        )
+        assert create_response.status_code == 200
+        workout_id = create_response.json()["workout_id"]
+
+        notifier.calls.clear()
+
+        delete_response = client.delete(f"/workouts/{user_id}/{workout_id}")
+        assert delete_response.status_code == 200
+        assert len(notifier.calls) == 1
+        assert notifier.calls[0]["update_type"] == "workout deleted"
+    finally:
+        _teardown_test_client(session)
+
+
+def test_delete_workout_failure_does_not_trigger_notification():
+    client, session, notifier, user_id, _, _ = _build_test_client()
+    try:
+        response = client.delete(f"/workouts/{user_id}/99999")
+        assert response.status_code == 404
         assert len(notifier.calls) == 0
     finally:
         _teardown_test_client(session)
