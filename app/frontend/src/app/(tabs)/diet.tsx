@@ -397,25 +397,14 @@ export default function Diet() {
 
   const searchMeals = async () => {
     const trimmed = restaurant.trim();
-
     if (!trimmed) {
       setRestaurantError('Please enter a restaurant name.');
       return;
     }
-
     setRestaurantLoading(true);
     setRestaurantError('');
     setProteinFilter(null);
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/meals/restaurant/${encodeURIComponent(trimmed)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
       const data = await api.searchByRestaurant(trimmed);
       setRestaurantMeals(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -435,19 +424,9 @@ export default function Diet() {
       setRestaurantError('');
       return;
     }
-
     setRestaurantLoading(true);
     setRestaurantError('');
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/meals/protein/${encodeURIComponent(protein)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
       const data = await api.searchByProtein(protein);
       setRestaurantMeals(Array.isArray(data) ? data : []);
       setProteinFilter(protein);
