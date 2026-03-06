@@ -34,9 +34,7 @@ const INITIAL_DATA: Record<string, CalendarItem[]> = {
       id: "1",
       title: "Push workout",
       time: "6:00 PM",
-      exercises: [
-        { id: "e1", name: "Bench Press", sets: "3", reps: "10" },
-      ],
+      exercises: [{ id: "e1", name: "Bench Press", sets: "3", reps: "10" }],
     },
   ],
   "2026-02-23": [
@@ -44,9 +42,7 @@ const INITIAL_DATA: Record<string, CalendarItem[]> = {
       id: "3",
       title: "Legs workout",
       time: "5:30 PM",
-      exercises: [
-        { id: "e2", name: "Squat", sets: "4", reps: "8" },
-      ],
+      exercises: [{ id: "e2", name: "Squat", sets: "4", reps: "8" }],
     },
   ],
 };
@@ -68,6 +64,31 @@ function formatTime(date: Date) {
   });
 }
 
+function addDaysToDateString(dateString: string, days: number) {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function parseTimeStringToDate(time?: string) {
+  const base = new Date();
+  if (!time) return base;
+
+  const match = time.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  if (!match) return base;
+
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === "PM" && hours !== 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+
+  const parsed = new Date(base);
+  parsed.setHours(hours, minutes, 0, 0);
+  return parsed;
+}
+
 export default function CalendarScreen() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -80,10 +101,15 @@ export default function CalendarScreen() {
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [includeTime, setIncludeTime] = useState(true);
 
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatWeeks, setRepeatWeeks] = useState("4");
+
   const [exerciseName, setExerciseName] = useState("");
   const [exerciseSets, setExerciseSets] = useState("");
   const [exerciseReps, setExerciseReps] = useState("");
   const [extraExercises, setExtraExercises] = useState<ExerciseItem[]>([]);
+
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
   const itemsForDay = eventsByDate[selectedDate] ?? [];
 
@@ -105,19 +131,47 @@ export default function CalendarScreen() {
     return marks;
   }, [eventsByDate, selectedDate]);
 
-  function openAdd() {
+  const isEditing = editingWorkoutId !== null;
+
+  function resetModalFields() {
     setNewTitle("");
     setSelectedTime(new Date());
     setIncludeTime(true);
+    setRepeatWeekly(false);
+    setRepeatWeeks("4");
     setExerciseName("");
     setExerciseSets("");
     setExerciseReps("");
     setExtraExercises([]);
+    setEditingWorkoutId(null);
+  }
+
+  function openAdd() {
+    resetModalFields();
+    setIsAddOpen(true);
+  }
+
+  function openEdit(item: CalendarItem) {
+    setNewTitle(item.title);
+    setIncludeTime(!!item.time);
+    setSelectedTime(parseTimeStringToDate(item.time));
+    setRepeatWeekly(false);
+    setRepeatWeeks("4");
+    setExerciseName("");
+    setExerciseSets("");
+    setExerciseReps("");
+    setExtraExercises(
+      (item.exercises ?? []).map((exercise) => ({
+        ...exercise,
+      }))
+    );
+    setEditingWorkoutId(item.id);
     setIsAddOpen(true);
   }
 
   function closeAdd() {
     setIsAddOpen(false);
+    setEditingWorkoutId(null);
   }
 
   function addExerciseField() {
@@ -146,7 +200,9 @@ export default function CalendarScreen() {
     setExtraExercises((prev) => prev.filter((exercise) => exercise.id !== id));
   }
 
-  function addWorkout() {
+  function saveEditedWorkout() {
+    if (!editingWorkoutId) return;
+
     const title = newTitle.trim();
 
     if (!title) {
@@ -173,22 +229,105 @@ export default function CalendarScreen() {
       });
     }
 
-    const item: CalendarItem = {
-      id: `${Date.now()}`,
-      title,
-      time: includeTime ? formatTime(selectedTime) : undefined,
-      exercises,
-    };
-
     setEventsByDate((prev) => {
       const existing = prev[selectedDate] ?? [];
+
       return {
         ...prev,
-        [selectedDate]: [item, ...existing],
+        [selectedDate]: existing.map((item) =>
+          item.id === editingWorkoutId
+            ? {
+                ...item,
+                title,
+                time: includeTime ? formatTime(selectedTime) : undefined,
+                exercises: exercises.map((exercise, index) => ({
+                  ...exercise,
+                  id: exercise.id || `${Date.now()}-${index}`,
+                })),
+              }
+            : item
+        ),
       };
     });
 
     closeAdd();
+  }
+
+  function addWorkout() {
+    const title = newTitle.trim();
+
+    if (!title) {
+      Alert.alert("Missing workout name", "Please enter a workout name.");
+      return;
+    }
+
+    let weeksToRepeat = 1;
+
+    if (repeatWeekly) {
+      const parsedWeeks = Number.parseInt(repeatWeeks, 10);
+
+      if (!Number.isFinite(parsedWeeks) || parsedWeeks < 1) {
+        Alert.alert(
+          "Invalid repeat length",
+          "Please enter a valid number of weeks."
+        );
+        return;
+      }
+
+      weeksToRepeat = parsedWeeks;
+    }
+
+    const exercises: ExerciseItem[] = [...extraExercises];
+
+    if (exerciseName.trim() || exerciseSets.trim() || exerciseReps.trim()) {
+      if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
+        Alert.alert(
+          "Incomplete exercise",
+          "Finish the current exercise or clear it before saving."
+        );
+        return;
+      }
+
+      exercises.push({
+        id: `${Date.now()}-current`,
+        name: exerciseName.trim(),
+        sets: exerciseSets.trim(),
+        reps: exerciseReps.trim(),
+      });
+    }
+
+    setEventsByDate((prev) => {
+      const updated = { ...prev };
+
+      for (let i = 0; i < weeksToRepeat; i += 1) {
+        const dateKey = addDaysToDateString(selectedDate, i * 7);
+
+        const item: CalendarItem = {
+          id: `${Date.now()}-${i}`,
+          title,
+          time: includeTime ? formatTime(selectedTime) : undefined,
+          exercises: exercises.map((exercise, exerciseIndex) => ({
+            ...exercise,
+            id: `${exercise.id}-${i}-${exerciseIndex}`,
+          })),
+        };
+
+        const existing = updated[dateKey] ?? [];
+        updated[dateKey] = [item, ...existing];
+      }
+
+      return updated;
+    });
+
+    closeAdd();
+  }
+
+  function handleSaveWorkout() {
+    if (isEditing) {
+      saveEditedWorkout();
+    } else {
+      addWorkout();
+    }
   }
 
   function deleteItem(itemId: string) {
@@ -217,7 +356,7 @@ export default function CalendarScreen() {
       />
 
       <View style={styles.rowBetween}>
-        <Text style={styles.listHeaderText}>{`Scheduled for ${selectedDate}`}</Text>
+        <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
 
         <Pressable style={styles.addButton} onPress={openAdd}>
           <Text style={styles.addButtonText}>+ Add workout</Text>
@@ -231,38 +370,49 @@ export default function CalendarScreen() {
           <Text style={styles.emptyText}>No workouts scheduled.</Text>
         }
         renderItem={({ item }) => (
-          <Pressable
-            onLongPress={() =>
-              Alert.alert("Delete", "Remove this workout from the calendar?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete",
-                  style: "destructive",
-                  onPress: () => deleteItem(item.id),
-                },
-              ])
-            }
-          >
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              {!!item.time && <Text style={styles.cardTime}>{item.time}</Text>}
+          <View style={styles.card}>
+            <View style={styles.cardTopRow}>
+              <View style={styles.cardTitleWrap}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                {!!item.time && <Text style={styles.cardTime}>{item.time}</Text>}
+              </View>
 
-              {!!item.exercises?.length && (
-                <View style={styles.exerciseList}>
-                  {item.exercises.map((exercise) => (
-                    <View key={exercise.id} style={styles.exerciseRow}>
-                      <Text style={styles.exerciseName}>{exercise.name}</Text>
-                      <Text style={styles.exerciseMeta}>
-                        {exercise.sets} sets × {exercise.reps} reps
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <Text style={styles.hint}>Long-press to delete</Text>
+              <Pressable
+                style={styles.editButton}
+                onPress={() => openEdit(item)}
+              >
+                <Text style={styles.editButtonText}>Edit</Text>
+              </Pressable>
             </View>
-          </Pressable>
+
+            {!!item.exercises?.length && (
+              <View style={styles.exerciseList}>
+                {item.exercises.map((exercise) => (
+                  <View key={exercise.id} style={styles.exerciseRow}>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseMeta}>
+                      {exercise.sets} sets × {exercise.reps} reps
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <Pressable
+              onLongPress={() =>
+                Alert.alert("Delete", "Remove this workout from the calendar?", [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => deleteItem(item.id),
+                  },
+                ])
+              }
+            >
+              <Text style={styles.hint}>Long-press to delete</Text>
+            </Pressable>
+          </View>
         )}
       />
 
@@ -270,7 +420,9 @@ export default function CalendarScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Add workout</Text>
+              <Text style={styles.modalTitle}>
+                {isEditing ? "Edit workout" : "Add workout"}
+              </Text>
 
               <Text style={styles.label}>Workout name</Text>
               <TextInput
@@ -321,6 +473,38 @@ export default function CalendarScreen() {
                     }}
                   />
                 </View>
+              )}
+
+              {!isEditing && (
+                <>
+                  <Text style={styles.sectionHeader}>Repeat</Text>
+                  <Pressable
+                    style={[
+                      styles.repeatToggle,
+                      repeatWeekly ? styles.repeatToggleActive : null,
+                    ]}
+                    onPress={() => setRepeatWeekly((prev) => !prev)}
+                  >
+                    <Text style={styles.repeatToggleText}>
+                      {repeatWeekly
+                        ? "Repeats every week"
+                        : "Tap to repeat every week"}
+                    </Text>
+                  </Pressable>
+
+                  {repeatWeekly && (
+                    <>
+                      <Text style={styles.label}>How many weeks?</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={repeatWeeks}
+                        onChangeText={setRepeatWeeks}
+                        placeholder="e.g., 4"
+                        keyboardType="numeric"
+                      />
+                    </>
+                  )}
+                </>
               )}
 
               <Text style={styles.sectionHeader}>Exercises</Text>
@@ -380,7 +564,10 @@ export default function CalendarScreen() {
                 </View>
               </View>
 
-              <Pressable style={styles.addExerciseInlineButton} onPress={addExerciseField}>
+              <Pressable
+                style={styles.addExerciseInlineButton}
+                onPress={addExerciseField}
+              >
                 <Text style={styles.addButtonText}>+ Add exercise</Text>
               </Pressable>
 
@@ -394,9 +581,11 @@ export default function CalendarScreen() {
 
                 <Pressable
                   style={[styles.actionBtn, styles.saveBtn]}
-                  onPress={addWorkout}
+                  onPress={handleSaveWorkout}
                 >
-                  <Text style={styles.saveText}>Save workout</Text>
+                  <Text style={styles.saveText}>
+                    {isEditing ? "Save changes" : "Save workout"}
+                  </Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -441,6 +630,28 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  cardTitleWrap: {
+    flex: 1,
+  },
+
+  editButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(47,128,237,0.10)",
+  },
+
+  editButtonText: {
+    fontSize: 16,
+  },
+
   cardTitle: { fontSize: 16, fontWeight: "600" },
   cardTime: { marginTop: 4, opacity: 0.7 },
 
@@ -466,7 +677,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 
-  hint: { marginTop: 8, opacity: 0.5, fontSize: 12 },
+  hint: { marginTop: 10, opacity: 0.5, fontSize: 12 },
 
   modalBackdrop: {
     flex: 1,
@@ -552,6 +763,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f7f7",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  repeatToggle: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.2)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "white",
+  },
+
+  repeatToggleActive: {
+    borderColor: "#2f80ed",
+    backgroundColor: "rgba(47,128,237,0.06)",
+  },
+
+  repeatToggleText: {
+    fontSize: 14,
   },
 
   savedExercisesWrap: {
