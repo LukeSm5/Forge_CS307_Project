@@ -3,23 +3,28 @@ import ForgeButton from '@/components/ForgeButton';
 import ForgeTextBox from '@/components/ForgeTextBox';
 import { StyleSheet, View, Text } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
+import Constants from 'expo-constants';
 
 // Reset Password Screen to navigate to when the user clicks the Reset Password Button
-
+const BASE_URL = __DEV__ 
+    ? `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
+    : 'https://example.com';
+    
 // NOTE: Not tested, may or may not work properly
 const ResetPasswordScreen = () => {
     const router = useRouter();
+    const [email, setEmail] = React.useState('');
     const [newPassword, setNewPassword] = React.useState('');
     const [confirmPassword, setConfirmPassword] = React.useState('');
 
     const resetPassword = async () => {
         try {            
-            const response = await fetch('http://localhost:8000/reset-password', {
+            const response = await fetch(`${BASE_URL}/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     new_password: newPassword,
-                    user_id: 1
+                    user_email: email
                 })
             });
             const data = await response.json();
@@ -50,6 +55,12 @@ const ResetPasswordScreen = () => {
     return (
         <View style = {styles.container}>
             <Text style={styles.title}>Reset Password</Text>
+            <ForgeTextBox
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                isVisible={true}
+            />
             <ForgeTextBox
                 label="New Password"
                 value={newPassword}

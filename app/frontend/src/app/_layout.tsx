@@ -67,7 +67,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
-
+import { Redirect } from "expo-router";
 import { AccessibilityProvider, useAccessibility } from "@/core/accessibility";
 
 export { ErrorBoundary } from "expo-router";
@@ -103,14 +103,17 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const { effectiveScheme } = useAccessibility();
+  const isLoggedIn = false;
 
   return (
     <ThemeProvider value={effectiveScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
+        <Stack.Screen name="loginScreen" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
+      {!isLoggedIn && <Redirect href="/loginScreen" />}
     </ThemeProvider>
   );
 }

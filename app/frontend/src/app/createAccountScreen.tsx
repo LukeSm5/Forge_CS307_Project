@@ -9,14 +9,14 @@ const BASE_URL = __DEV__
     ? `http://${Constants.expoConfig?.hostUri?.split(':')[0]}:8000`
     : 'https://example.com';
 
-const LoginScreen = () => {
+const CreateAccountScreen = () => {
     const router = useRouter();
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
 
-    const handleLogin = async () => {
+    const createAccount = async () => {
         try {
-            const response = await fetch(`${BASE_URL}/auth/login`, {
+            const response = await fetch(`${BASE_URL}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -43,7 +43,6 @@ const LoginScreen = () => {
                 label="Email"
                 value={email}
                 onChangeText={setEmail}
-                isVisible={true}
             />
             <LoginTextBox
                 label="Password"
@@ -52,9 +51,7 @@ const LoginScreen = () => {
                 maxLength={20}
                 isVisible={false}
             />
-            <LoginButton onPress={() => router.push('/(tabs)')} text="Login"/>
-            <LoginButton onPress={() => router.push('/createAccountScreen')} text="Create Account"/>
-            <LoginButton onPress={() => router.push('/resetPasswordScreen')} text="Reset Password"/>
+            <LoginButton onPress={createAccount} text="Create Account"/>
         </View>
     );
 }
@@ -72,4 +69,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export default LoginScreen;
+export default CreateAccountScreen;
