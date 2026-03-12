@@ -12,6 +12,8 @@ dotenv = "*"
 uvicorn = "*"
 psycopg2-binary = "*"
 passlib = "*"
+openai = "*"
+pinecone = "*"
 
 [dev-packages]
 
