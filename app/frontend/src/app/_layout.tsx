@@ -118,6 +118,9 @@ function RootLayoutNav() {
     <ThemeProvider value={effectiveScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="loginScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="createAccountScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="resetPasswordScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />

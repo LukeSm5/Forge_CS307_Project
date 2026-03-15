@@ -214,8 +214,10 @@ export default function OnboardingScreen() {
             bio
         }).then(success => {
             if (!success)
+            {
                 console.error('Error uploading onboarding data.')
-            router.push('/(tabs)');
+            }
+            router.replace('/(tabs)');
         });
         setResponses([]);
     }
