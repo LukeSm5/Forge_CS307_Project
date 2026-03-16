@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Reset Password Screen to navigate to when the user clicks the Reset Password Button
+// Functional server URL configuration based on environment
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
     process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -16,13 +16,14 @@ const BASE_URL =
             ? `http://${expoHost}:8000`
             : 'http://localhost:8000');
     
-// NOTE: Not tested, may or may not work properly
+// ResetPasswordScreen component
 const ResetPasswordScreen = () => {
     const router = useRouter();
     const [email, setEmail] = React.useState('');
     const [newPassword, setNewPassword] = React.useState('');
     const [confirmPassword, setConfirmPassword] = React.useState('');
 
+    // Function to handle resetting the password
     const resetPassword = async () => {
         const normalizedEmail = email.trim().toLowerCase();
         if (!normalizedEmail) {
@@ -30,6 +31,7 @@ const ResetPasswordScreen = () => {
             return;
         }
 
+        // Send a POST request to the backend to facilitate logic
         try {            
             const response = await fetch(`${BASE_URL}/auth/reset_password`, {
                 method: 'POST',
@@ -56,6 +58,7 @@ const ResetPasswordScreen = () => {
             alert(`Server did not connect properly. API: ${BASE_URL}`)
         }
     }
+    // Function to verify that both passwords match
     const verifyMatchingPasswords = () => {
         let matching = false;
         if (newPassword === confirmPassword) {
@@ -65,7 +68,7 @@ const ResetPasswordScreen = () => {
         }
         return matching;
     }
-
+    // Function to reset the password if the new password matches
     const handleResetPassword = () => {
         if (verifyMatchingPasswords()) {
             resetPassword();

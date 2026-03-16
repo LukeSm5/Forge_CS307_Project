@@ -10,7 +10,7 @@ import { setToken } from '@/core/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
-
+//  
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
     process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -20,13 +20,15 @@ const BASE_URL =
             ? `http://${expoHost}:8000`
             : 'http://localhost:8000');
 
+// LoginScreen component
 const LoginScreen = () => {
     const router = useRouter();
-    const { setLoggedIn, setCurrentUser } = useAuth();
+    const {setLoggedIn, setCurrentUser } = useAuth();
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [rememberMe, setRememberMe] = React.useState(false);
 
+    // Function to handle logging in
     const handleLogin = async () => {
         try {
             const response = await fetch(`${BASE_URL}/auth/login`, {
@@ -67,6 +69,7 @@ const LoginScreen = () => {
     return (
         <View style = {styles.container}>
             <Text style={styles.title}>Login</Text>
+            // Input for email and password
             <LoginTextBox
                 label="Email"
                 value={email}
@@ -100,6 +103,7 @@ const LoginScreen = () => {
         </View>
     );
 }
+// Styles and layout for the login screen
 const styles = StyleSheet.create({
     container: {
         flex: 1,
