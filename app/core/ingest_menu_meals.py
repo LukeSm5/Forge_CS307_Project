@@ -240,8 +240,14 @@ def derive_features():
         (df['product'].str.contains('chicken', case=False, na=False)) |
         ((df['restaurant'] == 'KFC') & ~(df['product'].str.contains('veg', case=False, na=False)))
     )
-
-    print(df['chicken'])
+    
+    # ----------
+    # beef
+    # ----------
+    ss_product_not_burgers = ["Grilled Cheese", "Martin's Potato Roll", "Gluten Free Bun", "Lettuce Wrap", "American Cheese", "ShackSauce", "Lettuce", "Tomato", "Pickle", "Onion", "Bacon", "Cherry Peppers", "Crispy Shallots", "‘Shroom Burger", "Veggie Shack", "Veggie Shack, vegan, lettuce wrap", "Veggie Shack, vegan"]
+    df['beef'] = (
+        ((df['restaurant'] == 'Shake Shack') & (df['category'] == 'Burgers') & ~(df['product'].isin(ss_product_not_burgers)))
+    )
 
     df.copy().to_csv('./app/core/menu_meals.csv')
     
@@ -249,9 +255,9 @@ def derive_features():
 
 
 if __name__ == '__main__':
-    df1 = pd.read_csv('./app/core/first5.csv', encoding="utf-8")
-    df2 = pd.read_csv('./app/core/chickfila.csv', encoding="utf-8")
-    df3 = pd.read_csv('./app/core/shakeshack.csv', encoding="utf-8")
+    #df1 = pd.read_csv('./app/core/first5.csv', encoding="utf-8")
+    #df2 = pd.read_csv('./app/core/chickfila.csv', encoding="utf-8")
+    #df3 = pd.read_csv('./app/core/shakeshack.csv', encoding="utf-8")
     #combine(df1, df2, df3)
             
     derive_features()
