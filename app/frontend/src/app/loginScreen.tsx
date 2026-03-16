@@ -10,7 +10,6 @@ import { setToken } from '@/core/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
-//  
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
     process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -69,7 +68,6 @@ const LoginScreen = () => {
     return (
         <View style = {styles.container}>
             <Text style={styles.title}>Login</Text>
-            // Input for email and password
             <LoginTextBox
                 label="Email"
                 value={email}
