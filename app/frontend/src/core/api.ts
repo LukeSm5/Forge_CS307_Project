@@ -262,4 +262,5 @@ export type MenuMeal = {
   product: string;
   energy_kcal?: number;
   chicken?: boolean;
+  beef?: boolean;
 };

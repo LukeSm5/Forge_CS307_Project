@@ -59,7 +59,7 @@ type RestaurantMeal = {
   sodium_mg?: boolean;
 };
 
-type ProteinFilter = 'chicken' | null;
+type ProteinFilter = 'chicken' | 'beef' | null;
 
 const EMPTY_FILTER: FilterState = {
   spiceLevel: null,
@@ -694,6 +694,20 @@ export default function Diet() {
             color={C?.amber ?? '#f5c56b'}
             onPress={() => {
               const nextProtein = proteinFilter === 'chicken' ? null : 'chicken';
+
+              if (nextProtein) {
+                fetchMealsByProtein(nextProtein);
+              } else {
+                setProteinFilter(null);
+              }
+            }}
+          />
+          <Pill
+            label="beef"
+            active={proteinFilter === 'beef'}
+            color={C?.amber ?? '#f5c56b'}
+            onPress={() => {
+              const nextProtein = proteinFilter === 'beef' ? null : 'beef';
 
               if (nextProtein) {
                 fetchMealsByProtein(nextProtein);
