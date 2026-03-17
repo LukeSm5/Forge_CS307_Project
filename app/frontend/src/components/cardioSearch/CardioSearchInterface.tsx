@@ -1,8 +1,6 @@
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
 import { Text, View } from '@/components/Themed';
-import CardioButton from '@/components/cardioSearch/CardioButton';
 import CardioMachineResult from '@/components/cardioSearch/CardioMachineResult';
 import React, { useState } from 'react';
 import { api, SearchCardioMachineResponse } from '@/core/api';

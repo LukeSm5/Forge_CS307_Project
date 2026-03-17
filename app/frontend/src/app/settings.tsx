@@ -106,6 +106,7 @@ export default function SettingsScreen() {
   const [cCurrent, setCCurrent] = useState("");
   const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
+  const router = useRouter();
   async function refreshMe() {
     setLoading(true);
     setStatus(null);
@@ -156,7 +157,7 @@ export default function SettingsScreen() {
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <DeleteAccountBanner
         visible={accountDeleted}
-        onFinished={() => router.replace('/login')}
+        onFinished={() => router.replace('/loginScreen')}
       />
       <View style={styles.container}>
         <StatusBanner status={status} />

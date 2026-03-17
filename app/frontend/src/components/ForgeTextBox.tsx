@@ -13,7 +13,7 @@ interface PasswordInputProps {
 }
 
 // Setting up the reset password text boxes with the given attributes
-const ResetPasswordTextBox = ({label, value, onChangeText, placeholder, maxLength, isVisible, onToggleVisibility}: PasswordInputProps
+const ForgeTextBox = ({label, value, onChangeText, placeholder, maxLength, isVisible, onToggleVisibility}: PasswordInputProps
 ) => {
     return (<View style={styles.container}>
         {label && <Text style={styles.label}>{label}</Text>}
@@ -46,4 +46,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export default ResetPasswordTextBox;
+export default ForgeTextBox;

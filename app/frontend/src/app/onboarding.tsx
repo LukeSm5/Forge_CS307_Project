@@ -3,7 +3,7 @@ import React, {useState} from 'react';
 import { StyleSheet } from 'react-native';
 
 import QuizText from '@/components/onboarding/QuizText';
-import QuizButton from '@/components/onboarding/QuizButton';
+import ForgeButton from '@/components/ForgeButton';
 import QuizQuestion, { Question } from '@/components/onboarding/QuizQuestion';
 import { Text, View } from '@/components/Themed';
 import { api } from '@/core/api';
@@ -224,17 +224,17 @@ export default function OnboardingScreen() {
 
     const startComponent = (<View>
         <QuizText text="Welcome to the Forge 307 Onboarding Screen!" />
-        <QuizButton text="Start Onboarding" onPress={startQuiz} />
+        <ForgeButton text="Start Onboarding" onPress={startQuiz} />
     </View>);
 
     const questionComponent = (<View>
         <QuizQuestion key={questionIndex} question={QUESTIONS[questionIndex]} onUpdate={setCurrentResponse} />
-        <QuizButton text="Submit" onPress={submitQuestion} />
+        <ForgeButton text="Submit" onPress={submitQuestion} />
     </View>);
 
     const endComponent = (<View>
         <QuizText text={`Onboarding Complete! Your health score is ${responsiveHealthScore(responses)}%!`} />
-        <QuizButton text="Continue" onPress={completeQuiz} />
+        <ForgeButton text="Continue" onPress={completeQuiz} />
     </View>);
 
     let component: React.JSX.Element;
