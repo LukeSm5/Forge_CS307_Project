@@ -1,14 +1,36 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Pressable, TextInput, ScrollView, ActivityIndicator } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  Pressable,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
 import Slider from "@react-native-community/slider";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Text } from "@/components/Themed";
 import { useAccessibility } from "@/core/accessibility";
 import { api, setToken, User } from "@/core/api";
 import { useAuth } from "@/core/auth";
 import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
+import DeleteAccountBanner from "@/components/deleteAccount/DeleteAccountBanner";
+import { useRouter } from "expo-router";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NotificationPreferences,
+  dateFromStoredTime,
+  loadCalendarAndRescheduleNotificationsAsync,
+  loadNotificationPreferencesAsync,
+  requestNotificationPermissionsAsync,
+  saveNotificationPreferencesAsync,
+  timeStringFromDate,
+} from "@/core/notifications";
+
 type Status = { type: "ok" | "err"; msg: string } | null;
-import DeleteAccountBanner from '@/components/deleteAccount/DeleteAccountBanner';
-import { useRouter } from 'expo-router';
+type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
+
 function ModeButton({
   label,
   selected,
@@ -24,9 +46,11 @@ function ModeButton({
     </Pressable>
   );
 }
+
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
+
 function StatusBanner({ status }: { status: Status }) {
   if (!status) return null;
   return (
@@ -35,6 +59,7 @@ function StatusBanner({ status }: { status: Status }) {
     </View>
   );
 }
+
 function Field({
   label,
   value,
@@ -66,6 +91,7 @@ function Field({
     </View>
   );
 }
+
 function ActionButton({
   label,
   onPress,
@@ -81,8 +107,9 @@ function ActionButton({
     variant === "danger"
       ? styles.btnDanger
       : variant === "secondary"
-      ? styles.btnSecondary
-      : styles.btnPrimary;
+        ? styles.btnSecondary
+        : styles.btnPrimary;
+
   return (
     <Pressable
       onPress={onPress}
@@ -95,18 +122,37 @@ function ActionButton({
     </Pressable>
   );
 }
+
+function formatStoredTime(storedTime: string) {
+  return dateFromStoredTime(storedTime).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function SettingsScreen() {
   const { colorMode, setColorMode, textScale, setTextScale } = useAccessibility();
   const { currentUser, setCurrentUser, setLoggedIn } = useAuth();
   const [status, setStatus] = useState<Status>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
+  const [activeMealPicker, setActiveMealPicker] = useState<MealTimeField | null>(null);
   const [pUsername, setPUsername] = useState("");
   const [pBio, setPBio] = useState("");
   const [cCurrent, setCCurrent] = useState("");
   const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
   const router = useRouter();
+
+  const pickerDate = useMemo(() => {
+    if (!activeMealPicker) return new Date();
+    return dateFromStoredTime(notificationPrefs[activeMealPicker]);
+  }, [activeMealPicker, notificationPrefs]);
+
   async function refreshMe() {
     setLoading(true);
     setStatus(null);
@@ -122,9 +168,89 @@ export default function SettingsScreen() {
       setLoading(false);
     }
   }
+
+  async function refreshNotificationPrefs() {
+    setNotificationLoading(true);
+    try {
+      const prefs = await loadNotificationPreferencesAsync();
+      setNotificationPrefs(prefs);
+    } finally {
+      setNotificationLoading(false);
+    }
+  }
+
   useEffect(() => {
     refreshMe();
+    refreshNotificationPrefs();
   }, []);
+
+  async function persistNotificationPrefs(
+    nextPrefs: NotificationPreferences,
+    successMessage: string
+  ) {
+    setNotificationLoading(true);
+    setStatus(null);
+
+    try {
+      if (nextPrefs.notificationsEnabled) {
+        const granted = await requestNotificationPermissionsAsync();
+        if (!granted) {
+          const reverted = { ...nextPrefs, notificationsEnabled: false };
+          setNotificationPrefs(reverted);
+          await saveNotificationPreferencesAsync(reverted);
+          await loadCalendarAndRescheduleNotificationsAsync(reverted);
+          setStatus({
+            type: "err",
+            msg: "Notification permission was not granted, so reminders remain off.",
+          });
+          return;
+        }
+      }
+
+      setNotificationPrefs(nextPrefs);
+      await saveNotificationPreferencesAsync(nextPrefs);
+      await loadCalendarAndRescheduleNotificationsAsync(nextPrefs);
+      setStatus({ type: "ok", msg: successMessage });
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e?.message ?? "Unable to update notification settings." });
+    } finally {
+      setNotificationLoading(false);
+    }
+  }
+
+  async function updateNotificationsEnabled(enabled: boolean) {
+    await persistNotificationPrefs(
+      {
+        ...notificationPrefs,
+        notificationsEnabled: enabled,
+      },
+      enabled ? "Notifications enabled." : "Notifications disabled."
+    );
+  }
+
+  async function updateNotificationToggle(
+    key: "workoutRemindersEnabled" | "mealRemindersEnabled",
+    enabled: boolean,
+    label: string
+  ) {
+    await persistNotificationPrefs(
+      {
+        ...notificationPrefs,
+        [key]: enabled,
+      },
+      `${label} ${enabled ? "enabled" : "disabled"}.`
+    );
+  }
+
+  async function updateMealTime(field: MealTimeField, date: Date) {
+    const nextPrefs = {
+      ...notificationPrefs,
+      [field]: timeStringFromDate(date),
+    };
+
+    await persistNotificationPrefs(nextPrefs, "Meal reminder time updated.");
+  }
+
   async function doUpdateProfile() {
     setLoading(true);
     setStatus(null);
@@ -139,13 +265,15 @@ export default function SettingsScreen() {
       setLoading(false);
     }
   }
+
   async function doChangePassword() {
     setLoading(true);
     setStatus(null);
     try {
       const res = await api.changePassword({ current_password: cCurrent, new_password: cNew });
       if (typeof res === "undefined") throw new Error("Password change failed.");
-      setCCurrent(""); setCNew("");
+      setCCurrent("");
+      setCNew("");
       setStatus({ type: "ok", msg: "Password changed." });
     } catch (e: any) {
       setStatus({ type: "err", msg: e.message });
@@ -153,22 +281,26 @@ export default function SettingsScreen() {
       setLoading(false);
     }
   }
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <DeleteAccountBanner
         visible={accountDeleted}
-        onFinished={() => router.replace('/loginScreen')}
+        onFinished={() => router.replace("/loginScreen")}
       />
+
       <View style={styles.container}>
         <StatusBanner status={status} />
         <Text style={styles.pageTitle}>Settings</Text>
+
         <SectionHeader title="Appearance" />
         <Text style={styles.sectionTitle}>Theme</Text>
         <View style={styles.modeRow}>
           <ModeButton label="System" selected={colorMode === "system"} onPress={() => setColorMode("system")} />
-          <ModeButton label="Light"  selected={colorMode === "light"}  onPress={() => setColorMode("light")} />
-          <ModeButton label="Dark"   selected={colorMode === "dark"}   onPress={() => setColorMode("dark")} />
+          <ModeButton label="Light" selected={colorMode === "light"} onPress={() => setColorMode("light")} />
+          <ModeButton label="Dark" selected={colorMode === "dark"} onPress={() => setColorMode("dark")} />
         </View>
+
         <Text style={styles.sectionTitle}>Text Size</Text>
         <Text style={styles.helper}>Adjust the slider to scale text across the app.</Text>
         <Slider
@@ -180,34 +312,157 @@ export default function SettingsScreen() {
           onValueChange={(v) => setTextScale(v)}
           minimumTrackTintColor="#2f80ed"
         />
+
         <View style={styles.previewCard}>
           <Text style={{ fontSize: 18, fontWeight: "700" }}>Preview</Text>
           <Text style={{ marginTop: 8 }}>
             This is how your text will look with the current setting.
           </Text>
         </View>
+
         <Text style={styles.footerNote}>
           Settings are saved automatically and will persist after restarting the app.
         </Text>
+
+        <SectionHeader title="Notifications" />
+        {notificationLoading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
+        <Text style={styles.sectionTitle}>App notifications</Text>
+        <Text style={styles.helper}>
+          Enable reminders for workouts on the calendar and recurring meal reminders.
+        </Text>
+        <View style={styles.modeRow}>
+          <ModeButton
+            label="Enabled"
+            selected={notificationPrefs.notificationsEnabled}
+            onPress={() => updateNotificationsEnabled(true)}
+          />
+          <ModeButton
+            label="Disabled"
+            selected={!notificationPrefs.notificationsEnabled}
+            onPress={() => updateNotificationsEnabled(false)}
+          />
+        </View>
+
+        <Text style={[styles.helper, { marginTop: 10 }]}>
+          {notificationPrefs.notificationsEnabled
+            ? "Reminders are currently on."
+            : "Reminders are currently off."}
+        </Text>
+
+        {notificationPrefs.notificationsEnabled && (
+          <>
+            <Text style={styles.sectionTitle}>Workout reminders</Text>
+            <Text style={styles.helper}>
+              Workouts with a time on your calendar will send a reminder at the scheduled time.
+            </Text>
+            <View style={styles.modeRow}>
+              <ModeButton
+                label="On"
+                selected={notificationPrefs.workoutRemindersEnabled}
+                onPress={() =>
+                  updateNotificationToggle("workoutRemindersEnabled", true, "Workout reminders")
+                }
+              />
+              <ModeButton
+                label="Off"
+                selected={!notificationPrefs.workoutRemindersEnabled}
+                onPress={() =>
+                  updateNotificationToggle("workoutRemindersEnabled", false, "Workout reminders")
+                }
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>Meal reminders</Text>
+            <Text style={styles.helper}>
+              Choose daily times for breakfast, lunch, and dinner reminders.
+            </Text>
+            <View style={styles.modeRow}>
+              <ModeButton
+                label="On"
+                selected={notificationPrefs.mealRemindersEnabled}
+                onPress={() => updateNotificationToggle("mealRemindersEnabled", true, "Meal reminders")}
+              />
+              <ModeButton
+                label="Off"
+                selected={!notificationPrefs.mealRemindersEnabled}
+                onPress={() => updateNotificationToggle("mealRemindersEnabled", false, "Meal reminders")}
+              />
+            </View>
+
+            {notificationPrefs.mealRemindersEnabled && (
+              <View style={styles.notificationCard}>
+                {([
+                  ["Breakfast", "breakfastTime"],
+                  ["Lunch", "lunchTime"],
+                  ["Dinner", "dinnerTime"],
+                ] as Array<[string, MealTimeField]>).map(([label, field]) => (
+                  <View key={field} style={styles.timeRow}>
+                    <View>
+                      <Text style={styles.timeLabel}>{label}</Text>
+                      <Text style={styles.timeValue}>{formatStoredTime(notificationPrefs[field])}</Text>
+                    </View>
+
+                    <Pressable style={styles.timeButton} onPress={() => setActiveMealPicker(field)}>
+                      <Text style={styles.timeButtonText}>Change</Text>
+                    </Pressable>
+                  </View>
+                ))}
+
+                {activeMealPicker && (
+                  <View style={styles.pickerCard}>
+                    <Text style={styles.fieldLabel}>Select time</Text>
+                    <DateTimePicker
+                      value={pickerDate}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(_, selectedValue) => {
+                        if (!selectedValue) return;
+                        updateMealTime(activeMealPicker, selectedValue);
+                        if (Platform.OS !== "ios") {
+                          setActiveMealPicker(null);
+                        }
+                      }}
+                    />
+                    <ActionButton
+                      label="Done"
+                      variant="secondary"
+                      onPress={() => setActiveMealPicker(null)}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+          </>
+        )}
+
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
-        <Text style={[styles.helper, { marginBottom: 12 }]}>
+        <Text style={[styles.helper, { marginBottom: 12 }]}> 
           {currentUser
             ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
             : user
               ? `Signed in as ${user.username} (${user.email})`
               : ""}
         </Text>
+
         <Text style={styles.sectionTitle}>Profile</Text>
         <Field label="Username" value={pUsername} onChangeText={setPUsername} placeholder="New username" />
-        <Field label="Bio"      value={pBio}      onChangeText={setPBio}      placeholder="Bio (≤280 chars)" multiline />
+        <Field label="Bio" value={pBio} onChangeText={setPBio} placeholder="Bio (≤280 chars)" multiline />
+
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Change Password</Text>
         <Field label="Current password" value={cCurrent} onChangeText={setCCurrent} secureTextEntry />
-        <Field label="New password"     value={cNew}     onChangeText={setCNew}     secureTextEntry />
+        <Field label="New password" value={cNew} onChangeText={setCNew} secureTextEntry />
+
         <View style={styles.rowBtns}>
-          <ActionButton label="Save Profile"    onPress={doUpdateProfile}   disabled={loading} />
-          <ActionButton label="Change Password" onPress={doChangePassword}  disabled={loading || !cCurrent || !cNew} variant="secondary" />
+          <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading} />
+          <ActionButton
+            label="Change Password"
+            onPress={doChangePassword}
+            disabled={loading || !cCurrent || !cNew}
+            variant="secondary"
+          />
         </View>
+
         {user && (
           <View style={{ marginTop: 20 }}>
             <Text style={styles.sectionTitle}>Danger Zone</Text>
@@ -218,6 +473,7 @@ export default function SettingsScreen() {
                 setUser(null);
                 setCurrentUser(null);
                 setLoggedIn(false);
+                setAccountDeleted(true);
                 setStatus({ type: "ok", msg: "Account deleted." });
               }}
             />
@@ -227,7 +483,7 @@ export default function SettingsScreen() {
     </ScrollView>
   );
 }
-// Style
+
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   container: { flex: 1, padding: 16 },
@@ -246,7 +502,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 14, marginBottom: 6 },
   helper: { opacity: 0.65, fontSize: 13, marginBottom: 4 },
-  modeRow: { flexDirection: "row", gap: 10, marginTop: 6 },
+  modeRow: { flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" },
   modeBtn: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -303,4 +559,42 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.45 },
   btnText: { color: "white", fontWeight: "700", fontSize: 14 },
   btnTextSecondary: { color: "#2f80ed" },
+  notificationCard: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(47,128,237,0.04)",
+    gap: 12,
+  },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  timeLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  timeValue: {
+    marginTop: 2,
+    fontSize: 13,
+    opacity: 0.7,
+  },
+  timeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#2f80ed",
+  },
+  timeButtonText: {
+    color: "white",
+    fontWeight: "700",
+  },
+  pickerCard: {
+    marginTop: 8,
+    paddingTop: 4,
+  },
 });

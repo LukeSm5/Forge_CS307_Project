@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -13,20 +13,14 @@ import {
 import { Calendar, DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Text } from "@/components/Themed";
-
-type ExerciseItem = {
-  id: string;
-  name: string;
-  sets: string;
-  reps: string;
-};
-
-type CalendarItem = {
-  id: string;
-  title: string;
-  time?: string;
-  exercises?: ExerciseItem[];
-};
+import {
+  CalendarItem,
+  ExerciseItem,
+  loadCalendarEventsAsync,
+  loadNotificationPreferencesAsync,
+  rescheduleAppNotificationsAsync,
+  saveCalendarEventsAsync,
+} from "@/core/notifications";
 
 const INITIAL_DATA: Record<string, CalendarItem[]> = {
   "2026-02-22": [
@@ -93,8 +87,8 @@ export default function CalendarScreen() {
   const today = new Date().toISOString().slice(0, 10);
 
   const [selectedDate, setSelectedDate] = useState(today);
-  const [eventsByDate, setEventsByDate] =
-    useState<Record<string, CalendarItem[]>>(INITIAL_DATA);
+  const [eventsByDate, setEventsByDate] = useState<Record<string, CalendarItem[]>>({});
+  const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -110,6 +104,36 @@ export default function CalendarScreen() {
   const [extraExercises, setExtraExercises] = useState<ExerciseItem[]>([]);
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      const storedEvents = await loadCalendarEventsAsync();
+      if (!isMounted) return;
+
+      if (storedEvents && Object.keys(storedEvents).length > 0) {
+        setEventsByDate(storedEvents);
+      } else {
+        setEventsByDate(INITIAL_DATA);
+      }
+      setCalendarLoaded(true);
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!calendarLoaded) return;
+
+    (async () => {
+      await saveCalendarEventsAsync(eventsByDate);
+      const prefs = await loadNotificationPreferencesAsync();
+      await rescheduleAppNotificationsAsync(eventsByDate, prefs);
+    })();
+  }, [calendarLoaded, eventsByDate]);
 
   const itemsForDay = eventsByDate[selectedDate] ?? [];
 
@@ -171,7 +195,7 @@ export default function CalendarScreen() {
 
   function closeAdd() {
     setIsAddOpen(false);
-    setEditingWorkoutId(null);
+    resetModalFields();
   }
 
   function addExerciseField() {
