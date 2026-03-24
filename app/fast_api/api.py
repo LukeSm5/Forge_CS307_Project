@@ -139,6 +139,19 @@ class AccountMeResponse(BaseModel):
     bio: Optional[str] = None
 
 
+class MenuMealOut(BaseModel):
+    id: int = Field(validation_alias="MenuMealID")
+    restaurant: str
+    category: str | None
+    product: str
+    energy_kcal: float | None
+    chicken: bool | None
+    beef: bool | None
+
+    class Config:
+        from_attributes = True  # lets Pydantic read SQLAlchemy objects
+
+
 def _send_account_update_notification(
     notifier: NotificationService,
     *,
@@ -564,12 +577,11 @@ def delete_workout_log(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/meals/menu/{restaurant}")
+@app.get("/meals/restaurant/{restaurant}", response_model=list[MenuMealOut])
 def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_restaurant(db, restaurant)
 
-
-@app.get("/meals/protein/{protein}")
+@app.get("/meals/protein/{protein}", response_model=list[MenuMealOut])
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_protein(db, protein)
 

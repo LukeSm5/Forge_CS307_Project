@@ -1,16 +1,9 @@
 
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from app.core.db import Base
+import pandas as pd
+from app.core.session import engine, SessionLocal
+from app.core.db import Base, menu_meals  # import the matching model
 from app.core import repos
 
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///forge.db")
-connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
-
-engine = create_engine(DB_URL, future=True, pool_pre_ping=True, connect_args=connect_args)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 def seed_static(session):
     # call all populators here
@@ -38,11 +31,19 @@ def bootstrap(drop_all: bool = False, seed: bool = True):
 
     if seed:
         with SessionLocal() as session:
-            # populate_* currently commit() inside each function so don't do it again here
+             # populate_* currently commit() inside each function so don't do it again here
             seed_static(session)
 
-    print("✅ DB created" + (" + seeded" if seed else "") + f" at {DB_URL}")
+        print("✅ DB created" + (" + seeded" if seed else "") + f" at {DB_URL}")
+
+
+def seed_menu_meals():
+    df = pd.read_csv('app/core/menu_meals.csv')
+
+    df.to_sql("menu_meals", con=engine, if_exists="append", index=False)
 
 if __name__ == "__main__":
     # set drop_all=True for a clean rebuild during dev
-    bootstrap(drop_all=False, seed=True)
+    #bootstrap(drop_all=False, seed=True)
+
+    seed_menu_meals()

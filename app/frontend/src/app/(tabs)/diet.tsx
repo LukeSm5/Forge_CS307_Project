@@ -56,7 +56,9 @@ type RestaurantMeal = {
   saturated_fat_g?: number;
   trans_fat_g?: number;
   cholesterol_mg?: number;
-  sodium_mg?: boolean;
+  sodium_mg?: number;
+  chicken?: boolean;
+  beef?: boolean
 };
 
 type ProteinFilter = 'chicken' | 'beef' | null;
@@ -250,9 +252,12 @@ export default function Diet() {
 
   const [restaurant, setRestaurant] = useState('');
   const [restaurantMeals, setRestaurantMeals] = useState<RestaurantMeal[]>([]);
+  
   const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [restaurantError, setRestaurantError] = useState('');
   const [proteinFilter, setProteinFilter] = useState<ProteinFilter>(null);
+  const [proteinMeals, setProteinMeals] = useState<RestaurantMeal[]>([]);
+
   const API_BASE_URL = 'http://localhost:8000';
 
   useEffect(() => {
@@ -666,7 +671,7 @@ export default function Diet() {
 
         <FlatList
           data={filteredRestaurantMeals}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => item.id != null ? String(item.id) : String(index)}
           scrollEnabled={false}
           contentContainerStyle={filteredRestaurantMeals.length ? styles.restaurantList : undefined}
           renderItem={({ item }) => (
@@ -694,11 +699,11 @@ export default function Diet() {
             color={C?.amber ?? '#f5c56b'}
             onPress={() => {
               const nextProtein = proteinFilter === 'chicken' ? null : 'chicken';
-
               if (nextProtein) {
                 fetchMealsByProtein(nextProtein);
               } else {
                 setProteinFilter(null);
+                setProteinMeals([]);  // ✅ fixed
               }
             }}
           />
@@ -708,22 +713,41 @@ export default function Diet() {
             color={C?.amber ?? '#f5c56b'}
             onPress={() => {
               const nextProtein = proteinFilter === 'beef' ? null : 'beef';
-
               if (nextProtein) {
                 fetchMealsByProtein(nextProtein);
               } else {
                 setProteinFilter(null);
+                setProteinMeals([]);  // ✅ fixed
               }
             }}
           />
         </View>
 
         <Text style={styles.resultsLabel}>
-          {filteredRestaurantMeals.length} menu meal{filteredRestaurantMeals.length === 1 ? '' : 's'}
+          {proteinMeals.length} menu meal{proteinMeals.length === 1 ? '' : 's'}
           {proteinFilter ? ' matching protein filter' : ' available'}
         </Text>
 
-
+        {proteinMeals.length > 0 && (
+          <FlatList
+            data={proteinMeals}
+            keyExtractor={(item, index) => item.id != null ? String(item.id) : String(index)}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <View style={styles.restaurantMealRow}>
+                <View style={styles.restaurantMealInfo}>
+                  <Text style={styles.restaurantMealName}>{item.product}</Text>
+                  <Text style={styles.restaurantMealProtein}>
+                    {item.restaurant} · {item.category}
+                  </Text>
+                </View>
+                <Text style={styles.restaurantMealCalories}>
+                  {item.energy_kcal ?? 0} cal
+                </Text>
+              </View>
+            )}
+          />
+        )}
       </SectionCard>
     </ScrollView>
   );
