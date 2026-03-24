@@ -16,6 +16,7 @@ openai = "*"
 pinecone = "*"
 pytest = "*"
 httpx = "*"
+bcrypt = "==4.0.1"
 
 [dev-packages]
 
