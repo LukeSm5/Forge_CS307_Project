@@ -256,7 +256,7 @@ export default function Diet() {
   const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [restaurantError, setRestaurantError] = useState('');
   const [proteinFilter, setProteinFilter] = useState<ProteinFilter>(null);
-  const [proteinMeals, setProteinMeals] = useState<RestaurantMeal[]>([]);
+  const [proteinFetched, setProteinFetched] = useState(false);
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -408,46 +408,54 @@ export default function Diet() {
     }
     setRestaurantLoading(true);
     setRestaurantError('');
-    setProteinFilter(null);
+    setProteinFetched(false);  // ✅ mark as restaurant search, not protein fetch
     try {
       const data = await api.searchByRestaurant(trimmed);
       setRestaurantMeals(Array.isArray(data) ? data : []);
     } catch (err) {
       setRestaurantMeals([]);
-      setRestaurantError(
-        'Could not load menu meals. Check that your API is running and reachable from the app.'
-      );
+      setRestaurantError('Could not load menu meals.');
     } finally {
       setRestaurantLoading(false);
     }
   };
 
 
-  const fetchMealsByProtein = async (protein: ProteinFilter) => {
-    if (!protein) {
+  const handleProteinPress = async (protein: 'chicken' | 'beef') => {
+    // toggle off
+    if (proteinFilter === protein) {
       setProteinFilter(null);
-      setRestaurantError('');
+      if (proteinFetched) {
+        setRestaurantMeals([]);  // clear only if results came from protein fetch
+        setProteinFetched(false);
+      }
       return;
     }
-    setRestaurantLoading(true);
-    setRestaurantError('');
-    try {
-      const data = await api.searchByProtein(protein);
-      setRestaurantMeals(Array.isArray(data) ? data : []);
-      setProteinFilter(protein);
-    } catch (err) {
-      setRestaurantMeals([]);
-      setRestaurantError(
-        'Could not load protein-filtered menu meals. Check that your API is running and reachable from the app.'
-      );
-    } finally {
-      setRestaurantLoading(false);
+
+    setProteinFilter(protein);
+
+    if (restaurantMeals.length === 0) {
+      setRestaurantLoading(true);
+      setRestaurantError('');
+      try {
+        const data = await api.searchByProtein(protein);
+        setRestaurantMeals(Array.isArray(data) ? data : []);
+        setProteinFetched(true);  // mark that results came from protein fetch
+      } catch (err) {
+        setRestaurantError('Could not load protein-filtered meals.');
+      } finally {
+        setRestaurantLoading(false);
+      }
+    } else {
+      setProteinFetched(false);  // results came from restaurant search
     }
   };
 
+
   const filteredRestaurantMeals = useMemo(() => {
-    return restaurantMeals;
-  }, [restaurantMeals]);
+    if (!proteinFilter) return restaurantMeals;
+    return restaurantMeals.filter((meal) => meal[proteinFilter] === true);
+  }, [restaurantMeals, proteinFilter]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -664,7 +672,38 @@ export default function Diet() {
           onSubmitEditing={searchMeals}
         />
 
-        <ForgeButton onPress={searchMeals} text={'Search'} />
+        <View style={styles.pillWrap}>
+          <Pill
+            label="chicken"
+            active={proteinFilter === 'chicken'}
+            color={C?.amber ?? '#f5c56b'}
+            onPress={() => handleProteinPress('chicken')}
+          />
+          <Pill
+            label="beef"
+            active={proteinFilter === 'beef'}
+            color={C?.amber ?? '#f5c56b'}
+            onPress={() => handleProteinPress('beef')}
+          />
+        </View>
+
+        <View style={styles.rowGap}>
+          <View style={styles.flex1}>
+            <ForgeButton onPress={searchMeals} text={'Search'} />
+          </View>
+          <View style={styles.flex1}>
+            <ForgeButton
+              onPress={() => {
+                setRestaurant('');
+                setRestaurantMeals([]);
+                setProteinFilter(null);
+                setProteinFetched(false);
+                setRestaurantError('');
+              }}
+              text={'Clear'}
+            />
+          </View>
+        </View>
 
         {restaurantLoading ? <ActivityIndicator style={styles.loader} /> : null}
         {restaurantError ? <Text style={styles.errorText}>{restaurantError}</Text> : null}
@@ -688,66 +727,6 @@ export default function Diet() {
             </View>
           )}
         />
-      </SectionCard>
-
-      <SectionCard title="Menu Meal Filter">
-        <Text style={styles.sectionLabel}>Protein</Text>
-        <View style={styles.pillWrap}>
-          <Pill
-            label="chicken"
-            active={proteinFilter === 'chicken'}
-            color={C?.amber ?? '#f5c56b'}
-            onPress={() => {
-              const nextProtein = proteinFilter === 'chicken' ? null : 'chicken';
-              if (nextProtein) {
-                fetchMealsByProtein(nextProtein);
-              } else {
-                setProteinFilter(null);
-                setProteinMeals([]);  // ✅ fixed
-              }
-            }}
-          />
-          <Pill
-            label="beef"
-            active={proteinFilter === 'beef'}
-            color={C?.amber ?? '#f5c56b'}
-            onPress={() => {
-              const nextProtein = proteinFilter === 'beef' ? null : 'beef';
-              if (nextProtein) {
-                fetchMealsByProtein(nextProtein);
-              } else {
-                setProteinFilter(null);
-                setProteinMeals([]);  // ✅ fixed
-              }
-            }}
-          />
-        </View>
-
-        <Text style={styles.resultsLabel}>
-          {proteinMeals.length} menu meal{proteinMeals.length === 1 ? '' : 's'}
-          {proteinFilter ? ' matching protein filter' : ' available'}
-        </Text>
-
-        {proteinMeals.length > 0 && (
-          <FlatList
-            data={proteinMeals}
-            keyExtractor={(item, index) => item.id != null ? String(item.id) : String(index)}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <View style={styles.restaurantMealRow}>
-                <View style={styles.restaurantMealInfo}>
-                  <Text style={styles.restaurantMealName}>{item.product}</Text>
-                  <Text style={styles.restaurantMealProtein}>
-                    {item.restaurant} · {item.category}
-                  </Text>
-                </View>
-                <Text style={styles.restaurantMealCalories}>
-                  {item.energy_kcal ?? 0} cal
-                </Text>
-              </View>
-            )}
-          />
-        )}
       </SectionCard>
     </ScrollView>
   );
