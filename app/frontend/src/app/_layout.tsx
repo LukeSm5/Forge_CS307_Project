@@ -106,13 +106,17 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const { effectiveScheme } = useAccessibility();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isLoadingAuth } = useAuth();  // ✅ add isLoadingAuth
   const segments = useSegments();
   const currentRoot = segments[0] ?? "";
+
   const isPublicAuthRoute =
     currentRoot === "loginScreen" ||
     currentRoot === "createAccountScreen" ||
     currentRoot === "resetPasswordScreen";
+
+  // ✅ don't redirect while checking stored token
+  if (isLoadingAuth) return null;
 
   return (
     <ThemeProvider value={effectiveScheme === "dark" ? DarkTheme : DefaultTheme}>

@@ -2,13 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
+from datetime import timezone 
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 from app.core.session import get_db
 from app.core.seed import engine
-
 from app.core.db import Workouts, workout_exercises, Exercises, Machines
 from app.core.db import Accounts
 from app.core import repos, session
@@ -351,7 +351,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    if not user.refresh_expires_at or user.refresh_expires_at < utcnow():
+    if not user.refresh_expires_at or user.refresh_expires_at.replace(tzinfo=timezone.utc) < utcnow():
         raise HTTPException(status_code=401, detail="Expired refresh token")
 
     # New short-lived access token

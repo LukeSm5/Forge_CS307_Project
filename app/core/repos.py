@@ -223,8 +223,9 @@ def lookup_menumeal_by_protein(sess: Session, protein: str) -> menu_meals:
         results = sess.query(menu_meals).filter(menu_meals.chicken == True).all()
     elif protein == 'beef':
         results = sess.query(menu_meals).filter(menu_meals.beef == True).all()
-        
-    return results if results else []
+    else:
+        results = []
+    return results
 
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
