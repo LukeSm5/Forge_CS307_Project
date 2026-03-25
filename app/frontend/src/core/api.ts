@@ -165,6 +165,10 @@ export const api = {
   searchByProtein: async (protein: string): Promise<MenuMeal[]> => {
     return get<MenuMeal[]>(`/meals/protein/${encodeURIComponent(protein)}`);
   },
+
+  getAllMenuMeals: async (): Promise<MenuMeal[]> => {
+    return get<MenuMeal[]>('/meals');
+  },
 };
 
 export type User = {
@@ -261,6 +265,7 @@ export type MenuMeal = {
   category: string;
   product: string;
   energy_kcal?: number;
+  protein_g?: number;
   chicken?: boolean;
   beef?: boolean;
 };

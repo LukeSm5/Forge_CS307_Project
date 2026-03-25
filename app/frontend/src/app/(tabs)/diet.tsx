@@ -257,6 +257,7 @@ export default function Diet() {
   const [restaurantError, setRestaurantError] = useState('');
   const [proteinFilter, setProteinFilter] = useState<ProteinFilter>(null);
   const [proteinFetched, setProteinFetched] = useState(false);
+  const [minProtein, setMinProtein] = useState('');
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -402,15 +403,27 @@ export default function Diet() {
 
   const searchMeals = async () => {
     const trimmed = restaurant.trim();
-    if (!trimmed) {
-      setRestaurantError('Please enter a restaurant name.');
+    const minP = parseFloat(minProtein);
+    const hasRestaurant = trimmed.length > 0;
+    const hasMinProtein = !isNaN(minP);
+
+    if (!hasRestaurant && !hasMinProtein) {
+      setRestaurantError('Please enter a restaurant or minimum protein.');
       return;
     }
+
     setRestaurantLoading(true);
     setRestaurantError('');
-    setProteinFetched(false);  // ✅ mark as restaurant search, not protein fetch
+    setProteinFetched(false);
+
     try {
-      const data = await api.searchByRestaurant(trimmed);
+      let data: RestaurantMeal[] = [];
+      if (hasRestaurant) {
+        data = await api.searchByRestaurant(trimmed);
+      } else {
+        // min protein only — fetch all meals from DB
+        data = await api.getAllMenuMeals();
+      }
       setRestaurantMeals(Array.isArray(data) ? data : []);
     } catch (err) {
       setRestaurantMeals([]);
@@ -453,9 +466,19 @@ export default function Diet() {
 
 
   const filteredRestaurantMeals = useMemo(() => {
-    if (!proteinFilter) return restaurantMeals;
-    return restaurantMeals.filter((meal) => meal[proteinFilter] === true);
-  }, [restaurantMeals, proteinFilter]);
+    let meals = restaurantMeals;
+
+    if (proteinFilter) {
+      meals = meals.filter((meal) => meal[proteinFilter] === true);
+    }
+
+    const minP = parseFloat(minProtein);
+    if (!isNaN(minP)) {
+      meals = meals.filter((meal) => (meal.protein_g ?? 0) >= minP);
+    }
+
+    return meals;
+  }, [restaurantMeals, proteinFilter, minProtein]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -662,15 +685,30 @@ export default function Diet() {
       </SectionCard>
 
       <SectionCard title="Menu Meal Search">
-        <TextInput
-          style={styles.input}
-          placeholder="Enter restaurant"
-          placeholderTextColor="#6b7280"
-          value={restaurant}
-          onChangeText={setRestaurant}
-          returnKeyType="search"
-          onSubmitEditing={searchMeals}
-        />
+        <View style={styles.rowGap}>
+          <View style={styles.flex1}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter restaurant"
+              placeholderTextColor="#6b7280"
+              value={restaurant}
+              onChangeText={setRestaurant}
+              returnKeyType="search"
+              onSubmitEditing={searchMeals}
+            />
+          </View>
+          <View style={styles.flex1}>
+            <TextInput
+              style={styles.input}
+              placeholder="Min protein (g)"
+              placeholderTextColor="#6b7280"
+              value={minProtein}
+              onChangeText={setMinProtein}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+        </View>
 
         <View style={styles.pillWrap}>
           <Pill
@@ -698,6 +736,7 @@ export default function Diet() {
                 setRestaurantMeals([]);
                 setProteinFilter(null);
                 setProteinFetched(false);
+                setMinProtein('');
                 setRestaurantError('');
               }}
               text={'Clear'}
@@ -721,9 +760,14 @@ export default function Diet() {
                   {item.restaurant} · {item.category}
                 </Text>
               </View>
-              <Text style={styles.restaurantMealCalories}>
-                {item.energy_kcal ?? 0} cal
-              </Text>
+              <View style={styles.restaurantMealStats}>
+                <Text style={styles.restaurantMealCalories}>
+                  {item.protein_g ?? 0}g
+                </Text>
+                <Text style={styles.restaurantMealCalories}>
+                  {item.energy_kcal ?? 0} cal
+                </Text>
+              </View>
             </View>
           )}
         />
@@ -918,5 +962,9 @@ const styles = StyleSheet.create({
     color: C?.orange ?? '#f97316',
     fontSize: 14,
     fontWeight: '700',
+  },
+  restaurantMealStats: {
+    alignItems: 'flex-end',
+    gap: 2,
   },
 });

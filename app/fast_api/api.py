@@ -145,6 +145,7 @@ class MenuMealOut(BaseModel):
     category: str | None
     product: str
     energy_kcal: float | None
+    protein_g: float | None
     chicken: bool | None
     beef: bool | None
 
@@ -584,6 +585,10 @@ def get_menumeals_restaurant(restaurant: str, db: Session = Depends(get_db)):
 @app.get("/meals/protein/{protein}", response_model=list[MenuMealOut])
 def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_protein(db, protein)
+
+@app.get("/meals", response_model=list[MenuMealOut])
+def get_all_menumeals(db: Session = Depends(get_db)):
+    return repos.lookup_all_menumeals(db)
 
 
 if __name__ == "__main__":

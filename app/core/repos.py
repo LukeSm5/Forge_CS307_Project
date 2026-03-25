@@ -227,6 +227,9 @@ def lookup_menumeal_by_protein(sess: Session, protein: str) -> menu_meals:
         results = []
     return results
 
+def lookup_all_menumeals(sess: Session) -> menu_meals:
+    return sess.query(menu_meals).all()
+
 
 def delete_account_by_id(sess: Session, user_id: int) -> bool:
     """
