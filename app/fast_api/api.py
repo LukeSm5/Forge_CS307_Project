@@ -153,6 +153,16 @@ class MenuMealOut(BaseModel):
         from_attributes = True  # lets Pydantic read SQLAlchemy objects
 
 
+class CreateProfileRequest(BaseModel):
+    age: int
+    gender: str
+    height_in: int
+    weight: int
+    health_goals: str
+    health_status: str
+    calorie_goal: float
+
+
 def _send_account_update_notification(
     notifier: NotificationService,
     *,
@@ -206,6 +216,36 @@ def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db))
     db.commit()
 
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
+
+
+@app.post("/profiles/{user_id}")
+def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = Depends(get_db)):
+    from app.core.db import Profiles
+    existing = db.query(Profiles).filter(Profiles.ProfileID == user_id).first()
+    if existing:
+        # update if already exists
+        existing.age = payload.age
+        existing.gender = payload.gender
+        existing.height_in = payload.height_in
+        existing.weight = payload.weight
+        existing.health_goals = payload.health_goals
+        existing.health_status = payload.health_status
+        existing.calorie_goal = payload.calorie_goal
+    else:
+        profile = Profiles(
+            ProfileID=user_id,
+            age=payload.age,
+            gender=payload.gender,
+            height_in=payload.height_in,
+            weight=payload.weight,
+            health_goals=payload.health_goals,
+            health_status=payload.health_status,
+            calorie_goal=payload.calorie_goal,
+        )
+        db.add(profile)
+    db.commit()
+    return {"ok": True, "calorie_goal": payload.calorie_goal}
+
 
 def _send_profile_update_notification(
     notifier: NotificationService,

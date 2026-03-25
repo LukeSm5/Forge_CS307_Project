@@ -23,6 +23,7 @@ class Profiles(Base):
     gender = Column(Text, nullable=False)
     health_status = Column(Text)
     health_goals = Column(Text)
+    calorie_goal = Column(Float)
 
 # --- STATIC ---
 

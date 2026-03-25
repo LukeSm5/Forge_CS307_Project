@@ -121,6 +121,19 @@ export const api = {
     return me;
   },
   submitOnboarding: async (e: SubmitOnboardingEvent): Promise<boolean> => {
+    const me = await api.me();
+    if (!me) throw new Error("User not signed in.");
+
+    await post<{ ok: boolean }>(`/profiles/${me.profile_id}`, {
+      age: parseInt(e.age),
+      gender: e.genderIndex === 0 ? 'Male' : 'Female',
+      height_in: parseInt(e.height),
+      weight: parseInt(e.weight),
+      health_goals: e.goals,
+      health_status: e.previousExperience,
+      calorie_goal: e.calorie_goal,
+    });
+
     return true;
   },
   getExercises: async (): Promise<Record<string, number>> => {
@@ -200,7 +213,11 @@ export type SubmitOnboardingEvent = {
   height: string,
 
   /** The user's description of their weight. */
-  weight: string
+  weight: string,
+
+  genderIndex: number,    
+  activityIndex: number,
+  calorie_goal: number
 };
 
 export type SearchCardioMachineResponse = {
@@ -269,3 +286,4 @@ export type MenuMeal = {
   chicken?: boolean;
   beef?: boolean;
 };
+

@@ -17,6 +17,14 @@ const QUESTIONS: Question[] = [
     inputType: { type: 'TextBox', maxlen: 4 },
   },
   {
+    textPrompt: 'What is your gender?',
+    inputType: {
+      type: 'MultipleChoice',
+      options: ['Male', 'Female'],
+      maxSelect: 1,
+    },
+  },
+  {
     textPrompt: 'What is your height?',
     inputType: { type: 'TextBox', maxlen: 10 },
   },
@@ -35,10 +43,16 @@ const QUESTIONS: Question[] = [
     inputType: { type: 'Slider', min: 1, max: 10 },
   },
   {
-    textPrompt: 'How frequently do you go to the gym?',
+    textPrompt: 'What is your activity level?',
     inputType: {
       type: 'MultipleChoice',
-      options: ['Never', 'Once per week', '2-3 times per week', '4+ times per week'],
+      options: [
+        'Sedentary (desk job, no exercise)',
+        'Lightly active (1-3 days/week)',
+        'Moderately active (3-5 days/week)',
+        'Very active (6-7 days/week)',
+        'Extremely active (athlete/physical job)',
+      ],
       maxSelect: 1,
     },
   },
@@ -88,6 +102,24 @@ function calculateHealthScore(
   return score;
 }
 
+const ACTIVITY_MULTIPLIERS = [1.2, 1.375, 1.55, 1.725, 1.9];
+
+function calculateDay1Calorie(
+  age: number,
+  weightLbs: number,
+  heightIn: number,
+  genderIndex: number,  // 0 = male, 1 = female
+  activityIndex: number
+): number {
+  const weightKg = weightLbs * 0.453592;
+  const heightCm = heightIn * 2.54;
+  const bmr = genderIndex === 0
+    ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5      // male
+    : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;   // female
+  return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityIndex]);
+}
+
+
 function responsiveHealthScore(responses: (string | number)[]): number {
   let healthScore = 0;
   const healthResponses = responses.slice(0, 5);
@@ -130,46 +162,44 @@ export default function OnboardingScreen() {
   const completeQuiz = () => {
     const healthScore = responsiveHealthScore(responses);
 
-    let goals = '';
-    if (typeof responses[8] === 'string') goals = responses[8];
+    const age = typeof responses[0] === 'string' ? responses[0] : '';
+    const genderIndex = typeof responses[1] === 'number' ? responses[1] : 0;
+    const height = typeof responses[2] === 'string' ? responses[2] : '';
+    const weight = typeof responses[3] === 'string' ? responses[3] : '';
+    const activityIndex = typeof responses[6] === 'number' ? responses[6] : 0;
+    const goals = typeof responses[9] === 'string' ? responses[9] : '';
+    const previousExperience = typeof responses[10] === 'string' ? responses[10] : '';
+    const bio = typeof responses[11] === 'string' ? responses[11] : '';
 
-    let previousExperience = '';
-    if (typeof responses[9] === 'string') previousExperience = responses[9];
-
-    let bio = '';
-    if (typeof responses[10] === 'string') bio = responses[10];
-
-    let age = '';
-    if (typeof responses[0] === 'string') age = responses[0];
-
-    let height = '';
-    if (typeof responses[1] === 'string') height = responses[1];
-
-    let weight = '';
-    if (typeof responses[2] === 'string') weight = responses[2];
+    const calorie_goal = calculateDay1Calorie(
+      parseInt(age),
+      parseInt(weight),
+      parseInt(height),
+      genderIndex,
+      activityIndex,
+    );
 
     setQuizState(1);
     setQuestionIndex(0);
 
-    api
-      .submitOnboarding({
-        healthScore,
-        age,
-        height,
-        weight,
-        goals,
-        previousExperience,
-        bio,
-      })
-      .then((success) => {
-        if (!success) {
-          console.error('Error uploading onboarding data.');
-        }
-        router.replace('/(tabs)');
-      });
+    api.submitOnboarding({
+      healthScore,
+      age,
+      height,
+      weight,
+      genderIndex,
+      activityIndex,
+      calorie_goal,
+      goals,
+      previousExperience,
+      bio,
+    }).then((success) => {
+      if (!success) console.error('Error uploading onboarding data.');
+      router.replace('/(tabs)');
+    });
 
-    setResponses([]);
-  };
+  setResponses([]);
+};
 
   const startComponent = (
     <View style={styles.transparent}>
