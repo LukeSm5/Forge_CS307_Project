@@ -17,6 +17,7 @@ class Accounts(Base):
 class Profiles(Base):
     __tablename__ = 'Profiles'
     ProfileID = Column(Integer, ForeignKey('Accounts.UserID'), primary_key=True)
+    metricOrImperial = Column(Boolean, nullable=False) # true for metric, false for imperial
     age = Column(Integer, nullable=False)
     weight = Column(Integer, nullable=False)
     height_in = Column(Integer, nullable=False)

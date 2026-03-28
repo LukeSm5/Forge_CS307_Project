@@ -1,6 +1,6 @@
 
 import pandas as pd
-from app.core.session import engine, SessionLocal
+from app.core.session import engine, SessionLocal, Base
 from app.core import repos
 
 
@@ -16,6 +16,7 @@ def seed_menu_meals():
 
 
 if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
     seed_menu_meals()
 
     db = SessionLocal()
