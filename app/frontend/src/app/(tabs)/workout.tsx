@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, CreateWorkoutLogExercise, WorkoutExerciseLog, WorkoutLog } from '@/core/api';
+import { api, SessionExerciseLog } from '@/core/api';
 import { useRouter } from 'expo-router';
 import CardioButton from '@/components/cardioSearch/CardioButton';
 
@@ -13,7 +13,8 @@ type LoggedWorkout = {
   id: string;
   title: string;
   loggedAt: string;
-  exercises: WorkoutExerciseLog[];
+  duration: number;
+  exercises: SessionExerciseLog[];
 };
 
 type SessionState = 'idle' | 'running' | 'ended';
@@ -62,7 +63,13 @@ export default function WorkoutTabScreen() {
     setHistoryError(null);
     try {
       const logsFromApi = await api.getWorkoutHistory(profileId);
-      const mapped = logsFromApi.map(mapWorkoutLogToCard);
+      const mapped = logsFromApi.map((s) => ({
+        id: String(s.session_id),
+        title: s.workout_name,
+        loggedAt: s.date,
+        duration: s.duration,
+        exercises: s.exercises,
+      }));
       setWorkoutHistory(mapped);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load workout history.';
@@ -101,28 +108,34 @@ export default function WorkoutTabScreen() {
 
   async function handleAddToLog(log: LoggedWorkout) {
     if (savingLogId) return;
-
     setSavingLogId(log.id);
     try {
-      const payloadExercises: CreateWorkoutLogExercise[] = log.exercises.map((exercise) => ({
-        exercise_id: exercise.exercise_id,
-        machine_id: exercise.machine_id,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        weight: exercise.weight ?? null,
-        notes: exercise.notes ?? null,
-      }));
+      const elapsed = elapsedByLogSeconds[log.id] ?? 0;
+      const seen = new Set<number>();
+      const exercises = log.exercises
+        .filter((ex) => {
+          if (seen.has(ex.exercise_id)) return false;
+          seen.add(ex.exercise_id);
+          return true;
+        })
+        .map((ex) => ({
+          exercise_id: ex.exercise_id,
+          machine_id: ex.machine_id,
+          sets: log.exercises.filter((e) => e.exercise_id === ex.exercise_id).length,
+          reps: ex.reps,
+          weight: ex.weight,
+        }));
 
-      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      const result = await api.addWorkoutLog({
+      await api.addWorkoutLog({
         profile_id: profileId,
-        workout_name: `${log.title} ${timestamp}`,
-        exercises: payloadExercises,
+        workout_id: log.exercises[0]?.exercise_id ?? 0,
+        duration: elapsed,
+        exercises,
       });
 
       setSessionStateByLog((prev) => ({ ...prev, [log.id]: 'idle' }));
       setElapsedByLogSeconds((prev) => ({ ...prev, [log.id]: 0 }));
-      Alert.alert('Added to log', `Saved as "${result.workout_name}"`);
+      Alert.alert('Added to log', 'Session saved!');
       await loadWorkoutHistory();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add workout log.';
@@ -139,10 +152,10 @@ export default function WorkoutTabScreen() {
         exercise_id: exercise.exercise_id,
         machine_id: exercise.machine_id,
         exercise_name: exercise.exercise_name,
-        sets: String(exercise.sets),
+        sets: String(log.exercises.filter((e) => e.exercise_id === exercise.exercise_id).length),
         reps: String(exercise.reps),
         weight: exercise.weight != null ? String(exercise.weight) : '',
-        notes: exercise.notes ?? '',
+        notes: '',
       }))
     );
   }
@@ -166,27 +179,27 @@ export default function WorkoutTabScreen() {
 
     setSavingLogId(editingLog.id);
     try {
-      const payloadExercises: CreateWorkoutLogExercise[] = exerciseDrafts.map((exercise) => ({
+      const exercises = exerciseDrafts.map((exercise) => ({
         exercise_id: exercise.exercise_id,
         machine_id: exercise.machine_id,
         sets: Number(exercise.sets),
         reps: Number(exercise.reps),
         weight: exercise.weight.trim() ? Number(exercise.weight) : null,
-        notes: exercise.notes.trim() || null,
       }));
 
-      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      const result = await api.addWorkoutLog({
+      await api.addWorkoutLog({
         profile_id: profileId,
-        workout_name: `${editingLog.title} (Edited) ${timestamp}`,
-        exercises: payloadExercises,
+        workout_id: exerciseDrafts[0]?.exercise_id ?? 0,
+        duration: elapsedByLogSeconds[editingLog.id] ?? 0,
+        notes: `${editingLog.title} (Edited)`,
+        exercises,
       });
 
       setSessionStateByLog((prev) => ({ ...prev, [editingLog.id]: 'idle' }));
       setElapsedByLogSeconds((prev) => ({ ...prev, [editingLog.id]: 0 }));
       setEditingLog(null);
       setExerciseDrafts([]);
-      Alert.alert('Added to log', `Saved as "${result.workout_name}"`);
+      Alert.alert('Added to log', 'Session saved!');
       await loadWorkoutHistory();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add workout log.';
@@ -211,7 +224,7 @@ export default function WorkoutTabScreen() {
 
     setDeletingLogId(log.id);
     try {
-      await api.deleteWorkoutLog(profileId, Number(log.id));
+      await api.deleteWorkoutLog(Number(log.id));
       if (expandedLogId === log.id) setExpandedLogId(null);
       setDeleteConfirmLog(null);
       await loadWorkoutHistory();
@@ -714,21 +727,12 @@ const styles = StyleSheet.create({
   },
 });
 
-function mapWorkoutLogToCard(log: WorkoutLog): LoggedWorkout {
-  return {
-    id: String(log.workout_id),
-    title: log.workout_name,
-    loggedAt: `Workout #${log.workout_id}`,
-    exercises: log.exercises,
-  };
-}
 
-function formatExercise(exercise: WorkoutExerciseLog): string {
+function formatExercise(exercise: SessionExerciseLog): string {
   const parts = [
-    `${exercise.exercise_name}`,
-    `${exercise.sets}x${exercise.reps}`,
+    exercise.exercise_name,
+    `Set ${exercise.set_number} · ${exercise.reps} reps`,
     exercise.weight != null ? `${exercise.weight} lb` : null,
   ].filter(Boolean);
-
   return parts.join(' • ');
 }

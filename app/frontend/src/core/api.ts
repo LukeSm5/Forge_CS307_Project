@@ -78,13 +78,13 @@ const TEST_USER: User = {
 
 export const api = {
   deleteAccount: (userId: number) => del(`/accounts/${userId}`),
-  deleteWorkoutLog: (profileId: number, workoutId: number) =>
-    del(`/workouts/${profileId}/${workoutId}`),
-  getWorkoutHistory: async (profileId: number): Promise<WorkoutLog[]> => {
-    return get<WorkoutLog[]>(`/workouts/${profileId}`);
+  deleteWorkoutLog: async (sessionId: number) =>
+    del(`/sessions/${sessionId}`),
+  getWorkoutHistory: async (profileId: number): Promise<SessionLog[]> => {
+    return get<SessionLog[]>(`/sessions/${profileId}`);
   },
-  addWorkoutLog: async (payload: CreateWorkoutLogRequest): Promise<CreateWorkoutLogResponse> => {
-    return post<CreateWorkoutLogResponse>('/workouts', payload);
+  addWorkoutLog: async (payload: CreateSessionRequest): Promise<SessionLog> => {
+    return post<SessionLog>('/sessions', payload);
   },
   me: async (): Promise<User | undefined> => {
     return get<User>('/auth/me');
