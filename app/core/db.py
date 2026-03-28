@@ -253,9 +253,12 @@ class meal_dietary_tags(Base):
 # class session_meals(Base):
 #   """Meal session (on March 12 lasted 30 minutes) with 30 g protein, 20 g carbs, 10 g fat"""
 #    __tablename__ = 'session_meals'
-#    SessionID = Column(Integer, ForeignKey('session_meals.SessionID'), primary_key=True, nullable=False)
+#   SessionID = Column(Integer, ForeignKey('session_meals.SessionID'), primary_key=True, nullable=False)
 #   MealID = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
 #   name = Column(Text, nullable=False)
+#   date = Column(DateTime, nullable=False)
+#   calories = Column(Integer)
+#   servings = Column(Float)
 #   protein_g = Column(Float)
 #   carbohydrates_g = Column(Float)
 #   fat_g = Column(Float)

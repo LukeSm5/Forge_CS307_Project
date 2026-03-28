@@ -645,9 +645,42 @@ def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_protein(db, protein)
 
 @app.get("/meals", response_model=list[MenuMealOut])
-def get_all_menumeals(db: Session = Depends(get_db)):
+def get_menumeals(db: Session = Depends(get_db)):
     return repos.lookup_all_menumeals(db)
 
+'''@app.get("/auth/llm-context")
+async def get_llm_context(request: Request, db: Session = Depends(get_db)):
+    user = db.query(Accounts).filter(Accounts.email == request.user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    profile = db.query(Profiles).filter(Profiles.UserID == user.UserID).first()
+    workouts = db.query(session_workouts).filter(session_workouts.ProfileID == profile.ProfileID).order_by(session_workouts.date.desc()).limit(5).all()
+    workoutString = ""
+    for i in range(len(workouts)):
+        workoutString += f"Workout {workouts[i].SessionID}:\n"
+        exercises = db.query(session_exercises).filter(session_exercises.SessionID == workouts[i].SessionID).all()
+        for j in range(len(exercises)):
+            workoutString += f"Exercise {j}: {workouts[i].exercises[j].name}\n Sets: {workouts[i].exercises[j].sets}\n Reps: {workouts[i].exercises[j].reps}\n Weight: {workouts[i].exercises[j].weight}\n"
+    
+    mealString = ""
+    meals = db.query(session_meals).filter(session_meals.ProfileID == profile.ProfileID).order_by(session_meals.date.desc()).limit(5).all()
+    for i in range(len(meals)):
+        mealString += f"Meal {meals[i].name}:\n"
+        mealString += f"Calories: {meals[i].calories}\n Servings: {meals[i].servings}\n Protein: {meals[i].protein_g}g\n Carbs: {meals[i].carbohydrates_g}g\n Fat: {meals[i].fat_g}g\n"
+    # Need to contruct a string that prints recent workouts and recent meals in a readable LLM format
+    profile_data = f"""
+    Age: {profile.age}
+    Weight: {profile.weight}
+    Height: {profile.height_in}
+    Health Status: {profile.health_status}
+    Health Goals: {profile.health_goals}
+    Recent Workouts:
+    {workoutString}
+    Recent Meals:
+    {mealString}
+    """
+'''
 
 if __name__ == "__main__":
     import uvicorn
