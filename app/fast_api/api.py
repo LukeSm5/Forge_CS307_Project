@@ -8,12 +8,10 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 from app.core.session import get_db
-from app.core.seed import engine
-from app.core.db import Workouts, workout_exercises, Exercises, Machines
-from app.core.db import Accounts
+from app.core.seed import engine, SessionLocal
+from app.core.db import Workouts, workout_exercises, Exercises, Machines, Accounts, Profiles
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
-from app.core.seed import SessionLocal
 from app.fast_api import account_management as am
 from app.core.auth_tokens import (
     create_access_token,
@@ -170,6 +168,10 @@ class CreateProfileRequest(BaseModel):
     health_status: str
     calorie_goal: float
 
+class WeightConversionRequest(BaseModel):
+    profileID: int 
+    metricOrImperial: bool  # true for metric, false for imperial
+
 
 def _send_account_update_notification(
     notifier: NotificationService,
@@ -228,7 +230,6 @@ def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db))
 
 @app.post("/profiles/{user_id}")
 def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = Depends(get_db)):
-    from app.core.db import Profiles
     existing = db.query(Profiles).filter(Profiles.ProfileID == user_id).first()
     if existing:
         # update if already exists
@@ -377,7 +378,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/auth/me", response_model=AccountMeResponse)
 def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
-    from app.core.db import Profiles
     profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
     return AccountMeResponse(
         profile_id=me.UserID,
@@ -685,6 +685,28 @@ async def get_llm_context(request: Request, db: Session = Depends(get_db)):
     {mealString}
     """
 '''
+
+# @app.get("/weightConversion")
+def weight_conversion(db: Session = Depends(get_db), request = WeightConversionRequest):
+    profile = db.query(Profiles).filter(Profiles.ProfileID == request.profileID).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    # conversion logic to be used for button, imperial = true, metric = false
+    if not request.metricOrImperial and profile.metricOrImperial: # currently imperial, want metric
+
+        # have to convert everything to metric 
+        profile.height_in = round(profile.height_in * 2.54)
+        profile.weight = round(profile.weight * 0.453592)
+        #TODO: convert all workouts/meals logged for this profile to metric as well
+    elif request.metricOrImperial and not profile.metricOrImperial: # currently metric, want imperial
+
+        # have to convert everything to imperial
+        profile.height_in = round(profile.height_in / 2.54)
+        profile.weight = round(profile.weight / 0.453592)
+        #TODO: convert all workouts/meals logged for this profile to imperial as well
+    profile.metricOrImperial = request.metricOrImperial
+    db.commit()
+
 
 if __name__ == "__main__":
     import uvicorn
