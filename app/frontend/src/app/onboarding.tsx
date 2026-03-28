@@ -14,7 +14,7 @@ import { Schemes } from '@/constants/Colors';
 const QUESTIONS: Question[] = [
   {
     textPrompt: 'What is your age?',
-    inputType: { type: 'TextBox', maxlen: 4 },
+    inputType: { type: 'Number', min: 0, max: 100 },
   },
   {
     textPrompt: 'What is your gender?',
@@ -25,12 +25,12 @@ const QUESTIONS: Question[] = [
     },
   },
   {
-    textPrompt: 'What is your height?',
-    inputType: { type: 'TextBox', maxlen: 10 },
+    textPrompt: 'What is your height in inches?',
+    inputType: { type: 'Number', min: 0, max: 500 },
   },
   {
-    textPrompt: 'What is your weight?',
-    inputType: { type: 'TextBox', maxlen: 10 },
+    textPrompt: 'What is your weight in pounds?',
+    inputType: { type: 'Number', min: 0, max: 1000 },
   },
   {
     textPrompt:
@@ -122,14 +122,14 @@ function calculateDay1Calorie(
 
 function responsiveHealthScore(responses: (string | number)[]): number {
   let healthScore = 0;
-  const healthResponses = responses.slice(0, 5);
+  const healthResponses = responses.slice(4, 9);
   if (healthResponses.every((r) => typeof r === 'number'))
     healthScore = calculateHealthScore(
-      responses[3] as number,
       responses[4] as number,
       responses[5] as number,
       responses[6] as number,
-      responses[7] as number
+      responses[7] as number,
+      responses[8] as number
     );
   return healthScore;
 }
@@ -148,6 +148,9 @@ export default function OnboardingScreen() {
   const submitQuestion = () => {
     if (currentResponse === -1) return false;
 
+    if (QUESTIONS[questionIndex].inputType.type == 'Number' && typeof(currentResponse) === 'number' && isNaN(currentResponse))
+      return false;
+
     setResponses([...responses, currentResponse]);
     setCurrentResponse(-1);
 
@@ -162,19 +165,19 @@ export default function OnboardingScreen() {
   const completeQuiz = () => {
     const healthScore = responsiveHealthScore(responses);
 
-    const age = typeof responses[0] === 'string' ? responses[0] : '';
+    const age = typeof responses[0] === 'number' ? responses[0] : 0;
     const genderIndex = typeof responses[1] === 'number' ? responses[1] : 0;
-    const height = typeof responses[2] === 'string' ? responses[2] : '';
-    const weight = typeof responses[3] === 'string' ? responses[3] : '';
+    const height = typeof responses[2] === 'number' ? responses[2] : 0;
+    const weight = typeof responses[3] === 'number' ? responses[3] : 0;
     const activityIndex = typeof responses[6] === 'number' ? responses[6] : 0;
     const goals = typeof responses[9] === 'string' ? responses[9] : '';
     const previousExperience = typeof responses[10] === 'string' ? responses[10] : '';
     const bio = typeof responses[11] === 'string' ? responses[11] : '';
 
     const calorie_goal = calculateDay1Calorie(
-      parseInt(age),
-      parseInt(weight),
-      parseInt(height),
+      age,
+      weight,
+      height,
       genderIndex,
       activityIndex,
     );

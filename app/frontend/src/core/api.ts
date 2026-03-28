@@ -125,10 +125,10 @@ export const api = {
     if (!me) throw new Error("User not signed in.");
 
     await post<{ ok: boolean }>(`/profiles/${me.profile_id}`, {
-      age: parseInt(e.age),
+      age: e.age,
       gender: e.genderIndex === 0 ? 'Male' : 'Female',
-      height_in: parseInt(e.height),
-      weight: parseInt(e.weight),
+      height_in: e.height,
+      weight: e.weight,
       health_goals: e.goals,
       health_status: e.previousExperience,
       calorie_goal: e.calorie_goal,
@@ -207,13 +207,13 @@ export type SubmitOnboardingEvent = {
   bio: string,
 
   /** The user's description of their age. */
-  age: string,
+  age: number,
 
   /** The user's description of their height. */
-  height: string,
+  height: number,
 
   /** The user's description of their weight. */
-  weight: string,
+  weight: number,
 
   genderIndex: number,    
   activityIndex: number,

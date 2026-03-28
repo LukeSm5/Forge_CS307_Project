@@ -10,6 +10,7 @@ import { Schemes } from '@/constants/Colors';
 export type QuestionInput =
   | { type: 'Slider'; min: number; max: number }
   | { type: 'TextBox'; maxlen: number }
+  | { type: 'Number'; min: number; max: number }
   | { type: 'MultipleChoice'; options: string[]; maxSelect: number };
 
 export type Question = {
@@ -70,6 +71,50 @@ export default function QuizQuestion({
             maxLength={question.inputType.maxlen}
             onChangeText={(val) => onUpdate?.(val)}
             selectionColor="#2f80ed"
+          />
+        </View>
+      );
+      break;
+    
+    case 'Number':
+      const [clampedVal, setClampedVal] = useState(`${(question.inputType.min + question.inputType.max) / 2}`);
+      inputComponent = (
+        <View style={styles.transparent}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: Schemes[scheme].text,
+                borderColor: isDark ? '#6b7280' : 'gray',
+                backgroundColor: isDark ? '#111827' : '#ffffff',
+              },
+            ]}
+            placeholder="Type here..."
+            placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+            keyboardType='decimal-pad'
+            inputMode='decimal'
+            onChangeText={(val) => {
+              let numVal = parseFloat(val);
+
+              if (question.inputType.type != "Number") {
+                onUpdate?.(numVal);
+                return;
+              }
+
+              if (isNaN(numVal) || 
+                  (question.inputType.min <= numVal && numVal <= question.inputType.max)) {
+                onUpdate?.(numVal);
+                setClampedVal(val);
+              } else if (numVal < question.inputType.min) {
+                onUpdate?.(question.inputType.min);
+                setClampedVal(`${question.inputType.min}`);
+              } else if (question.inputType.max < numVal) {
+                onUpdate?.(question.inputType.max);
+                setClampedVal(`${question.inputType.max}`);
+              }
+            }}
+            selectionColor="#2f80ed"
+            value={clampedVal}
           />
         </View>
       );
