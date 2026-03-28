@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises
+from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
