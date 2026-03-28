@@ -747,13 +747,12 @@ export default function Diet() {
         {restaurantLoading ? <ActivityIndicator style={styles.loader} /> : null}
         {restaurantError ? <Text style={styles.errorText}>{restaurantError}</Text> : null}
 
-        <FlatList
-          data={filteredRestaurantMeals}
-          keyExtractor={(item, index) => item.id != null ? String(item.id) : String(index)}
-          scrollEnabled={false}
-          contentContainerStyle={filteredRestaurantMeals.length ? styles.restaurantList : undefined}
-          renderItem={({ item }) => (
-            <View style={styles.restaurantMealRow}>
+        <View style={filteredRestaurantMeals.length ? styles.restaurantList : undefined}>
+          {filteredRestaurantMeals.map((item, index) => (
+            <View
+              key={item.id != null ? String(item.id) : String(index)}
+              style={styles.restaurantMealRow}
+            >
               <View style={styles.restaurantMealInfo}>
                 <Text style={styles.restaurantMealName}>{item.product}</Text>
                 <Text style={styles.restaurantMealProtein}>
@@ -769,8 +768,8 @@ export default function Diet() {
                 </Text>
               </View>
             </View>
-          )}
-        />
+          ))}
+        </View>
       </SectionCard>
     </ScrollView>
   );

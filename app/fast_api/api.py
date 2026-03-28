@@ -645,6 +645,10 @@ def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
     return repos.lookup_menumeal_by_protein(db, protein)
 
 @app.get("/meals", response_model=list[MenuMealOut])
+def get_all_menumeals(db: Session = Depends(get_db)):
+    return repos.lookup_all_menumeals(db)
+
+@app.get("/meals", response_model=list[MenuMealOut])
 def get_menumeals(db: Session = Depends(get_db)):
     return repos.lookup_all_menumeals(db)
 
