@@ -182,9 +182,6 @@ export default function OnboardingScreen() {
       activityIndex,
     );
 
-    setQuizState(1);
-    setQuestionIndex(0);
-
     api.submitOnboarding({
       healthScore,
       age,
@@ -197,12 +194,18 @@ export default function OnboardingScreen() {
       previousExperience,
       bio,
     }).then((success) => {
-      if (!success) console.error('Error uploading onboarding data.');
+      if (!success) {
+        console.error('Error uploading onboarding data.');
+        return;
+      }
+      setQuizState(1);
+      setQuestionIndex(0);
+      setResponses([]);
       router.replace('/(tabs)');
+    }).catch((err) => {
+      console.error('Onboarding submission failed:', err);
     });
-
-  setResponses([]);
-};
+  };
 
   const startComponent = (
     <View style={styles.transparent}>

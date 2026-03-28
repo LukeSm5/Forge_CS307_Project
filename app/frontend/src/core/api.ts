@@ -406,7 +406,7 @@ export type CreateSessionRequest = {
   profile_id: number;
   workout_id: number;
   duration: number;
-  notes?: string;
+  split_name: string;
   exercises: {
     exercise_id: number;
     machine_id: number;
@@ -420,6 +420,7 @@ export type SessionLog = {
   session_id: number;
   workout_id: number;
   workout_name: string;
+  split_name: string | null;
   date: string;
   duration: number;
   exercises: SessionExerciseLog[];

@@ -146,14 +146,11 @@ class AccountMeResponse(BaseModel):
     email: str
     username: str
     bio: Optional[str] = None
-
-    age: float
-    height: float
-    weight: float
-
-    goals: str
-
-    gender: str
+    age: Optional[float] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    goals: Optional[str] = None
+    gender: Optional[str] = None
 
 
 class MenuMealOut(BaseModel):
@@ -214,9 +211,17 @@ class SessionOut(BaseModel):
     session_id: int
     workout_id: int
     workout_name: str
+    split_name: Optional[str]
     date: str
     duration: int
     exercises: List[SessionExerciseOut]
+
+class CreateSessionRequest(BaseModel):
+    profile_id: int
+    workout_id: int
+    duration: int
+    split_name: str
+    exercises: List[SessionExerciseIn]
 
 
 def _send_account_update_notification(
@@ -289,6 +294,7 @@ def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = De
     else:
         profile = Profiles(
             ProfileID=user_id,
+            metricOrImperial=False,
             age=payload.age,
             gender=payload.gender,
             height_in=payload.height_in,
@@ -424,23 +430,19 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/auth/me", response_model=AccountMeResponse)
 def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
+    from app.core.db import Profiles
     profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
     return AccountMeResponse(
         profile_id=me.UserID,
         email=me.email,
         username=me.username,
         bio=me.bio,
-
-        age=profile.age,
-        height=profile.height_in,
-        weight=profile.weight,
-        
-        goals=profile.health_goals,
-        
-        gender=profile.gender
+        age=profile.age if profile else None,
+        height=profile.height_in if profile else None,
+        weight=profile.weight if profile else None,
+        goals=profile.health_goals if profile else None,
+        gender=profile.gender if profile else None,
     )
-
-
 
 
 @app.post("/auth/refresh", response_model=TokenResponse)
@@ -763,17 +765,29 @@ def weight_conversion(db: Session = Depends(get_db), request = WeightConversionR
 @app.post("/sessions", response_model=SessionOut)
 def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db)):
     from datetime import datetime
+    from app.core.db import Splits
 
     workout = db.query(Workouts).filter(Workouts.WorkoutID == payload.workout_id).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
 
+    # look up or create split
+    split = db.query(Splits).filter(
+        Splits.ProfileID == payload.profile_id,
+        Splits.name == payload.split_name
+    ).first()
+    if not split:
+        split = Splits(ProfileID=payload.profile_id, name=payload.split_name)
+        db.add(split)
+        db.commit()
+        db.refresh(split)
+
     new_session = session_workouts(
         WorkoutID=payload.workout_id,
         ProfileID=payload.profile_id,
+        SplitID=split.SplitID,
         date=datetime.utcnow(),
         duration=payload.duration,
-        notes=payload.notes,
     )
     db.add(new_session)
     db.commit()
@@ -810,10 +824,52 @@ def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db))
         session_id=new_session.SessionID,
         workout_id=workout.WorkoutID,
         workout_name=workout.name,
+        split_name=split.name,
         date=str(new_session.date),
         duration=new_session.duration,
         exercises=ex_out,
     )
+
+@app.get("/sessions/{profile_id}", response_model=List[SessionOut])
+def get_sessions_for_profile(profile_id: int, db: Session = Depends(get_db)):
+    from app.core.db import Splits
+    sessions = (
+        db.query(session_workouts)
+        .filter(session_workouts.ProfileID == profile_id)
+        .order_by(session_workouts.date.desc())
+        .all()
+    )
+    result = []
+    for s in sessions:
+        workout = db.query(Workouts).filter(Workouts.WorkoutID == s.WorkoutID).first()
+        split = db.query(Splits).filter(Splits.SplitID == s.SplitID).first() if s.SplitID else None
+        ex_rows = (
+            db.query(session_exercises)
+            .filter(session_exercises.SessionID == s.SessionID)
+            .order_by(session_exercises.ExerciseID, session_exercises.set_number)
+            .all()
+        )
+        ex_out = []
+        for row in ex_rows:
+            ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
+            ex_out.append(SessionExerciseOut(
+                exercise_id=row.ExerciseID,
+                exercise_name=ex_obj.name if ex_obj else "Unknown",
+                machine_id=row.MachineID,
+                set_number=row.set_number,
+                reps=row.reps,
+                weight=row.weight,
+            ))
+        result.append(SessionOut(
+            session_id=s.SessionID,
+            workout_id=s.WorkoutID,
+            workout_name=workout.name if workout else "Unknown",
+            split_name=split.name if split else None,
+            date=str(s.date),
+            duration=s.duration,
+            exercises=ex_out,
+        ))
+    return result
 
 
 if __name__ == "__main__":

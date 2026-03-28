@@ -128,11 +128,11 @@ export default function AddWorkoutScreen() {
 
     setSaving(true);
     try {
-      await api.addSession({
+      await api.addWorkoutLog({
         profile_id: profileId,
         workout_id: selectedWorkoutId,
         duration: Math.floor((Date.now() - startTime) / 1000),
-        notes: splitName.trim(),
+        split_name: splitName.trim(),
         exercises: exerciseList.map((ex) => ({
           exercise_id: exerciseMapping[ex.name] ?? 1,
           machine_id: ex.machine_id,

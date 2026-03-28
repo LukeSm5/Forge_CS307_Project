@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import CardioButton from '@/components/cardioSearch/CardioButton';
 type LoggedWorkout = {
   id: string;
   title: string;
+  splitName: string;
   loggedAt: string;
   duration: number;
   exercises: SessionExerciseLog[];
@@ -26,6 +27,12 @@ type ExerciseDraft = {
   reps: string;
   weight: string;
   notes: string;
+};
+
+type SplitGroup = {
+  splitName: string;
+  date: string;
+  sessions: LoggedWorkout[];
 };
 
 export default function WorkoutTabScreen() {
@@ -66,6 +73,7 @@ export default function WorkoutTabScreen() {
       const mapped = logsFromApi.map((s) => ({
         id: String(s.session_id),
         title: s.workout_name,
+        splitName: s.split_name ?? 'Unknown Split',
         loggedAt: s.date,
         duration: s.duration,
         exercises: s.exercises,
@@ -130,6 +138,7 @@ export default function WorkoutTabScreen() {
         profile_id: profileId,
         workout_id: log.exercises[0]?.exercise_id ?? 0,
         duration: elapsed,
+        split_name: log.splitName,
         exercises,
       });
 
@@ -191,7 +200,7 @@ export default function WorkoutTabScreen() {
         profile_id: profileId,
         workout_id: exerciseDrafts[0]?.exercise_id ?? 0,
         duration: elapsedByLogSeconds[editingLog.id] ?? 0,
-        notes: `${editingLog.title} (Edited)`,
+        split_name: editingLog.splitName,
         exercises,
       });
 
@@ -263,6 +272,23 @@ export default function WorkoutTabScreen() {
     return matchesTitle || matchesExercise;
   });
 
+  const groupedWorkouts = useMemo(() => {
+    const groups = new Map<string, SplitGroup>();
+    for (const log of filteredWorkoutHistory) {
+      const dateOnly = log.loggedAt.slice(0, 10);
+      const key = `${log.splitName}-${dateOnly}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          splitName: log.splitName,
+          date: dateOnly,
+          sessions: [],
+        });
+      }
+      groups.get(key)!.sessions.push(log);
+    }
+    return Array.from(groups.values());
+  }, [filteredWorkoutHistory]);
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -298,85 +324,77 @@ export default function WorkoutTabScreen() {
           <Text style={styles.statusText}>No workouts match "{searchQuery.trim()}".</Text>
         )}
 
-        {!loadingHistory && !historyError && filteredWorkoutHistory.map((log) => {
-          const isExpanded = expandedLogId === log.id;
-          const isRunning = runningLogId === log.id;
-          const elapsed = elapsedByLogSeconds[log.id] ?? 0;
-          const sessionState = sessionStateByLog[log.id] ?? 'idle';
-          return (
-            <View key={log.id} style={styles.logCard}>
-              <Pressable style={styles.logHeaderRow} onPress={() => setExpandedLogId(isExpanded ? null : log.id)}>
-                <View>
-                  <Text style={styles.logTitle}>{log.title}</Text>
-                  <Text style={styles.logDate}>{log.loggedAt}</Text>
-                </View>
-                <FontAwesome name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color="#64748b" />
-              </Pressable>
+        {!loadingHistory && !historyError && groupedWorkouts.map((group) => (
+          <View key={`${group.splitName}-${group.date}`} style={styles.splitCard}>
+            <Text style={styles.splitTitle}>{group.splitName}</Text>
+            <Text style={styles.splitDate}>{group.date}</Text>
 
-              {isExpanded && (
-                <View style={styles.exerciseList}>
-                  <Text style={styles.exerciseHeading}>Exercises in this log</Text>
-                  {log.exercises.map((exercise) => (
-                    <Text key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}`} style={styles.exerciseItem}>
-                      - {formatExercise(exercise)}
-                    </Text>
-                  ))}
-
-                  <View style={styles.timerRow}>
-                    <View style={styles.leftTimerRow}>
-                      <Text style={styles.timerText}>Timer: {formatDuration(elapsed)}</Text>
-                      <ForgeButton
-                        text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
-                        theme="danger"
-                        compact
-                        style={styles.deleteButton}
-                        onPress={() => {
-                          void handleDeleteWorkout(log);
-                        }}
-                        disabled={deletingLogId === log.id}
-                      />
+            {group.sessions.map((log) => {
+              const isExpanded = expandedLogId === log.id;
+              const isRunning = runningLogId === log.id;
+              const elapsed = elapsedByLogSeconds[log.id] ?? 0;
+              const sessionState = sessionStateByLog[log.id] ?? 'idle';
+              return (
+                <View key={log.id} style={styles.logCard}>
+                  <Pressable style={styles.logHeaderRow} onPress={() => setExpandedLogId(isExpanded ? null : log.id)}>
+                    <View>
+                      <Text style={styles.logTitle}>{log.title}</Text>
+                      <Text style={styles.logDate}>{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
                     </View>
-                    {isRunning ? (
-                      <ForgeButton
-                        text="End"
-                        theme="danger"
-                        compact
-                        style={styles.sessionButton}
-                        onPress={() => handleEndWorkout(log.id)}
-                      />
-                    ) : sessionState === 'ended' ? (
-                      <View style={styles.postActionsRow}>
-                        <ForgeButton
-                          text={savingLogId === log.id ? 'Saving...' : 'Add'}
-                          theme="success"
-                          compact
-                          style={styles.sessionButton}
-                          onPress={() => handleAddToLog(log)}
-                          disabled={savingLogId === log.id}
-                        />
-                        <ForgeButton
-                          text="Edit & Add"
-                          theme="secondary"
-                          compact
-                          style={styles.sessionButton}
-                          onPress={() => handleEditAndAdd(log)}
-                        />
+                    <FontAwesome name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color="#64748b" />
+                  </Pressable>
+
+                  {isExpanded && (
+                    <View style={styles.exerciseList}>
+                      <Text style={styles.exerciseHeading}>Exercises in this log</Text>
+                      {log.exercises.map((exercise) => (
+                        <Text key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`} style={styles.exerciseItem}>
+                          - {formatExercise(exercise)}
+                        </Text>
+                      ))}
+                      <View style={styles.timerRow}>
+                        <View style={styles.leftTimerRow}>
+                          <Text style={styles.timerText}>Timer: {formatDuration(elapsed)}</Text>
+                          <ForgeButton
+                            text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
+                            theme="danger"
+                            compact
+                            style={styles.deleteButton}
+                            onPress={() => void handleDeleteWorkout(log)}
+                            disabled={deletingLogId === log.id}
+                          />
+                        </View>
+                        {isRunning ? (
+                          <ForgeButton text="End" theme="danger" compact style={styles.sessionButton} onPress={() => handleEndWorkout(log.id)} />
+                        ) : sessionState === 'ended' ? (
+                          <View style={styles.postActionsRow}>
+                            <ForgeButton
+                              text={savingLogId === log.id ? 'Saving...' : 'Add'}
+                              theme="success"
+                              compact
+                              style={styles.sessionButton}
+                              onPress={() => handleAddToLog(log)}
+                              disabled={savingLogId === log.id}
+                            />
+                            <ForgeButton
+                              text="Edit & Add"
+                              theme="secondary"
+                              compact
+                              style={styles.sessionButton}
+                              onPress={() => handleEditAndAdd(log)}
+                            />
+                          </View>
+                        ) : (
+                          <ForgeButton text="Start" theme="primary" compact style={styles.sessionButton} onPress={() => handleStartWorkout(log.id)} />
+                        )}
                       </View>
-                    ) : (
-                      <ForgeButton
-                        text="Start"
-                        theme="primary"
-                        compact
-                        style={styles.sessionButton}
-                        onPress={() => handleStartWorkout(log.id)}
-                      />
-                    )}
-                  </View>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-          );
-        })}
+              );
+            })}
+          </View>
+        ))}
       </ScrollView>
 
       <View style={styles.actionsRow}>
@@ -724,6 +742,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 14,
     color: '#334155',
+  },
+
+  splitCard: {
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    backgroundColor: '#eff6ff',
+  },
+  splitTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e3a5f',
+  },
+  splitDate: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 8,
   },
 });
 

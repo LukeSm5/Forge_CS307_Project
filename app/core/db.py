@@ -32,8 +32,8 @@ class Splits(Base):
     "Pull"                                                        
     __tablename__ = 'Splits'                                               
     SplitID = Column(Integer, primary_key=True, autoincrement=True)
+    ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False, index=True)
     name = Column(Text, nullable=False)
-    period = Column(Integer)        # 5-day split
 
 class Workouts(Base):
     "Back, bicep"
