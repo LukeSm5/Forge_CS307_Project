@@ -138,6 +138,14 @@ class AccountMeResponse(BaseModel):
     username: str
     bio: Optional[str] = None
 
+    age: float
+    height: float
+    weight: float
+
+    goals: str
+
+    gender: str
+
 
 class MenuMealOut(BaseModel):
     id: int = Field(validation_alias="MenuMealID")
@@ -368,12 +376,22 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @app.get("/auth/me", response_model=AccountMeResponse)
-def auth_me(me: Accounts = Depends(get_current_account)):
+def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
+    from app.core.db import Profiles
+    profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
     return AccountMeResponse(
         profile_id=me.UserID,
         email=me.email,
         username=me.username,
         bio=me.bio,
+
+        age=profile.age,
+        height=profile.height_in,
+        weight=profile.weight,
+        
+        goals=profile.health_goals,
+        
+        gender=profile.gender
     )
 
 

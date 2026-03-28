@@ -89,3 +89,18 @@ type SearchCardioMachineEvent = {
 async function searchCardioMachine(e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]>
 ```
 
+## genericPrompt
+
+Takes a `GenericPromptEvent` type, prompts the LLM for a response, and returns a `GenericPromptResponse` type.
+
+```ts
+export type GenericPromptEvent = {
+  prompt: string
+}
+
+export type GenericPromptResponse = {
+  text: string
+}
+
+async function genericPrompt(e: GenericPromptEvent): Promise<GenericPromptResponse>
+```

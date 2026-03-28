@@ -182,13 +182,55 @@ export const api = {
   getAllMenuMeals: async (): Promise<MenuMeal[]> => {
     return get<MenuMeal[]>('/meals');
   },
+
+  genericPrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
+    return { text: 'Placeholder response' }
+  },
+
+  mePrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
+    const usr = await api.me();
+    if (typeof usr === "undefined")
+      throw new Error("User not signed in.");
+
+    const prompt = `
+You are part of FORGE, an AI powered fitness coaching app. You are going to be providing information for users in the
+form of JSON objects, which will be parsed to be displayed on the app. Please ONLY respond with JSON objects in whatever
+format is provided to you. Cater your responses to the current user, whose information will be provided below. If any fields
+are missing, they will have N/A. Do not worry about N/A fields, just generify your answers in that case.
+
+Age: ${usr.age ? usr.age : 'N/A'}
+Height (inches): ${usr.height ? usr.height : 'N/A'}
+Weight (pounds): ${usr.weight ? usr.weight : 'N/A'}}
+Personal Goals: ${usr.goals ? `<GOAL START>${usr.goals}<GOAL END/>` : 'N/A'}
+Gender: ${usr.gender ? usr.gender : 'N/A'}
+
+Now, a prompt will be provided. Please respond with a JSON object to the best of your ability.
+If there is an error, format and return this object:
+{
+  error: true,
+  errorMsg: <<Insert Error Reasoning Here>>
+}
+
+${e.prompt}
+`
+
+    return api.genericPrompt({ prompt });
+  },
 };
 
 export type User = {
   profile_id: number,
   email: string,
   username: string,
-  bio: string
+  bio: string,
+
+  age?: number,
+  height?: number,
+  weight?: number,
+  
+  goals?: string,
+
+  gender?: string,
 };
 
 export type ApiEvent = any;
@@ -287,3 +329,10 @@ export type MenuMeal = {
   beef?: boolean;
 };
 
+export type GenericPromptEvent = {
+  prompt: string
+}
+
+export type GenericPromptResponse = {
+  text: string
+}
