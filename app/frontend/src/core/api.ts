@@ -216,6 +216,48 @@ ${e.prompt}
 
     return api.genericPrompt({ prompt });
   },
+
+  getWeightProgression: async (exerciseId: string): Promise<WeightProgression> => {
+    return {
+      time: [1774552003, 1774638403, 1774724803],
+      weight: [100, 200, 300],
+    };
+  },
+
+  promptWeightProgression: async (exerciseId: string): Promise<WeightProgression[]> => {
+    const present = await api.getWeightProgression(exerciseId);
+    const future = JSON.parse((await api.mePrompt({ prompt: `
+This user would like to see some future data points on weight progression.
+This information will be used to generate a graph of their previous weight progression
+alongside their future weight progression, which you will provide as a JSON object.
+
+The ID of the exercise in question is ${exerciseId}.
+Their previous progression is provided in the following object:
+{
+  time: [${present.time.map(x => `${x}`).join(", ")}],
+  weight: [${present.weight.map(x => `${x}`).join(", ")}]
+}
+
+The time is provided as epoch timestamps, and each time corresponds to the
+weight at the same index.
+
+Please return a similar JSON object of the following format:
+{
+  time: [ epoch timestamp, epoch timestamp, epoch timestamp, ... ]
+  weight: [ pounds, pounds, pounds, ... ]
+}
+
+for example:
+{
+  time: [100, 200, 300],
+  weight: [400, 500, 600]
+}
+
+This should correspond a reasonable weight progression in the future that would
+look pleasing on a graph.
+    ` })).text);
+    return [present, future];
+  },
 };
 
 export type User = {
@@ -335,4 +377,9 @@ export type GenericPromptEvent = {
 
 export type GenericPromptResponse = {
   text: string
+}
+
+export type WeightProgression = {
+  time: number[],
+  weight: number[]
 }
