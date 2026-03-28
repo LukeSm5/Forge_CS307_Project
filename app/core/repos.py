@@ -31,6 +31,9 @@ from app.core.ingest_menu_meals import ingest_menu_meals
 
 # fill all these lists out 
 
+"""
+splits are named by the user
+
 def populate_splits(sess):
     s = [
         Splits(name="back & bicep"),
@@ -44,6 +47,7 @@ def populate_splits(sess):
             sess.add(obj)
     sess.commit()
     return s
+"""
 
 
 def populate_workouts(sess):
@@ -51,19 +55,19 @@ def populate_workouts(sess):
         Workouts(name='back'),
         Workouts(name='bicep'),
         Workouts(name='chest'),
-        Workouts(name='triceps'),
-        Workouts(name='shoulders'),
-        Workouts(name='quads'),
-        Workouts(name='abs'),
+        Workouts(name='tricep'),
+        Workouts(name='shoulder'),
+        Workouts(name='quad'),
+        Workouts(name='ab'),
         Workouts(name='cardio'),
-        Workouts(name='forearms'),
-        Workouts(name='obliques'),
-        Workouts(name='lower_back'),
-        Workouts(name='hamstrings'),
-        Workouts(name='glutes'),
-        Workouts(name='calves'),
-        Workouts(name='hip_flexors'),
-        Workouts(name='full_body')
+        Workouts(name='forearm'),
+        Workouts(name='oblique'),
+        Workouts(name='lower back'),
+        Workouts(name='hamstring'),
+        Workouts(name='glute'),
+        Workouts(name='calf'),
+        Workouts(name='hip flexor'),
+        Workouts(name='full body')
     ]
 
     for obj in w:
@@ -77,25 +81,39 @@ def populate_workouts(sess):
 def populate_exercises(sess):
     e = [
         Exercises(name='pull up'),
+        Exercises(name='lateral pull down'),
+        Exercises(name='row'),
+        Exercises(name='face pull'),
+
         Exercises(name='bicep curl'),
+        Exercises(name='preacher curl'),
+        Exercises(name='hammer curl'),
+        Exercises(name='straight-bar curl'),
+
         Exercises(name='bench press'),
-        Exercises(name='skull crushers'),
-        Exercises(name='tricep pushdown'),
+        Exercises(name='incline bench press'),
+        Exercises(name='cable fly'),
+        Exercises(name='high low cable fly'),
+        Exercises(name='low high cable fly'),
+
+        Exercises(name='skull crusher'),
+        Exercises(name='tricep push down'),
+
         Exercises(name='shoulder press'),
+        Exercises(name='shoulder raise'),
+        Exercises(name='shrug'),
+
         Exercises(name='bulgarian split squat'),
         Exercises(name='romanian deadlift'),
-        Exercises(name='shrugs'),
+        
         Exercises(name='power clean'),
-        Exercises(name='incline press'),
-        Exercises(name='decline press'),
-        Exercises(name='face pull'),
-        Exercises(name='push ups'),
-        Exercises(name='sit ups'),
-        Exercises(name='burpees'),
+        Exercises(name='burpee'),
         Exercises(name='sled push'),
-        Exercises(name='russian twists'),
-        Exercises(name='sled pulls'),
-        Exercises(name='box jumps'),
+        Exercises(name='russian twist'),
+        Exercises(name='sled pull'),
+        Exercises(name='box jump'),
+
+        Exercises(name='cardio')
     ]
 
     for obj in e:
@@ -110,24 +128,14 @@ def populate_machines(sess):
     m = [
         Machines(name='dumbbell'),
         Machines(name='barbell'),
-        Machines(name='body'),
+        Machines(name='body weight'),
         Machines(name='cable'),
-        Machines(name='lat pulldown'),
-        Machines(name='pec deck'),
-        Machines(name='preacher curls'),
-        Machines(name='tricep extension'),
-        Machines(name='lateral raise'),
-        Machines(name='leg extension'),
-        Machines(name='leg curl'),
-        Machines(name='ab crunch'),
-        Machines(name='rows'),
-        Machines(name='back extension'),
-        Machines(name='dip machine'),
-        Machines(name='kickback'),
-        Machines(name='calf extension'),
-        Machines(name='hip adduction'),
-        Machines(name='hip abduction'),
-        Machines(name='dumbbell')
+
+        Machines(name='treadmill'),
+        Machines(name='stair master'),
+        Machines(name='elliptical'),
+        Machines(name='bike'),
+        Machines(name='row'),
     ]
     for obj in m:
         exists = sess.query(Machines).filter_by(name=obj.name).first()
@@ -151,13 +159,6 @@ def populate_meals(sess):
             sess.add(obj)
     sess.commit()
     return m
-
-
-def populate_menu_meals(sess):
-    records_dict = ingest_menu_meals()
-    sess.bulk_insert_mappings(menu_meals, records_dict) 
-    sess.commit()
-    return True
 
 
 

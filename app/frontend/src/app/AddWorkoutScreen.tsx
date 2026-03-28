@@ -5,7 +5,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, CreateWorkoutLogExercise, MachineLookupRow } from '@/core/api';
+import { api, MachineLookupRow, WorkoutLookup } from '@/core/api';
 
 type SingleExercise = {
   name: string;
@@ -20,7 +20,10 @@ export default function AddWorkoutScreen() {
   const router = useRouter();
   const profileId = Number(process.env.EXPO_PUBLIC_PROFILE_ID ?? '1');
 
-  const [workoutName, setWorkoutName] = useState('');
+  const [splitName, setSplitName] = useState('');
+  const [workouts, setWorkouts] = useState<WorkoutLookup[]>([]);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(null);
+
   const [exerciseMapping, setExerciseMapping] = useState<Record<string, number>>({});
   const [machines, setMachines] = useState<MachineLookupRow[]>([]);
 
@@ -33,18 +36,23 @@ export default function AddWorkoutScreen() {
   const [exerciseList, setExerciseList] = useState<SingleExercise[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const [startTime] = useState<number>(Date.now());
+
   useEffect(() => {
     async function loadLookupData() {
       try {
-        const [exerciseRows, machineRows] = await Promise.all([
+        const [exerciseRows, machineRows, workoutRows] = await Promise.all([
           api.getExercises(),
           api.getMachines(),
+          api.getWorkouts(),
         ]);
         setExerciseMapping(exerciseRows);
         setMachines(machineRows);
+        setWorkouts(workoutRows);
       } catch {
         setExerciseMapping({});
         setMachines([]);
+        setWorkouts([]);
       }
     }
 
@@ -61,21 +69,21 @@ export default function AddWorkoutScreen() {
   );
 
   function addExercise() {
-    if (!selectedExerciseName || selectedMachineId == null || !weight || !sets || !reps) {
-      Alert.alert('Missing info', 'Fill exercise, machine, weight, sets, and reps.');
+    if (!selectedExerciseName || selectedMachineId == null || !sets || !reps) {
+      Alert.alert('Missing info', 'Fill exercise, machine, sets, and reps.');
       return;
     }
 
-    const parsedWeight = Number(weight);
+    const parsedWeight = weight ? Number(weight) : 0;
     const parsedSets = Number(sets);
     const parsedReps = Number(reps);
 
-    if (!Number.isFinite(parsedWeight) || !Number.isFinite(parsedSets) || !Number.isFinite(parsedReps)) {
-      Alert.alert('Invalid values', 'Weight, sets, and reps must be numbers.');
+    if (!Number.isFinite(parsedSets) || !Number.isFinite(parsedReps)) {
+      Alert.alert('Invalid values', 'Sets and reps must be numbers.');
       return;
     }
 
-    const selectedMachine = machines.find((machine) => machine.machine_id === selectedMachineId);
+    const selectedMachine = machines.find((m) => m.machine_id === selectedMachineId);
     if (!selectedMachine) {
       Alert.alert('Invalid machine', 'Please select a valid machine.');
       return;
@@ -103,8 +111,13 @@ export default function AddWorkoutScreen() {
   async function handleSave() {
     if (saving) return;
 
-    if (!workoutName.trim()) {
-      Alert.alert('Missing workout name', 'Enter a workout name.');
+    if (!splitName.trim()) {
+      Alert.alert('Missing split name', 'Enter a split name.');
+      return;
+    }
+
+    if (selectedWorkoutId == null) {
+      Alert.alert('No muscle group', 'Select a muscle group.');
       return;
     }
 
@@ -115,18 +128,18 @@ export default function AddWorkoutScreen() {
 
     setSaving(true);
     try {
-      const exercises: CreateWorkoutLogExercise[] = exerciseList.map((ex) => ({
-        exercise_id: exerciseMapping[ex.name] ?? 1,
-        machine_id: ex.machine_id,
-        weight: ex.weight,
-        sets: ex.sets,
-        reps: ex.reps,
-      }));
-
-      await api.addWorkoutLog({
+      await api.addSession({
         profile_id: profileId,
-        workout_name: workoutName.trim(),
-        exercises,
+        workout_id: selectedWorkoutId,
+        duration: Math.floor((Date.now() - startTime) / 1000),
+        notes: splitName.trim(),
+        exercises: exerciseList.map((ex) => ({
+          exercise_id: exerciseMapping[ex.name] ?? 1,
+          machine_id: ex.machine_id,
+          weight: ex.weight,
+          sets: ex.sets,
+          reps: ex.reps,
+        })),
       });
 
       Alert.alert('Workout logged', 'Workout saved successfully.');
@@ -144,14 +157,28 @@ export default function AddWorkoutScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Log Workout</Text>
 
-        <Text style={styles.label}>Workout name</Text>
+        <Text style={styles.label}>Split name</Text>
         <TextInput
           style={styles.input}
-          value={workoutName}
-          onChangeText={setWorkoutName}
+          value={splitName}
+          onChangeText={setSplitName}
           placeholder="e.g. Push Day"
           placeholderTextColor="#94a3b8"
         />
+
+        <Text style={styles.sectionTitle}>Muscle group</Text>
+        <View style={styles.rowWrap}>
+          {workouts.map((w) => (
+            <ForgeButton
+              key={w.workout_id}
+              text={w.name}
+              compact
+              theme={selectedWorkoutId === w.workout_id ? 'primary' : 'neutral'}
+              onPress={() => setSelectedWorkoutId(w.workout_id)}
+              style={styles.muscleBtn}
+            />
+          ))}
+        </View>
 
         <Text style={styles.sectionTitle}>Add exercise</Text>
 
@@ -182,7 +209,7 @@ export default function AddWorkoutScreen() {
 
         <View style={styles.row}>
           <View style={styles.half}>
-            <Text style={styles.label}>Weight</Text>
+            <Text style={styles.label}>Weight (optional)</Text>
             <TextInput
               style={styles.input}
               value={weight}
@@ -224,16 +251,14 @@ export default function AddWorkoutScreen() {
           exerciseList.map((ex, idx) => (
             <View key={`${ex.name}-${idx}`} style={styles.card}>
               <Text style={styles.cardTitle}>{ex.name}</Text>
-              <Text>{`${ex.sets} x ${ex.reps} @ ${ex.weight} lbs (${ex.machine_name})`}</Text>
+              <Text>{`${ex.sets} x ${ex.reps}${ex.weight ? ` @ ${ex.weight} lbs` : ''} (${ex.machine_name})`}</Text>
             </View>
           ))
         )}
 
         <ForgeButton
           text={saving ? 'Saving...' : 'Log Workout'}
-          onPress={() => {
-            void handleSave();
-          }}
+          onPress={() => { void handleSave(); }}
           theme="success"
           disabled={saving}
         />
@@ -295,6 +320,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  muscleBtn: {
+    minWidth: 92,
   },
   machineBtn: {
     minWidth: 92,

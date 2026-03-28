@@ -263,6 +263,14 @@ ${e.prompt}
     }
     return [present, future];
   },
+
+  getWorkouts: async (): Promise<WorkoutLookup[]> => {
+    return get<WorkoutLookup[]>('/workouts/list');
+  },
+
+  addSession: async (payload: CreateSessionRequest): Promise<SessionLog> => {
+    return post<SessionLog>('/sessions', payload);
+  },
 };
 
 export type User = {
@@ -388,3 +396,41 @@ export type WeightProgression = {
   time: number[],
   weight: number[]
 }
+
+export type WorkoutLookup = {
+  workout_id: number;
+  name: string;
+};
+
+export type CreateSessionRequest = {
+  profile_id: number;
+  workout_id: number;
+  duration: number;
+  notes?: string;
+  exercises: {
+    exercise_id: number;
+    machine_id: number;
+    sets: number;
+    reps: number;
+    weight?: number | null;
+  }[];
+};
+
+export type SessionLog = {
+  session_id: number;
+  workout_id: number;
+  workout_name: string;
+  date: string;
+  duration: number;
+  exercises: SessionExerciseLog[];
+};
+
+export type SessionExerciseLog = {
+  exercise_id: number;
+  exercise_name: string;
+  machine_id: number;
+  set_number: number;
+  reps: number;
+  weight?: number | null;
+};
+

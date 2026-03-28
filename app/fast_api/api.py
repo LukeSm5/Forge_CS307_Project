@@ -3,14 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
 from datetime import timezone 
+from sqlalchemy import text
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Workouts, workout_exercises, Exercises, Machines
-from app.core.db import Accounts
+from app.core.db import Accounts, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.core.seed import SessionLocal
@@ -37,6 +37,16 @@ app.add_middleware(
 )
 
 session.Base.metadata.create_all(bind=engine)
+
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "connected"}
+    except Exception:
+        return {"status": "ok", "db": "disconnected"}
+
 
 def get_current_account(
     authorization: str = Header(None),
@@ -169,6 +179,41 @@ class CreateProfileRequest(BaseModel):
     health_goals: str
     health_status: str
     calorie_goal: float
+
+class WorkoutLookupOut(BaseModel):
+    workout_id: int
+    name: str
+
+
+class SessionExerciseIn(BaseModel):
+    exercise_id: int
+    machine_id: int
+    sets: int = Field(ge=1, le=50)
+    reps: int = Field(ge=1, le=1000)
+    weight: Optional[int] = None
+
+class CreateSessionRequest(BaseModel):
+    profile_id: int
+    workout_id: int
+    duration: int
+    notes: Optional[str] = None
+    exercises: List[SessionExerciseIn]
+
+class SessionExerciseOut(BaseModel):
+    exercise_id: int
+    exercise_name: str
+    machine_id: int
+    set_number: int
+    reps: int
+    weight: Optional[int]
+
+class SessionOut(BaseModel):
+    session_id: int
+    workout_id: int
+    workout_name: str
+    date: str
+    duration: int
+    exercises: List[SessionExerciseOut]
 
 
 def _send_account_update_notification(
@@ -559,6 +604,12 @@ def get_machines(db: Session = Depends(get_db)):
         for row in rows
     ]
 
+# used to display muscle groups (back, bicep, chest, ...) as buttons when logging a workout
+@app.get("/workouts/list", response_model=List[WorkoutLookupOut])
+def get_all_workouts(db: Session = Depends(get_db)):
+    rows = db.query(Workouts).order_by(Workouts.name.asc()).all()
+    return [WorkoutLookupOut(workout_id=row.WorkoutID, name=row.name) for row in rows]
+
 
 @app.get("/workouts/{profile_id}", response_model=List[WorkoutOut])
 def get_workouts_for_profile(profile_id: int, db: Session = Depends(get_db)):
@@ -685,6 +736,63 @@ async def get_llm_context(request: Request, db: Session = Depends(get_db)):
     {mealString}
     """
 '''
+
+
+@app.post("/sessions", response_model=SessionOut)
+def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db)):
+    from datetime import datetime
+
+    workout = db.query(Workouts).filter(Workouts.WorkoutID == payload.workout_id).first()
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    new_session = session_workouts(
+        WorkoutID=payload.workout_id,
+        ProfileID=payload.profile_id,
+        date=datetime.utcnow(),
+        duration=payload.duration,
+        notes=payload.notes,
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+
+    exercise_rows = []
+    for ex in payload.exercises:
+        for set_num in range(1, ex.sets + 1):
+            row = session_exercises(
+                SessionID=new_session.SessionID,
+                ExerciseID=ex.exercise_id,
+                MachineID=ex.machine_id,
+                set_number=set_num,
+                reps=ex.reps,
+                weight=ex.weight,
+            )
+            db.add(row)
+            exercise_rows.append(row)
+    db.commit()
+
+    ex_out = []
+    for row in exercise_rows:
+        ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
+        ex_out.append(SessionExerciseOut(
+            exercise_id=row.ExerciseID,
+            exercise_name=ex_obj.name if ex_obj else "Unknown",
+            machine_id=row.MachineID,
+            set_number=row.set_number,
+            reps=row.reps,
+            weight=row.weight,
+        ))
+
+    return SessionOut(
+        session_id=new_session.SessionID,
+        workout_id=workout.WorkoutID,
+        workout_name=workout.name,
+        date=str(new_session.date),
+        duration=new_session.duration,
+        exercises=ex_out,
+    )
+
 
 if __name__ == "__main__":
     import uvicorn
