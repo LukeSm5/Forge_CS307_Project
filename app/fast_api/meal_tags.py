@@ -8,7 +8,7 @@ from app.core.db import (
     Meals,
     SpiceLevelTags, CuisineTags, ComplexityTags,
     GoalTags, PrepTimeTags, CookTimeTags, DietaryTags,
-    meal_tags, meal_dietary_tags,
+    meal_tags, meal_dietary_tags, meal_macros,
 )
 from app.core import repos
 from app.core.database import SessionLocal
@@ -66,16 +66,8 @@ class MealTagRequest(BaseModel):
     goal_id:         int
     prep_time_id:    int
     cook_time_id:    int
+    dietary_tag_ids: List[int] = []
 
-    class MealTagRequest(BaseModel):
-        meal_id: int
-        spice_level_id: int
-        cuisine_id: int
-        complexity_id: int
-        goal_id: int
-        prep_time_id: int
-        cook_time_id: int
-        dietary_tag_ids: List[int] = []
 class MealTagResponse(BaseModel):
     meal_id:      int
     spice_level:  str
@@ -85,6 +77,29 @@ class MealTagResponse(BaseModel):
     prep_time:    str
     cook_time:    str
     dietary_tags: list[str]
+
+    class Config:
+        from_attributes = True
+
+class MacroRequest(BaseModel):
+    meal_id:  int
+    calories: Optional[float] = None   # kcal
+    protein:  Optional[float] = None   # g
+    fat:      Optional[float] = None   # g
+    carbs:    Optional[float] = None   # g
+    sugar:    Optional[float] = None   # g
+    fiber:    Optional[float] = None   # g
+    sodium:   Optional[float] = None   # mg
+
+class MacroResponse(BaseModel):
+    meal_id:  int
+    calories: Optional[float]
+    protein:  Optional[float]
+    fat:      Optional[float]
+    carbs:    Optional[float]
+    sugar:    Optional[float]
+    fiber:    Optional[float]
+    sodium:   Optional[float]
 
     class Config:
         from_attributes = True
@@ -112,23 +127,33 @@ def list_dietary_tags():
     return [e.value for e in DietaryTag]
 @router.get("/tags/summary")
 def tag_summary(sess: Session = Depends(get_session)):
-    all_tags = sess.query(meal_tags).all()
+    all_tags    = sess.query(meal_tags).all()
     all_dietary = sess.query(meal_dietary_tags).all()
+    all_macros  = sess.query(meal_macros).all()
+
     def _count(rows, attr):
         counts: dict[str, int] = {}
         for row in rows:
             val = str(getattr(row, attr))
             counts[val] = counts.get(val, 0) + 1
         return counts
+
+    def _avg(rows, attr):
+        vals = [getattr(row, attr) for row in rows if getattr(row, attr) is not None]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    macro_fields = ["calories", "protein", "fat", "carbs", "sugar", "fiber", "sodium"]
+
     return {
-        "total_meals":   sess.query(Meals).count(),
-        "by_spice":      _count(all_tags, "SpiceLevelID"),
-        "by_cuisine":    _count(all_tags, "CuisineID"),
-        "by_complexity": _count(all_tags, "ComplexityID"),
-        "by_goal":       _count(all_tags, "GoalID"),
-        "by_prep_time":  _count(all_tags, "PrepTimeID"),
-        "by_cook_time":  _count(all_tags, "CookTimeID"),
-        "by_dietary":    _count(all_dietary, "DietaryID"),
+        "total_meals":    sess.query(Meals).count(),
+        "by_spice":       _count(all_tags, "SpiceLevelID"),
+        "by_cuisine":     _count(all_tags, "CuisineID"),
+        "by_complexity":  _count(all_tags, "ComplexityID"),
+        "by_goal":        _count(all_tags, "GoalID"),
+        "by_prep_time":   _count(all_tags, "PrepTimeID"),
+        "by_cook_time":   _count(all_tags, "CookTimeID"),
+        "by_dietary":     _count(all_dietary, "DietaryID"),
+        "macro_averages": {f: _avg(all_macros, f) for f in macro_fields},
     }
 @router.post("/tags", status_code=201)
 def tag_meal(payload: MealTagRequest, sess: Session = Depends(get_session)):
@@ -164,6 +189,20 @@ def filter_meals(
     prep_time:    Optional[TimeLabel]   = Query(None, description="Filter by prep time"),
     cook_time:    Optional[TimeLabel]   = Query(None, description="Filter by cook time"),
     dietary_tag:  Optional[DietaryTag]  = Query(None, description="Filter by a single dietary tag"),
+    min_calories: Optional[float]       = Query(None, description="Minimum calories (kcal)"),
+    max_calories: Optional[float]       = Query(None, description="Maximum calories (kcal)"),
+    min_protein:  Optional[float]       = Query(None, description="Minimum protein (g)"),
+    max_protein:  Optional[float]       = Query(None, description="Maximum protein (g)"),
+    min_fat:      Optional[float]       = Query(None, description="Minimum fat (g)"),
+    max_fat:      Optional[float]       = Query(None, description="Maximum fat (g)"),
+    min_carbs:    Optional[float]       = Query(None, description="Minimum carbs (g)"),
+    max_carbs:    Optional[float]       = Query(None, description="Maximum carbs (g)"),
+    min_sugar:    Optional[float]       = Query(None, description="Minimum sugar (g)"),
+    max_sugar:    Optional[float]       = Query(None, description="Maximum sugar (g)"),
+    min_fiber:    Optional[float]       = Query(None, description="Minimum fiber (g)"),
+    max_fiber:    Optional[float]       = Query(None, description="Maximum fiber (g)"),
+    min_sodium:   Optional[float]       = Query(None, description="Minimum sodium (mg)"),
+    max_sodium:   Optional[float]       = Query(None, description="Maximum sodium (mg)"),
     sess:         Session               = Depends(get_session),
 ):
     def _id(model, name: str | None):
@@ -173,20 +212,88 @@ def filter_meals(
         if not row:
             raise HTTPException(status_code=400, detail=f"Unknown tag value: '{name}'")
         return row
-    spice_row    = _id(SpiceLevelTags, spice_level.value  if spice_level  else None)
-    cuisine_row  = _id(CuisineTags,    cuisine.value      if cuisine      else None)
-    complex_row  = _id(ComplexityTags, complexity.value   if complexity   else None)
-    goal_row     = _id(GoalTags,       goal.value         if goal         else None)
-    prep_row     = _id(PrepTimeTags,   prep_time.value    if prep_time    else None)
-    cook_row     = _id(CookTimeTags,   cook_time.value    if cook_time    else None)
-    dietary_row  = _id(DietaryTags,    dietary_tag.value  if dietary_tag  else None)
+
+    spice_row   = _id(SpiceLevelTags, spice_level.value if spice_level else None)
+    cuisine_row = _id(CuisineTags,    cuisine.value     if cuisine     else None)
+    complex_row = _id(ComplexityTags, complexity.value  if complexity  else None)
+    goal_row    = _id(GoalTags,       goal.value        if goal        else None)
+    prep_row    = _id(PrepTimeTags,   prep_time.value   if prep_time   else None)
+    cook_row    = _id(CookTimeTags,   cook_time.value   if cook_time   else None)
+    dietary_row = _id(DietaryTags,    dietary_tag.value if dietary_tag else None)
+
     return repos.filter_meals_by_tags(
         sess,
-        spice_level_id = spice_row.SpiceLevelID  if spice_row   else None,
-        cuisine_id     = cuisine_row.CuisineID   if cuisine_row  else None,
-        complexity_id  = complex_row.ComplexityID if complex_row else None,
-        goal_id        = goal_row.GoalID          if goal_row    else None,
-        prep_time_id   = prep_row.PrepTimeID      if prep_row    else None,
-        cook_time_id   = cook_row.CookTimeID      if cook_row    else None,
-        dietary_tag_id = dietary_row.DietaryID    if dietary_row else None,
+        spice_level_id = spice_row.SpiceLevelID    if spice_row   else None,
+        cuisine_id     = cuisine_row.CuisineID     if cuisine_row else None,
+        complexity_id  = complex_row.ComplexityID  if complex_row else None,
+        goal_id        = goal_row.GoalID            if goal_row    else None,
+        prep_time_id   = prep_row.PrepTimeID        if prep_row    else None,
+        cook_time_id   = cook_row.CookTimeID        if cook_row    else None,
+        dietary_tag_id = dietary_row.DietaryID      if dietary_row else None,
+        min_calories=min_calories, max_calories=max_calories,
+        min_protein=min_protein,   max_protein=max_protein,
+        min_fat=min_fat,           max_fat=max_fat,
+        min_carbs=min_carbs,       max_carbs=max_carbs,
+        min_sugar=min_sugar,       max_sugar=max_sugar,
+        min_fiber=min_fiber,       max_fiber=max_fiber,
+        min_sodium=min_sodium,     max_sodium=max_sodium,
     )
+
+@router.post("/macros", status_code=201, response_model=MacroResponse)
+def upsert_meal_macros(payload: MacroRequest, sess: Session = Depends(get_session)):
+    row = repos.upsert_meal_macros(
+        sess,
+        meal_id=payload.meal_id,
+        calories=payload.calories,
+        protein=payload.protein,
+        fat=payload.fat,
+        carbs=payload.carbs,
+        sugar=payload.sugar,
+        fiber=payload.fiber,
+        sodium=payload.sodium,
+    )
+    return MacroResponse(
+        meal_id=row.MealID,
+        calories=row.calories, protein=row.protein, fat=row.fat,
+        carbs=row.carbs,       sugar=row.sugar,     fiber=row.fiber,
+        sodium=row.sodium,
+    )
+
+@router.get("/macros/{meal_id}", response_model=MacroResponse)
+def get_meal_macros(meal_id: int, sess: Session = Depends(get_session)):
+    row = repos.get_meal_macros(sess, meal_id)
+    return MacroResponse(
+        meal_id=row.MealID,
+        calories=row.calories, protein=row.protein, fat=row.fat,
+        carbs=row.carbs,       sugar=row.sugar,     fiber=row.fiber,
+        sodium=row.sodium,
+    )
+
+@router.delete("/macros/{meal_id}", status_code=204)
+def delete_meal_macros(meal_id: int, sess: Session = Depends(get_session)):
+    repos.delete_meal_macros(sess, meal_id)
+    
+class MealLogRequest(BaseModel):
+    profile_id: int
+    meal_id:    int
+    date:       str
+    servings:   Optional[float] = None
+    notes:      Optional[str]   = None
+
+@router.post("/log", status_code=201)
+def log_meal(payload: MealLogRequest, sess: Session = Depends(get_session)):
+    from datetime import datetime
+    date = datetime.fromisoformat(payload.date)
+    entry = repos.log_meal(
+        sess,
+        profile_id=payload.profile_id,
+        meal_id=payload.meal_id,
+        date=date,
+        servings=payload.servings,
+        notes=payload.notes,
+    )
+    return {"detail": "Meal logged.", "session_meal_id": entry.SessionMealID}
+
+@router.get("/log/{profile_id}")
+def get_meal_log(profile_id: int, sess: Session = Depends(get_session)):
+    return repos.get_meal_log(sess, profile_id)
