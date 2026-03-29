@@ -5,3 +5,6 @@ forge.db
 __pycache__/
 *.py[cod]
 .expo
+
+# env
+/app/fast_api/.env
