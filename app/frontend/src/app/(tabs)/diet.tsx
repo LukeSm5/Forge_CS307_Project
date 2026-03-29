@@ -778,12 +778,15 @@ export default function Diet() {
               </View>
               <View style={styles.restaurantMealStats}>
                 <Text style={styles.restaurantMealCalories}>
-                  {item.protein_g ?? 0}g protein
+                  {item.protein_g ?? 0}g
                 </Text>
                 <Text style={styles.restaurantMealCalories}>
                   {item.energy_kcal ?? 0} cal
                 </Text>
               </View>
+              <Pressable style={styles.addMealButton} onPress={() => {}}>
+                <Text style={styles.addMealButtonText}>+</Text>
+              </Pressable>
             </View>
           ))}
         </View>
@@ -1010,5 +1013,23 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: C?.orange ?? '#f97316',
+  },
+
+  addMealButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C?.orange ?? '#f97316',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  addMealButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    textAlign: 'center',
   },
 });
