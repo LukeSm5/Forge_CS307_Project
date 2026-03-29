@@ -248,18 +248,22 @@ class meal_dietary_tags(Base):
     MealID     = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
     DietaryID  = Column(Integer, ForeignKey('DietaryTags.DietaryID'), primary_key=True, nullable=False)
 
-# ---- LOGS ----
+class meal_macros(Base):
+    __tablename__ = 'meal_macros'
+    MealID   = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
+    calories = Column(Float, nullable=True)   # kcal
+    protein  = Column(Float, nullable=True)   # g
+    fat      = Column(Float, nullable=True)   # g
+    carbs    = Column(Float, nullable=True)   # g
+    sugar    = Column(Float, nullable=True)   # g
+    fiber    = Column(Float, nullable=True)   # g
+    sodium   = Column(Float, nullable=True)   # mg
 
-# Class necessary for meal logging
-# class session_meals(Base):
-#   """Meal session (on March 12 lasted 30 minutes) with 30 g protein, 20 g carbs, 10 g fat"""
-#    __tablename__ = 'session_meals'
-#   SessionID = Column(Integer, ForeignKey('session_meals.SessionID'), primary_key=True, nullable=False)
-#   MealID = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
-#   name = Column(Text, nullable=False)
-#   date = Column(DateTime, nullable=False)
-#   calories = Column(Integer)
-#   servings = Column(Float)
-#   protein_g = Column(Float)
-#   carbohydrates_g = Column(Float)
-#   fat_g = Column(Float)
+class session_meals(Base):
+    __tablename__ = 'session_meals'
+    SessionMealID = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    ProfileID     = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False, index=True)
+    MealID        = Column(Integer, ForeignKey('Meals.MealID'), nullable=False, index=True)
+    date          = Column(DateTime, nullable=False)
+    servings      = Column(Float, nullable=True)
+    notes         = Column(Text, nullable=True)
