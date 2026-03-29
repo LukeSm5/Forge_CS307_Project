@@ -433,6 +433,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
     from app.core.db import Profiles
     profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
+    print(f"UserID: {me.UserID}, profile: {profile}, calorie_goal: {profile.calorie_goal if profile else None}")
     return AccountMeResponse(
         profile_id=me.UserID,
         email=me.email,

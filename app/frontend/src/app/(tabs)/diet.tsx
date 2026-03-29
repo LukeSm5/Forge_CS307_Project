@@ -9,6 +9,8 @@ import {
   TextInput,
 } from 'react-native';
 
+import { useAuth } from '@/core/auth';
+
 import ForgeButton from '@/components/ForgeButton'; // Adjust path if needed
 import { Text, View } from '@/components/Themed';
 import {
@@ -262,6 +264,45 @@ export default function Diet() {
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
 
 
+  const [myMealFilter, setMyMealFilter] = useState<'at_home' | 'restaurant'>('restaurant');
+
+  const PLACEHOLDER_MY_MEALS = [
+    {
+      id: 1,
+      product: 'Big Mac',
+      restaurant: "McDonald's",
+      category: 'Burgers',
+      energy_kcal: 550,
+      protein_g: 25,
+      carbohydrates_g: 46,
+      total_fat_g: 30,
+      saturated_fat_g: 10,
+      sodium_mg: 1010,
+      sugar_g: 9,
+      fiber_g: 3,
+      cholesterol_mg: 75,
+      trans_fat_g: 1,
+      serving_size: 198
+    },
+    {
+      id: 2,
+      product: 'Grilled Chicken Sandwich',
+      restaurant: 'Chick-fil-A',
+      category: 'Sandwiches',
+      energy_kcal: 430,
+      protein_g: 43,
+      carbohydrates_g: 36,
+      total_fat_g: 11,
+      saturated_fat_g: 2,
+      sodium_mg: 1040,
+      sugar_g: 8,
+      fiber_g: 2,
+      cholesterol_mg: 90,
+      trans_fat_g: 0,
+      serving_size: 215
+    },
+  ];
+
   const API_BASE_URL = 'http://localhost:8000';
 
   useEffect(() => {
@@ -275,11 +316,14 @@ export default function Diet() {
     setSaved(false);
   }, [editing]);
 
+  const { isLoadingAuth } = useAuth();
+
   useEffect(() => {
+    if (isLoadingAuth) return;
     api.me().then((user) => {
-      if (user?.calorie_goal) setCalorieGoal(user.calorie_goal);
+      if (user?.calorie_goal != null) setCalorieGoal(user.calorie_goal);
     }).catch(() => {});
-  }, []);
+  }, [isLoadingAuth]);
 
   const setSingleTag = <K extends keyof MealTagSet>(key: K, value: MealTagSet[K]) => {
     setTags((current) => ({
@@ -500,6 +544,75 @@ export default function Diet() {
           </Text>
         </View>
       </View>
+      
+      <SectionCard title="My Meals">
+        <View style={styles.pillWrap}>
+          <Pill
+            label="At Home"
+            active={myMealFilter === 'at_home'}
+            color={C?.orange ?? '#f97316'}
+            onPress={() => setMyMealFilter('at_home')}
+          />
+          <Pill
+            label="Restaurant"
+            active={myMealFilter === 'restaurant'}
+            color={C?.orange ?? '#f97316'}
+            onPress={() => setMyMealFilter('restaurant')}
+          />
+        </View>
+
+        {myMealFilter === 'restaurant' && (
+          <View style={styles.myMealList}>
+            {PLACEHOLDER_MY_MEALS.map((item) => (
+              <View key={item.id} style={styles.myMealRow}>
+                <View style={styles.myMealHeader}>
+                  <View style={styles.restaurantMealInfo}>
+                    <Text style={styles.restaurantMealName}>{item.product}</Text>
+                    <Text style={styles.restaurantMealProtein}>
+                      {item.restaurant} · {item.category}
+                    </Text>
+                  </View>
+                  <View style={styles.myMealMeta}>
+                    <Text style={styles.myMealDate}>03/28/2026</Text>
+                    <Text style={styles.myMealType}>Breakfast</Text>
+                  </View>
+                </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.nutritionScroll}
+                  contentContainerStyle={styles.nutritionScrollContent}
+                >
+                  {[
+                    { label: 'Serving', value: `${item.serving_size ?? 0}g` },
+                    { label: 'Cal', value: `${item.energy_kcal ?? 0} kcal` },
+                    { label: 'Protein', value: `${item.protein_g ?? 0}g` },
+                    { label: 'Carbs', value: `${item.carbohydrates_g ?? 0}g` },
+                    { label: 'Fat', value: `${item.total_fat_g ?? 0}g` },
+                    { label: 'Sat Fat', value: `${item.saturated_fat_g ?? 0}g` },
+                    { label: 'Trans Fat', value: `${item.trans_fat_g ?? 0}g` },
+                    { label: 'Sodium', value: `${item.sodium_mg ?? 0}mg` },
+                    { label: 'Sugar', value: `${item.sugar_g ?? 0}g` },
+                    { label: 'Fiber', value: `${item.fiber_g ?? 0}g` },
+                    { label: 'Cholesterol', value: `${item.cholesterol_mg ?? 0}mg` },
+                  ].map((nutrient) => (
+                    <View key={nutrient.label} style={styles.nutritionChip}>
+                      <Text style={styles.nutritionChipLabel}>{nutrient.label}</Text>
+                      <Text style={styles.nutritionChipValue}>{nutrient.value}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {myMealFilter === 'at_home' && (
+          <Text style={styles.emptyText}>At home meals coming soon.</Text>
+        )}
+      </SectionCard>
+
 
       <SectionCard title={editing ? 'Meal Tagging · Edit Meal' : 'Meal Tagging · Add Meal'}>
         <Text style={styles.sectionLabel}>Meal Name</Text>
@@ -778,7 +891,7 @@ export default function Diet() {
               </View>
               <View style={styles.restaurantMealStats}>
                 <Text style={styles.restaurantMealCalories}>
-                  {item.protein_g ?? 0}g
+                  {item.protein_g ?? 0}g protein
                 </Text>
                 <Text style={styles.restaurantMealCalories}>
                   {item.energy_kcal ?? 0} cal
@@ -1031,5 +1144,64 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     textAlignVertical: 'center',
     textAlign: 'center',
+  },
+
+  myMealList: {
+    gap: 10,
+  },
+  myMealRow: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: C?.border ?? '#9199ab',
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+  myMealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nutritionScroll: {
+    flexGrow: 0,
+  },
+  nutritionScrollContent: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  nutritionChip: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    minWidth: 64,
+  },
+  nutritionChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C?.muted ?? '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  nutritionChipValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C?.text ?? '#000000',
+    marginTop: 2,
+  },
+  myMealMeta: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  myMealDate: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C?.muted ?? '#6b7280',
+  },
+  myMealType: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C?.orange ?? '#f97316',
   },
 });
