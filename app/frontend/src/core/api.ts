@@ -278,14 +278,12 @@ export type User = {
   email: string,
   username: string,
   bio: string,
-
   age?: number,
   height?: number,
   weight?: number,
-  
   goals?: string,
-
   gender?: string,
+  calorie_goal?: number,
 };
 
 export type ApiEvent = any;

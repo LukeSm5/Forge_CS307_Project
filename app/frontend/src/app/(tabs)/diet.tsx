@@ -259,6 +259,9 @@ export default function Diet() {
   const [proteinFetched, setProteinFetched] = useState(false);
   const [minProtein, setMinProtein] = useState('');
 
+  const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
+
+
   const API_BASE_URL = 'http://localhost:8000';
 
   useEffect(() => {
@@ -271,6 +274,12 @@ export default function Diet() {
     setError('');
     setSaved(false);
   }, [editing]);
+
+  useEffect(() => {
+    api.me().then((user) => {
+      if (user?.calorie_goal) setCalorieGoal(user.calorie_goal);
+    }).catch(() => {});
+  }, []);
 
   const setSingleTag = <K extends keyof MealTagSet>(key: K, value: MealTagSet[K]) => {
     setTags((current) => ({
@@ -482,7 +491,15 @@ export default function Diet() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>Diet</Text>
+      <View style={styles.pageTitleRow}>
+        <Text style={styles.pageTitle}>Diet</Text>
+        <View style={styles.calorieWidget}>
+          <Text style={styles.calorieWidgetLabel}>Calorie Goal</Text>
+          <Text style={styles.calorieWidgetNumber}>
+            {calorieGoal != null ? Math.round(calorieGoal) : '—'}
+          </Text>
+        </View>
+      </View>
 
       <SectionCard title={editing ? 'Meal Tagging · Edit Meal' : 'Meal Tagging · Add Meal'}>
         <Text style={styles.sectionLabel}>Meal Name</Text>
@@ -761,7 +778,7 @@ export default function Diet() {
               </View>
               <View style={styles.restaurantMealStats}>
                 <Text style={styles.restaurantMealCalories}>
-                  {item.protein_g ?? 0}g
+                  {item.protein_g ?? 0}g protein
                 </Text>
                 <Text style={styles.restaurantMealCalories}>
                   {item.energy_kcal ?? 0} cal
@@ -965,5 +982,33 @@ const styles = StyleSheet.create({
   restaurantMealStats: {
     alignItems: 'flex-end',
     gap: 2,
+  },
+
+  pageTitleRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 4,
+  },
+  calorieWidget: {
+    backgroundColor: C?.surface ?? '#ffffff',
+    borderWidth: 1,
+    borderColor: C?.border ?? '#e2e8f0',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  calorieWidgetLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: C?.muted ?? '#6b7280',
+  },
+  calorieWidgetNumber: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: C?.orange ?? '#f97316',
   },
 });

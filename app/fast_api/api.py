@@ -151,6 +151,7 @@ class AccountMeResponse(BaseModel):
     weight: Optional[float] = None
     goals: Optional[str] = None
     gender: Optional[str] = None
+    calorie_goal: Optional[float] = None
 
 
 class MenuMealOut(BaseModel):
@@ -442,6 +443,7 @@ def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(g
         weight=profile.weight if profile else None,
         goals=profile.health_goals if profile else None,
         gender=profile.gender if profile else None,
+        calorie_goal=profile.calorie_goal if profile else None,
     )
 
 
