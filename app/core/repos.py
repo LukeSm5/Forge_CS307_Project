@@ -23,6 +23,8 @@ from app.core.db import (
     DietaryTags,
     meal_tags,
     meal_dietary_tags,
+    meal_macros,
+    session_meals,
 )
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
@@ -383,10 +385,192 @@ def get_all_meal_tag_options(sess: Session) -> dict:
         "cook_times":    sess.query(CookTimeTags).all(),
         "dietary_tags":  sess.query(DietaryTags).all(),
     }
+    
+def upsert_meal_macros(
+    sess: Session,
+    meal_id: int,
+    calories: float | None,
+    protein:  float | None,
+    fat:      float | None,
+    carbs:    float | None,
+    sugar:    float | None,
+    fiber:    float | None,
+    sodium:   float | None,
+) -> meal_macros:
+    if not sess.query(Meals).filter_by(MealID=meal_id).first():
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    row = sess.query(meal_macros).filter_by(MealID=meal_id).first()
+    if row:
+        row.calories = calories
+        row.protein  = protein
+        row.fat      = fat
+        row.carbs    = carbs
+        row.sugar    = sugar
+        row.fiber    = fiber
+        row.sodium   = sodium
+    else:
+        row = meal_macros(
+            MealID=meal_id,
+            calories=calories, protein=protein, fat=fat,
+            carbs=carbs, sugar=sugar, fiber=fiber, sodium=sodium,
+        )
+        sess.add(row)
+    sess.commit()
+    sess.refresh(row)
+    return row
+
+def get_meal_macros(sess: Session, meal_id: int) -> meal_macros:
+    row = sess.query(meal_macros).filter_by(MealID=meal_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="No macros found for this meal")
+    return row
+
+def delete_meal_macros(sess: Session, meal_id: int) -> bool:
+    row = sess.query(meal_macros).filter_by(MealID=meal_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="No macros found for this meal")
+    sess.delete(row)
+    sess.commit()
+    return True
+    
+def filter_meals_by_tags(
+    sess: Session,
+    spice_level_id: int | None  = None,
+    cuisine_id:     int | None  = None,
+    complexity_id:  int | None  = None,
+    goal_id:        int | None  = None,
+    prep_time_id:   int | None  = None,
+    cook_time_id:   int | None  = None,
+    dietary_tag_id: int | None  = None,
+    min_calories:   float | None = None,
+    max_calories:   float | None = None,
+    min_protein:    float | None = None,
+    max_protein:    float | None = None,
+    min_fat:        float | None = None,
+    max_fat:        float | None = None,
+    min_carbs:      float | None = None,
+    max_carbs:      float | None = None,
+    min_sugar:      float | None = None,
+    max_sugar:      float | None = None,
+    min_fiber:      float | None = None,
+    max_fiber:      float | None = None,
+    min_sodium:     float | None = None,
+    max_sodium:     float | None = None,
+) -> list[dict]:
+    query = sess.query(Meals)
+    any_tag_filter = any([
+        spice_level_id, cuisine_id, complexity_id,
+        goal_id, prep_time_id, cook_time_id,
+    ])
+    if any_tag_filter:
+        query = query.join(meal_tags, meal_tags.MealID == Meals.MealID)
+        if spice_level_id:
+            query = query.filter(meal_tags.SpiceLevelID == spice_level_id)
+        if cuisine_id:
+            query = query.filter(meal_tags.CuisineID == cuisine_id)
+        if complexity_id:
+            query = query.filter(meal_tags.ComplexityID == complexity_id)
+        if goal_id:
+            query = query.filter(meal_tags.GoalID == goal_id)
+        if prep_time_id:
+            query = query.filter(meal_tags.PrepTimeID == prep_time_id)
+        if cook_time_id:
+            query = query.filter(meal_tags.CookTimeID == cook_time_id)
+
+    if dietary_tag_id:
+        query = query.join(
+            meal_dietary_tags,
+            meal_dietary_tags.MealID == Meals.MealID,
+        ).filter(meal_dietary_tags.DietaryID == dietary_tag_id)
+    macro_ranges = {
+        "calories": (min_calories, max_calories),
+        "protein":  (min_protein,  max_protein),
+        "fat":      (min_fat,      max_fat),
+        "carbs":    (min_carbs,    max_carbs),
+        "sugar":    (min_sugar,    max_sugar),
+        "fiber":    (min_fiber,    max_fiber),
+        "sodium":   (min_sodium,   max_sodium),
+    }
+    any_macro_filter = any(lo is not None or hi is not None for lo, hi in macro_ranges.values())
+
+    if any_macro_filter:
+        query = query.join(meal_macros, meal_macros.MealID == Meals.MealID)
+        for field, (lo, hi) in macro_ranges.items():
+            col = getattr(meal_macros, field)
+            if lo is not None:
+                query = query.filter(col >= lo)
+            if hi is not None:
+                query = query.filter(col <= hi)
+
+    meals = query.all()
+    results = []
+    for meal in meals:
+        tag_row      = sess.query(meal_tags).filter_by(MealID=meal.MealID).first()
+        dietary_rows = sess.query(meal_dietary_tags).filter_by(MealID=meal.MealID).all()
+        macro_row    = sess.query(meal_macros).filter_by(MealID=meal.MealID).first()
+
+        results.append({
+            "meal_id": meal.MealID,
+            "name":    meal.name,
+            "tags":    tag_row,
+            "dietary": dietary_rows,
+            "macros":  macro_row,
+        })
+
+    return results
+    
+def log_meal(
+    sess:      Session,
+    profile_id: int,
+    meal_id:    int,
+    date,
+    servings:  float | None = None,
+    notes:     str   | None = None,
+) -> session_meals:
+    if not sess.query(Meals).filter_by(MealID=meal_id).first():
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    entry = session_meals(
+        ProfileID=profile_id,
+        MealID=meal_id,
+        date=date,
+        servings=servings,
+        notes=notes,
+    )
+    sess.add(entry)
+    sess.commit()
+    sess.refresh(entry)
+    return entry
 
 
+def get_meal_log(sess: Session, profile_id: int) -> list[dict]:
+    entries = (
+        sess.query(session_meals)
+        .filter_by(ProfileID=profile_id)
+        .order_by(session_meals.date.desc())
+        .all()
+    )
 
+    results = []
+    for e in entries:
+        macro_row = sess.query(meal_macros).filter_by(MealID=e.MealID).first()
+        meal_row  = sess.query(Meals).filter_by(MealID=e.MealID).first()
+        multiplier = e.servings if e.servings is not None else 1.0
 
+        consumed: dict[str, float | None] = {}
+        for field in ("calories", "protein", "fat", "carbs", "sugar", "fiber", "sodium"):
+            base = getattr(macro_row, field, None) if macro_row else None
+            consumed[field] = round(base * multiplier, 1) if base is not None else None
 
+        results.append({
+            "session_meal_id": e.SessionMealID,
+            "meal_id":         e.MealID,
+            "meal_name":       meal_row.name if meal_row else None,
+            "date":            e.date,
+            "servings":        e.servings,
+            "notes":           e.notes,
+            "consumed_macros": consumed,
+        })
 
-
+    return results
