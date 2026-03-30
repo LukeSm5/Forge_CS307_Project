@@ -176,6 +176,7 @@ export default function SettingsScreen() {
   const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
   const router = useRouter();
+  const [units, setUnits] = useState<"metric" | "imperial">("metric");
 
   const pickerDate = useMemo(() => {
     if (!activeMealPicker) return new Date();
@@ -479,7 +480,13 @@ export default function SettingsScreen() {
             )}
           </>
         )}
-
+        <SectionHeader title="Measuring Units" />
+        <Text style={styles.sectionTitle}>Preferred units</Text>
+        <Text style={styles.helper}>Unit preferences will be applied across the app.</Text>
+        <View style={styles.modeRow}>
+          <ModeButton label="Metric" selected={units === "metric"} onPress={() => setUnits("metric")} />
+          <ModeButton label="Imperial" selected={units === "imperial"} onPress={() => setUnits("imperial")} />
+        </View>
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
         <Text style={[styles.helper, { marginBottom: 12 }]}>
