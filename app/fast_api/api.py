@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
-from datetime import timezone 
+from datetime import timezone, datetime
 from sqlalchemy import text
 
 from typing import Optional, List, Dict
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises
+from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -223,6 +223,37 @@ class CreateSessionRequest(BaseModel):
     duration: int
     split_name: str
     exercises: List[SessionExerciseIn]
+
+
+class LogMenuMealRequest(BaseModel):
+    menu_meal_id: int
+    meal_type: str  # breakfast / lunch / dinner / snack
+
+
+class SessionMenuMealOut(BaseModel):
+    session_id: int = Field(validation_alias="SessionID")
+    profile_id: int = Field(validation_alias="ProfileID")
+    menu_meal_id: int = Field(validation_alias="MenuMealID")
+    date: datetime
+    meal_type: str
+
+    restaurant: str
+    category: Optional[str] = None
+    product: str
+    serving_size: Optional[float] = None
+    energy_kcal: Optional[float] = None
+    carbohydrates_g: Optional[float] = None
+    protein_g: Optional[float] = None
+    fiber_g: Optional[float] = None
+    sugar_g: Optional[float] = None
+    total_fat_g: Optional[float] = None
+    saturated_fat_g: Optional[float] = None
+    trans_fat_g: Optional[float] = None
+    cholesterol_mg: Optional[float] = None
+    sodium_mg: Optional[float] = None
+
+    class Config:
+        from_attributes = True
 
 
 def _send_account_update_notification(
@@ -874,6 +905,99 @@ def get_sessions_for_profile(profile_id: int, db: Session = Depends(get_db)):
         ))
     return result
 
+VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+
+@app.post("/session-menu-meals", response_model=SessionMenuMealOut)
+def log_session_menu_meal(
+    payload: LogMenuMealRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    meal_type = payload.meal_type.strip().lower()
+    if meal_type not in VALID_MEAL_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid meal_type")
+
+    meal = (
+        db.query(menu_meals)
+        .filter(menu_meals.MenuMealID == payload.menu_meal_id)
+        .first()
+    )
+    if not meal:
+        raise HTTPException(status_code=404, detail="Menu meal not found")
+
+    new_row = session_menu_meals(
+        ProfileID=me.UserID,
+        MenuMealID=payload.menu_meal_id,
+        date=datetime.utcnow(),
+        meal_type=meal_type,
+    )
+    db.add(new_row)
+    db.commit()
+    db.refresh(new_row)
+
+    return SessionMenuMealOut(
+        SessionID=new_row.SessionID,
+        ProfileID=new_row.ProfileID,
+        MenuMealID=new_row.MenuMealID,
+        date=new_row.date,
+        meal_type=new_row.meal_type,
+
+        restaurant=meal.restaurant,
+        category=meal.category,
+        product=meal.product,
+        serving_size=meal.serving_size,
+        energy_kcal=meal.energy_kcal,
+        carbohydrates_g=meal.carbohydrates_g,
+        protein_g=meal.protein_g,
+        fiber_g=meal.fiber_g,
+        sugar_g=meal.sugar_g,
+        total_fat_g=meal.total_fat_g,
+        saturated_fat_g=meal.saturated_fat_g,
+        trans_fat_g=meal.trans_fat_g,
+        cholesterol_mg=meal.cholesterol_mg,
+        sodium_mg=meal.sodium_mg,
+    )
+
+
+@app.get("/session-menu-meals", response_model=List[SessionMenuMealOut])
+def get_session_menu_meals(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(session_menu_meals, menu_meals)
+        .join(menu_meals, session_menu_meals.MenuMealID == menu_meals.MenuMealID)
+        .filter(session_menu_meals.ProfileID == me.UserID)
+        .order_by(session_menu_meals.date.desc())
+        .all()
+    )
+
+    result = []
+    for logged, meal in rows:
+        result.append(
+            SessionMenuMealOut(
+                SessionID=logged.SessionID,
+                ProfileID=logged.ProfileID,
+                MenuMealID=logged.MenuMealID,
+                date=logged.date,
+                meal_type=logged.meal_type,
+                restaurant=meal.restaurant,
+                category=meal.category,
+                product=meal.product,
+                serving_size=meal.serving_size,
+                energy_kcal=meal.energy_kcal,
+                carbohydrates_g=meal.carbohydrates_g,
+                protein_g=meal.protein_g,
+                fiber_g=meal.fiber_g,
+                sugar_g=meal.sugar_g,
+                total_fat_g=meal.total_fat_g,
+                saturated_fat_g=meal.saturated_fat_g,
+                trans_fat_g=meal.trans_fat_g,
+                cholesterol_mg=meal.cholesterol_mg,
+                sodium_mg=meal.sodium_mg,
+            )
+        )
+    return result
 
 if __name__ == "__main__":
     import uvicorn

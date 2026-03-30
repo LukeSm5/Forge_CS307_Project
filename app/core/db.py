@@ -267,3 +267,14 @@ class session_meals(Base):
     date          = Column(DateTime, nullable=False)
     servings      = Column(Float, nullable=True)
     notes         = Column(Text, nullable=True)
+
+
+class session_menu_meals(Base):
+    __tablename__ = 'session_menu_meals'
+    SessionID = Column(Integer, primary_key=True, autoincrement=True)
+    ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'))
+    MenuMealID = Column(Integer, ForeignKey('menu_meals.MenuMealID'))
+    date = Column(DateTime)
+    meal_type = Column(Text)  # breakfast / lunch / dinner / snack
+
+

@@ -183,6 +183,20 @@ export const api = {
     return get<MenuMeal[]>('/meals');
   },
 
+  getLoggedMenuMeals: async (): Promise<LoggedMenuMeal[]> => {
+    return get<LoggedMenuMeal[]>('/session-menu-meals');
+  },
+
+  logMenuMeal: async (
+    menuMealId: number,
+    mealType: MealType
+  ): Promise<LoggedMenuMeal> => {
+    return post<LoggedMenuMeal>('/session-menu-meals', {
+      menu_meal_id: menuMealId,
+      meal_type: mealType,
+    });
+  },
+
   genericPrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
     return { text: 'Placeholder response' }
   },
@@ -376,10 +390,44 @@ export type MenuMeal = {
   restaurant: string;
   category: string;
   product: string;
+  serving_size?: number;
   energy_kcal?: number;
+  carbohydrates_g?: number;
   protein_g?: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  total_fat_g?: number;
+  saturated_fat_g?: number;
+  trans_fat_g?: number;
+  cholesterol_mg?: number;
+  sodium_mg?: number;
   chicken?: boolean;
   beef?: boolean;
+};
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export type LoggedMenuMeal = {
+  session_id: number;
+  profile_id: number;
+  menu_meal_id: number;
+  date: string;
+  meal_type: MealType;
+
+  restaurant: string;
+  category?: string | null;
+  product: string;
+  serving_size?: number | null;
+  energy_kcal?: number | null;
+  carbohydrates_g?: number | null;
+  protein_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  total_fat_g?: number | null;
+  saturated_fat_g?: number | null;
+  trans_fat_g?: number | null;
+  cholesterol_mg?: number | null;
+  sodium_mg?: number | null;
 };
 
 export type GenericPromptEvent = {

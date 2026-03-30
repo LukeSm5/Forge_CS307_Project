@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
+  Modal
 } from 'react-native';
 
 import { useAuth } from '@/core/auth';
@@ -61,6 +61,30 @@ type RestaurantMeal = {
   sodium_mg?: number;
   chicken?: boolean;
   beef?: boolean
+};
+
+type MealTypeOption = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+type LoggedMenuMeal = {
+  session_id: number;
+  profile_id: number;
+  menu_meal_id: number;
+  date: string;
+  meal_type: string;
+  restaurant: string;
+  category?: string | null;
+  product: string;
+  serving_size?: number | null;
+  energy_kcal?: number | null;
+  carbohydrates_g?: number | null;
+  protein_g?: number | null;
+  total_fat_g?: number | null;
+  saturated_fat_g?: number | null;
+  trans_fat_g?: number | null;
+  sodium_mg?: number | null;
+  sugar_g?: number | null;
+  fiber_g?: number | null;
+  cholesterol_mg?: number | null;
 };
 
 type ProteinFilter = 'chicken' | 'beef' | null;
@@ -266,42 +290,13 @@ export default function Diet() {
 
   const [myMealFilter, setMyMealFilter] = useState<'at_home' | 'restaurant'>('restaurant');
 
-  const PLACEHOLDER_MY_MEALS = [
-    {
-      id: 1,
-      product: 'Big Mac',
-      restaurant: "McDonald's",
-      category: 'Burgers',
-      energy_kcal: 550,
-      protein_g: 25,
-      carbohydrates_g: 46,
-      total_fat_g: 30,
-      saturated_fat_g: 10,
-      sodium_mg: 1010,
-      sugar_g: 9,
-      fiber_g: 3,
-      cholesterol_mg: 75,
-      trans_fat_g: 1,
-      serving_size: 198
-    },
-    {
-      id: 2,
-      product: 'Grilled Chicken Sandwich',
-      restaurant: 'Chick-fil-A',
-      category: 'Sandwiches',
-      energy_kcal: 430,
-      protein_g: 43,
-      carbohydrates_g: 36,
-      total_fat_g: 11,
-      saturated_fat_g: 2,
-      sodium_mg: 1040,
-      sugar_g: 8,
-      fiber_g: 2,
-      cholesterol_mg: 90,
-      trans_fat_g: 0,
-      serving_size: 215
-    },
-  ];
+  const [loggedMenuMeals, setLoggedMenuMeals] = useState<LoggedMenuMeal[]>([]);
+  const [loggedMealsLoading, setLoggedMealsLoading] = useState(false);
+
+  const [mealTypeModalVisible, setMealTypeModalVisible] = useState(false);
+  const [selectedMenuMeal, setSelectedMenuMeal] = useState<RestaurantMeal | null>(null);
+  const [loggingMeal, setLoggingMeal] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState<MealTypeOption | null>(null);
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -323,6 +318,11 @@ export default function Diet() {
     api.me().then((user) => {
       if (user?.calorie_goal != null) setCalorieGoal(user.calorie_goal);
     }).catch(() => {});
+  }, [isLoadingAuth]);
+
+  useEffect(() => {
+    if (isLoadingAuth) return;
+    loadLoggedMenuMeals().catch(() => {});
   }, [isLoadingAuth]);
 
   const setSingleTag = <K extends keyof MealTagSet>(key: K, value: MealTagSet[K]) => {
@@ -533,6 +533,52 @@ export default function Diet() {
     return meals;
   }, [restaurantMeals, proteinFilter, minProtein]);
 
+  const loadLoggedMenuMeals = async () => {
+    setLoggedMealsLoading(true);
+    try {
+      const data = await api.getLoggedMenuMeals();
+      setLoggedMenuMeals(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setLoggedMenuMeals([]);
+    } finally {
+      setLoggedMealsLoading(false);
+    }
+  };
+
+  const openMealTypeModal = (meal: RestaurantMeal) => {
+    setSelectedMenuMeal(meal);
+    setSelectedMealType(null);
+    setMealTypeModalVisible(true);
+  };
+
+  const closeMealTypeModal = () => {
+    if (loggingMeal) return;
+    setMealTypeModalVisible(false);
+    setSelectedMenuMeal(null);
+    setSelectedMealType(null);
+  };
+
+  const handleConfirmMealType = async () => {
+    if (!selectedMenuMeal || !selectedMealType) {
+      Alert.alert('Select meal type', 'Please choose breakfast, lunch, dinner, or snack.');
+      return;
+    }
+
+    setLoggingMeal(true);
+    try {
+      const created = await api.logMenuMeal(selectedMenuMeal.id, selectedMealType);
+      setLoggedMenuMeals((current) => [created, ...current]);
+      setMealTypeModalVisible(false);
+      setSelectedMenuMeal(null);
+      setSelectedMealType(null);
+      setMyMealFilter('restaurant');
+    } catch (err) {
+      Alert.alert('Could not log meal', 'Please try again.');
+    } finally {
+      setLoggingMeal(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.pageTitleRow}>
@@ -561,51 +607,62 @@ export default function Diet() {
           />
         </View>
 
-        {myMealFilter === 'restaurant' && (
-          <View style={styles.myMealList}>
-            {PLACEHOLDER_MY_MEALS.map((item) => (
-              <View key={item.id} style={styles.myMealRow}>
-                <View style={styles.myMealHeader}>
-                  <View style={styles.restaurantMealInfo}>
-                    <Text style={styles.restaurantMealName}>{item.product}</Text>
-                    <Text style={styles.restaurantMealProtein}>
-                      {item.restaurant} · {item.category}
-                    </Text>
-                  </View>
-                  <View style={styles.myMealMeta}>
-                    <Text style={styles.myMealDate}>03/28/2026</Text>
-                    <Text style={styles.myMealType}>Breakfast</Text>
-                  </View>
-                </View>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.nutritionScroll}
-                  contentContainerStyle={styles.nutritionScrollContent}
-                >
-                  {[
-                    { label: 'Serving', value: `${item.serving_size ?? 0}g` },
-                    { label: 'Cal', value: `${item.energy_kcal ?? 0} kcal` },
-                    { label: 'Protein', value: `${item.protein_g ?? 0}g` },
-                    { label: 'Carbs', value: `${item.carbohydrates_g ?? 0}g` },
-                    { label: 'Fat', value: `${item.total_fat_g ?? 0}g` },
-                    { label: 'Sat Fat', value: `${item.saturated_fat_g ?? 0}g` },
-                    { label: 'Trans Fat', value: `${item.trans_fat_g ?? 0}g` },
-                    { label: 'Sodium', value: `${item.sodium_mg ?? 0}mg` },
-                    { label: 'Sugar', value: `${item.sugar_g ?? 0}g` },
-                    { label: 'Fiber', value: `${item.fiber_g ?? 0}g` },
-                    { label: 'Cholesterol', value: `${item.cholesterol_mg ?? 0}mg` },
-                  ].map((nutrient) => (
-                    <View key={nutrient.label} style={styles.nutritionChip}>
-                      <Text style={styles.nutritionChipLabel}>{nutrient.label}</Text>
-                      <Text style={styles.nutritionChipValue}>{nutrient.value}</Text>
+        {myMealFilter === 'restaurant' && (
+          loggedMealsLoading ? (
+            <ActivityIndicator style={styles.loader} />
+          ) : loggedMenuMeals.length === 0 ? (
+            <Text style={styles.emptyText}>No restaurant meals logged yet.</Text>
+          ) : (
+            <View style={styles.myMealList}>
+              {loggedMenuMeals.map((item) => (
+                <View key={item.session_id} style={styles.myMealRow}>
+                  <View style={styles.myMealHeader}>
+                    <View style={styles.restaurantMealInfo}>
+                      <Text style={styles.restaurantMealName}>{item.product}</Text>
+                      <Text style={styles.restaurantMealProtein}>
+                        {item.restaurant} · {item.category}
+                      </Text>
                     </View>
-                  ))}
-                </ScrollView>
-              </View>
-            ))}
-          </View>
+                    <View style={styles.myMealMeta}>
+                      <Text style={styles.myMealDate}>
+                        {new Date(`${item.date}Z`).toLocaleDateString()}
+                      </Text>
+                      <Text style={styles.myMealType}>
+                        {item.meal_type.charAt(0).toUpperCase() + item.meal_type.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.nutritionScroll}
+                    contentContainerStyle={styles.nutritionScrollContent}
+                  >
+                    {[
+                      { label: 'Serving', value: `${item.serving_size ?? 0}g` },
+                      { label: 'Cal', value: `${item.energy_kcal ?? 0} kcal` },
+                      { label: 'Protein', value: `${item.protein_g ?? 0}g` },
+                      { label: 'Carbs', value: `${item.carbohydrates_g ?? 0}g` },
+                      { label: 'Fat', value: `${item.total_fat_g ?? 0}g` },
+                      { label: 'Sat Fat', value: `${item.saturated_fat_g ?? 0}g` },
+                      { label: 'Trans Fat', value: `${item.trans_fat_g ?? 0}g` },
+                      { label: 'Sodium', value: `${item.sodium_mg ?? 0}mg` },
+                      { label: 'Sugar', value: `${item.sugar_g ?? 0}g` },
+                      { label: 'Fiber', value: `${item.fiber_g ?? 0}g` },
+                      { label: 'Cholesterol', value: `${item.cholesterol_mg ?? 0}mg` },
+                    ].map((nutrient) => (
+                      <View key={nutrient.label} style={styles.nutritionChip}>
+                        <Text style={styles.nutritionChipLabel}>{nutrient.label}</Text>
+                        <Text style={styles.nutritionChipValue}>{nutrient.value}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ))}
+            </View>
+          )
         )}
 
         {myMealFilter === 'at_home' && (
@@ -897,13 +954,76 @@ export default function Diet() {
                   {item.energy_kcal ?? 0} cal
                 </Text>
               </View>
-              <Pressable style={styles.addMealButton} onPress={() => {}}>
-                <Text style={styles.addMealButtonText}>+</Text>
+              <Pressable
+                onPress={() => openMealTypeModal(item)}
+                style={({ pressed }) => [
+                  styles.addButton,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={styles.addButtonText}>+</Text>
               </Pressable>
             </View>
           ))}
         </View>
       </SectionCard>
+
+      <Modal
+        visible={mealTypeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMealTypeModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Log meal as</Text>
+
+            {selectedMenuMeal ? (
+              <Text style={styles.modalSubtitle}>
+                {selectedMenuMeal.product} · {selectedMenuMeal.restaurant}
+              </Text>
+            ) : null}
+
+            {(['breakfast', 'lunch', 'dinner', 'snack'] as MealTypeOption[]).map((option) => {
+              const active = selectedMealType === option;
+
+              return (
+                <Pressable
+                  key={option}
+                  disabled={loggingMeal}
+                  onPress={() => setSelectedMealType(option)}
+                  style={({ pressed }) => [
+                    styles.modalOption,
+                    active && styles.modalOptionActive,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      active && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.modalButtonRow}>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton onPress={closeMealTypeModal} text="Cancel" />
+              </View>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={handleConfirmMealType}
+                  text={loggingMeal ? 'Saving...' : 'Confirm'}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1203,5 +1323,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: C?.orange ?? '#f97316',
+  },
+
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f97316',
+    alignSelf: 'center',
+  },
+
+  addButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    padding: 20,
+    gap: 12,
+  },
+
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+
+  modalOption: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+  },
+
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
+  modalOptionActive: {
+    borderColor: '#f97316',
+    backgroundColor: '#fff7ed',
+  },
+
+  modalOptionTextActive: {
+    color: '#f97316',
+  },
+
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+
+  modalButtonHalf: {
+    flex: 1,
   },
 });
