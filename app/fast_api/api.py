@@ -6,6 +6,7 @@ import logging
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
+from app.core import ai_retrieval
 from app.core.session import get_db
 from app.core.seed import engine
 
@@ -139,6 +140,55 @@ class AccountMeResponse(BaseModel):
     bio: Optional[str] = None
 
 
+class IngestResponse(BaseModel):
+    namespace: str
+    ingested_count: int
+
+
+class VectorQueryRequest(BaseModel):
+    query: str
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class VectorQueryMatch(BaseModel):
+    doc_id: str
+    score: float
+    text: str
+    metadata: Dict
+
+
+class ProfileContextResponse(BaseModel):
+    profile_id: int
+    context: str
+
+
+class QuickWorkoutRequest(BaseModel):
+    profile_id: int
+    focus: Optional[str] = None
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class QuickWorkoutExercise(BaseModel):
+    exercise_id: int
+    exercise_name: str
+    machine_id: Optional[int] = None
+    machine_name: Optional[str] = None
+    sets: int
+    reps: int
+    weight: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class QuickWorkoutResponse(BaseModel):
+    profile_id: int
+    workout_name: str
+    profile_context: str
+    profile_matches: List[VectorQueryMatch]
+    prompt: str
+    source_matches: List[VectorQueryMatch]
+    exercises: List[QuickWorkoutExercise]
+
+
 def _send_account_update_notification(
     notifier: NotificationService,
     *,
@@ -161,7 +211,11 @@ def _send_account_update_notification(
         return False
 
 @app.post("/auth/create_account", response_model=TokenResponse)
-def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db)):
+def create_account(
+    payload: CreateAccountRequest,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
     try:
         new_account = am.register_user(
             db,
@@ -190,6 +244,12 @@ def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db))
 
     db.add(new_account)
     db.commit()
+
+    _send_account_update_notification(
+        notifier,
+        account=new_account,
+        update_type="account created",
+    )
 
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
@@ -367,7 +427,9 @@ def logout(me: Accounts = Depends(get_current_account), db: Session = Depends(ge
 
 @app.post("/auth/reset_password")
 async def resetPasswordEndpoint(
-    request: ResetPasswordRequest, session: Session = Depends(get_db)
+    request: ResetPasswordRequest,
+    session: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
 ):
     user = am.get_user_by_email(session, Accounts, request.user_email)
     if not user:
@@ -375,7 +437,18 @@ async def resetPasswordEndpoint(
     
     try:
         resetPassword(user, request.new_password, session)
-        return {"message": "Password reset successful"}
+        notification_sent = _send_account_update_notification(
+            notifier,
+            account=user,
+            update_type="password reset",
+        )
+        return {
+            "message": (
+                "Password reset successful and notification sent"
+                if notification_sent
+                else "Password reset successful (notification failed)"
+            )
+        }
     except TypeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
@@ -394,6 +467,61 @@ def resetPassword(user, newPassword, session):
     user.refresh_token_hash = None
     user.refresh_expires_at = None
     session.commit()
+
+
+@app.get("/profiles/{profile_id}/context", response_model=ProfileContextResponse)
+def get_profile_context(profile_id: int, db: Session = Depends(get_db)):
+    return ProfileContextResponse(
+        profile_id=profile_id,
+        context=ai_retrieval.build_profile_context(db, profile_id),
+    )
+
+
+@app.post("/ai/ingest/workouts", response_model=IngestResponse)
+def ingest_workout_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "workouts")
+    return IngestResponse(namespace="workouts", ingested_count=ingested_count)
+
+
+@app.post("/ai/ingest/meals", response_model=IngestResponse)
+def ingest_meal_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "meals")
+    return IngestResponse(namespace="meals", ingested_count=ingested_count)
+
+
+@app.post("/ai/ingest/profiles", response_model=IngestResponse)
+def ingest_profile_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "profiles")
+    return IngestResponse(namespace="profiles", ingested_count=ingested_count)
+
+
+@app.post("/ai/query/workouts", response_model=List[VectorQueryMatch])
+def query_workout_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "workouts", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/query/meals", response_model=List[VectorQueryMatch])
+def query_meal_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "meals", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/query/profiles", response_model=List[VectorQueryMatch])
+def query_profile_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "profiles", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/quick-workout", response_model=QuickWorkoutResponse)
+def generate_quick_workout(payload: QuickWorkoutRequest, db: Session = Depends(get_db)):
+    generated = ai_retrieval.generate_quick_workout(
+        db,
+        profile_id=payload.profile_id,
+        focus=payload.focus,
+        top_k=payload.top_k,
+    )
+    return QuickWorkoutResponse(**generated)
 
 
 @app.delete("/accounts/{user_id}")

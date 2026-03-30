@@ -5,7 +5,13 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, CreateWorkoutLogExercise, WorkoutExerciseLog, WorkoutLog } from '@/core/api';
+import {
+  api,
+  CreateWorkoutLogExercise,
+  GeneratedQuickWorkout,
+  WorkoutExerciseLog,
+  WorkoutLog,
+} from '@/core/api';
 import { useRouter } from 'expo-router';
 
 type LoggedWorkout = {
@@ -43,6 +49,8 @@ export default function WorkoutTabScreen() {
   const [editingLog, setEditingLog] = useState<LoggedWorkout | null>(null);
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [generatedWorkout, setGeneratedWorkout] = useState<GeneratedQuickWorkout | null>(null);
+  const [generatingWorkout, setGeneratingWorkout] = useState(false);
 
   const router = useRouter();
 
@@ -75,8 +83,22 @@ export default function WorkoutTabScreen() {
     router.push("/AddWorkoutScreen");
   }
 
-  function handleGenerateWorkout() {
-    Alert.alert('Generate Workout', 'Workout generation flow will be added in a later stage.');
+  async function handleGenerateWorkout() {
+    if (generatingWorkout) return;
+
+    setGeneratingWorkout(true);
+    try {
+      const generated = await api.generateQuickWorkout({
+        profile_id: profileId,
+        top_k: 3,
+      });
+      setGeneratedWorkout(generated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate workout.';
+      Alert.alert('Generate workout failed', message);
+    } finally {
+      setGeneratingWorkout(false);
+    }
   }
 
   function handleStartWorkout(logId: string) {
@@ -219,6 +241,42 @@ export default function WorkoutTabScreen() {
       Alert.alert('Delete failed', message);
     } finally {
       setDeletingLogId(null);
+    }
+  }
+
+  async function handleStartGeneratedWorkout() {
+    if (!generatedWorkout || savingLogId) return;
+
+    setSavingLogId('generated');
+    try {
+      const payloadExercises: CreateWorkoutLogExercise[] = generatedWorkout.exercises.map((exercise) => ({
+        exercise_id: exercise.exercise_id,
+        machine_id: exercise.machine_id ?? 0,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        weight: exercise.weight ?? null,
+        notes: exercise.notes ?? null,
+      }));
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+      const result = await api.addWorkoutLog({
+        profile_id: profileId,
+        workout_name: `${generatedWorkout.workout_name} ${timestamp}`,
+        exercises: payloadExercises,
+      });
+
+      setGeneratedWorkout(null);
+      await loadWorkoutHistory();
+      setExpandedLogId(String(result.workout_id));
+      setSessionStateByLog((prev) => ({ ...prev, [String(result.workout_id)]: 'running' }));
+      setRunningLogId(String(result.workout_id));
+      setStartedAtMs(Date.now());
+      setElapsedByLogSeconds((prev) => ({ ...prev, [String(result.workout_id)]: 0 }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start generated workout.';
+      Alert.alert('Start workout failed', message);
+    } finally {
+      setSavingLogId(null);
     }
   }
 
@@ -367,8 +425,70 @@ export default function WorkoutTabScreen() {
 
       <View style={styles.actionsRow}>
         <ForgeButton text="Log Workout" theme="primary" style={styles.actionButton} onPress={handleLogWorkout} />
-        <ForgeButton text="Generate Workout" theme="teal" style={styles.actionButton} onPress={handleGenerateWorkout} />
+        <ForgeButton
+          text={generatingWorkout ? 'Generating...' : 'Generate Workout'}
+          theme="teal"
+          style={styles.actionButton}
+          onPress={() => {
+            void handleGenerateWorkout();
+          }}
+          disabled={generatingWorkout}
+        />
       </View>
+
+      <Modal visible={!!generatedWorkout} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{generatedWorkout?.workout_name ?? 'Quick Workout'}</Text>
+            <Text style={styles.modalSubtitle}>Generated from your profile and the most relevant workout matches.</Text>
+
+            <ScrollView style={styles.modalScroll}>
+              {generatedWorkout?.exercises.map((exercise) => (
+                <View key={`generated-${exercise.exercise_id}-${exercise.machine_id ?? 'none'}`} style={styles.modalExerciseCard}>
+                  <Text style={styles.exerciseCardTitle}>{exercise.exercise_name}</Text>
+                  <Text style={styles.generatedExerciseText}>
+                    {exercise.sets} sets x {exercise.reps} reps
+                    {exercise.weight != null ? ` • ${exercise.weight} lb` : ''}
+                  </Text>
+                  {exercise.machine_name ? (
+                    <Text style={styles.generatedExerciseMeta}>Machine: {exercise.machine_name}</Text>
+                  ) : null}
+                  {exercise.notes ? <Text style={styles.generatedExerciseMeta}>Notes: {exercise.notes}</Text> : null}
+                </View>
+              ))}
+
+              {generatedWorkout?.source_matches.length ? (
+                <View style={styles.generatedSources}>
+                  <Text style={styles.exerciseHeading}>Matched workout history</Text>
+                  {generatedWorkout.source_matches.map((match) => (
+                    <Text key={match.doc_id} style={styles.generatedSourceItem}>
+                      - {String(match.metadata.workout_name ?? match.doc_id)} ({match.score.toFixed(2)})
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <ForgeButton
+                text="Nevermind"
+                theme="neutral"
+                style={styles.modalButton}
+                onPress={() => setGeneratedWorkout(null)}
+              />
+              <ForgeButton
+                text={savingLogId === 'generated' ? 'Starting...' : 'Start Workout'}
+                theme="success"
+                style={styles.modalButton}
+                onPress={() => {
+                  void handleStartGeneratedWorkout();
+                }}
+                disabled={savingLogId === 'generated'}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!editingLog} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
@@ -707,6 +827,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 14,
     color: '#334155',
+  },
+  generatedExerciseText: {
+    fontSize: 15,
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  generatedExerciseMeta: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  generatedSources: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  generatedSourceItem: {
+    fontSize: 14,
+    color: '#334155',
+    marginBottom: 4,
   },
 });
 
