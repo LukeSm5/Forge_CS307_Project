@@ -11,7 +11,8 @@ import {
 import Slider from "@react-native-community/slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Text } from "@/components/Themed";
-import { useAccessibility } from "@/core/accessibility";
+import { useAccessibility, useAppColorScheme } from "@/core/accessibility";
+import { Schemes } from "@/constants/Colors";
 import { api, setToken, User } from "@/core/api";
 import { useAuth } from "@/core/auth";
 import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
@@ -75,18 +76,30 @@ function Field({
   secureTextEntry?: boolean;
   multiline?: boolean;
 }) {
+  const scheme = useAppColorScheme() ?? "light";
+  const isDark = scheme === "dark";
+
   return (
     <View style={styles.fieldWrapper}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          {
+            color: Schemes[scheme].text,
+            borderColor: isDark ? "#6b7280" : "rgba(0,0,0,0.25)",
+            backgroundColor: isDark ? "#111827" : "#ffffff",
+          },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         secureTextEntry={secureTextEntry}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
-        placeholderTextColor="rgba(0,0,0,0.35)"
+        placeholderTextColor={isDark ? "#9ca3af" : "rgba(0,0,0,0.35)"}
+        selectionColor="#2f80ed"
       />
     </View>
   );
@@ -103,11 +116,20 @@ function ActionButton({
   disabled?: boolean;
   variant?: "primary" | "secondary" | "danger";
 }) {
+  const scheme = useAppColorScheme() ?? "light";
+  const isDark = scheme === "dark";
+
   const variantStyle =
     variant === "danger"
       ? styles.btnDanger
       : variant === "secondary"
-        ? styles.btnSecondary
+        ? [
+            styles.btnSecondary,
+            {
+              borderColor: isDark ? "#60a5fa" : "rgba(0,0,0,0.3)",
+              backgroundColor: isDark ? "rgba(96,165,250,0.10)" : "transparent",
+            },
+          ]
         : styles.btnPrimary;
 
   return (
@@ -116,7 +138,14 @@ function ActionButton({
       disabled={disabled}
       style={[styles.btn, variantStyle, disabled && styles.btnDisabled]}
     >
-      <Text style={[styles.btnText, variant === "secondary" && styles.btnTextSecondary]}>
+      <Text
+        style={[
+          styles.btnText,
+          variant === "secondary" && {
+            color: isDark ? "#93c5fd" : "#2f80ed",
+          },
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -296,9 +325,21 @@ export default function SettingsScreen() {
         <SectionHeader title="Appearance" />
         <Text style={styles.sectionTitle}>Theme</Text>
         <View style={styles.modeRow}>
-          <ModeButton label="System" selected={colorMode === "system"} onPress={() => setColorMode("system")} />
-          <ModeButton label="Light" selected={colorMode === "light"} onPress={() => setColorMode("light")} />
-          <ModeButton label="Dark" selected={colorMode === "dark"} onPress={() => setColorMode("dark")} />
+          <ModeButton
+            label="System"
+            selected={colorMode === "system"}
+            onPress={() => setColorMode("system")}
+          />
+          <ModeButton
+            label="Light"
+            selected={colorMode === "light"}
+            onPress={() => setColorMode("light")}
+          />
+          <ModeButton
+            label="Dark"
+            selected={colorMode === "dark"}
+            onPress={() => setColorMode("dark")}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Text Size</Text>
@@ -380,12 +421,16 @@ export default function SettingsScreen() {
               <ModeButton
                 label="On"
                 selected={notificationPrefs.mealRemindersEnabled}
-                onPress={() => updateNotificationToggle("mealRemindersEnabled", true, "Meal reminders")}
+                onPress={() =>
+                  updateNotificationToggle("mealRemindersEnabled", true, "Meal reminders")
+                }
               />
               <ModeButton
                 label="Off"
                 selected={!notificationPrefs.mealRemindersEnabled}
-                onPress={() => updateNotificationToggle("mealRemindersEnabled", false, "Meal reminders")}
+                onPress={() =>
+                  updateNotificationToggle("mealRemindersEnabled", false, "Meal reminders")
+                }
               />
             </View>
 
@@ -437,7 +482,7 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
-        <Text style={[styles.helper, { marginBottom: 12 }]}> 
+        <Text style={[styles.helper, { marginBottom: 12 }]}>
           {currentUser
             ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
             : user
@@ -446,12 +491,33 @@ export default function SettingsScreen() {
         </Text>
 
         <Text style={styles.sectionTitle}>Profile</Text>
-        <Field label="Username" value={pUsername} onChangeText={setPUsername} placeholder="New username" />
-        <Field label="Bio" value={pBio} onChangeText={setPBio} placeholder="Bio (≤280 chars)" multiline />
+        <Field
+          label="Username"
+          value={pUsername}
+          onChangeText={setPUsername}
+          placeholder="New username"
+        />
+        <Field
+          label="Bio"
+          value={pBio}
+          onChangeText={setPBio}
+          placeholder="Bio (≤280 chars)"
+          multiline
+        />
 
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Change Password</Text>
-        <Field label="Current password" value={cCurrent} onChangeText={setCCurrent} secureTextEntry />
-        <Field label="New password" value={cNew} onChangeText={setCNew} secureTextEntry />
+        <Field
+          label="Current password"
+          value={cCurrent}
+          onChangeText={setCCurrent}
+          secureTextEntry
+        />
+        <Field
+          label="New password"
+          value={cNew}
+          onChangeText={setCNew}
+          secureTextEntry
+        />
 
         <View style={styles.rowBtns}>
           <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading} />
@@ -533,7 +599,6 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4, opacity: 0.75 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.25)",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -553,12 +618,10 @@ const styles = StyleSheet.create({
   btnSecondary: {
     backgroundColor: "transparent",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.3)",
   },
   btnDanger: { backgroundColor: "#e53935" },
   btnDisabled: { opacity: 0.45 },
   btnText: { color: "white", fontWeight: "700", fontSize: 14 },
-  btnTextSecondary: { color: "#2f80ed" },
   notificationCard: {
     marginTop: 10,
     padding: 14,
