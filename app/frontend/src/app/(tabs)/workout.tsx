@@ -418,7 +418,12 @@ export default function WorkoutTabScreen() {
 
       <View style={styles.actionsRow}>
         <ForgeButton text="Log Workout" theme="primary" style={styles.actionButton} onPress={handleLogWorkout} />
-        <ForgeButton text="Generate Workout" theme="teal" style={styles.actionButton} onPress={handleGenerateWorkout} />
+        <ForgeButton
+          text="Generate Workout"
+          theme="teal"
+          style={styles.actionButton}
+          onPress={handleGenerateWorkout}
+        />
       </View>
       <View style={styles.actionsRow}>
         <CardioButton />
@@ -762,7 +767,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     color: '#334155',
   },
-
   splitCard: {
     borderWidth: 1,
     borderColor: '#93c5fd',

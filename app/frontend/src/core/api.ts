@@ -163,6 +163,9 @@ export const api = {
   getMachines: async (): Promise<MachineLookupRow[]> => {
     return get<MachineLookupRow[]>('/machines');
   },
+  generateQuickWorkout: async (payload: GenerateQuickWorkoutRequest): Promise<GeneratedQuickWorkout> => {
+    return post<GeneratedQuickWorkout>('/ai/quick-workout', payload);
+  },
   searchCardioMachine: async (e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]> => {
     // Prompt LLM with user object goals and cardio machie description
     // LLM returns a list of SearchCardioMachineResponse[]
@@ -413,6 +416,40 @@ export type CreateWorkoutLogResponse = {
   workout_id: number;
   workout_name: string;
   inserted_sets: number;
+};
+
+export type GeneratedWorkoutExercise = {
+  exercise_id: number;
+  exercise_name: string;
+  machine_id?: number | null;
+  machine_name?: string | null;
+  sets: number;
+  reps: number;
+  weight?: number | null;
+  notes?: string | null;
+};
+
+export type GeneratedVectorMatch = {
+  doc_id: string;
+  score: number;
+  text: string;
+  metadata: Record<string, unknown>;
+};
+
+export type GenerateQuickWorkoutRequest = {
+  profile_id: number;
+  focus?: string | null;
+  top_k?: number;
+};
+
+export type GeneratedQuickWorkout = {
+  profile_id: number;
+  workout_name: string;
+  profile_context: string;
+  profile_matches: GeneratedVectorMatch[];
+  prompt: string;
+  source_matches: GeneratedVectorMatch[];
+  exercises: GeneratedWorkoutExercise[];
 };
 
 export type MenuMeal = {
