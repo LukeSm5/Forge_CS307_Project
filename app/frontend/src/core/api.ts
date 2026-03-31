@@ -84,6 +84,7 @@ export const api = {
   addWorkoutLog: async (payload: CreateSessionRequest): Promise<SessionLog> => {
     return post<SessionLog>('/sessions', payload);
   },
+  
 
   me: async (): Promise<User | undefined> => {
     return get<User>('/auth/me');
@@ -469,7 +470,8 @@ export type WorkoutLookup = {
 
 export type CreateSessionRequest = {
   workout_id: number;
-  duration: number;
+  duration?: number | null;
+  date?: string | null; // YYYY-MM-DD
   split_name: string;
   exercises: {
     exercise_id: number;

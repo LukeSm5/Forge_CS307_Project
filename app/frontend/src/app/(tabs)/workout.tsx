@@ -282,7 +282,7 @@ export default function WorkoutTabScreen() {
   const groupedWorkouts = useMemo(() => {
     const groups = new Map<string, SplitGroup>();
     for (const log of filteredWorkoutHistory) {
-      const dateOnly = log.loggedAt.slice(0, 10);
+      const dateOnly = formatDisplayDate(log.loggedAt);
       const key = `${log.splitName}-${dateOnly}`;
       if (!groups.has(key)) {
         groups.set(key, {
@@ -295,6 +295,15 @@ export default function WorkoutTabScreen() {
     }
     return Array.from(groups.values());
   }, [filteredWorkoutHistory]);
+
+
+  function formatDisplayDate(iso: string): string {
+    const d = new Date(iso);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    return `${mm}/${dd}/${yyyy}`;
+  }
 
   return (
     <View style={styles.container}>

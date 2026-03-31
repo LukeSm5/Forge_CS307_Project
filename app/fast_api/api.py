@@ -195,7 +195,8 @@ class SessionExerciseIn(BaseModel):
 
 class CreateSessionRequest(BaseModel):
     workout_id: int
-    duration: int
+    duration: Optional[int] = None
+    date: Optional[str] = None  # YYYY-MM-DD
     split_name: str
     exercises: List[SessionExerciseIn]
 
@@ -794,6 +795,7 @@ def create_workout_session(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
+    from datetime import datetime
     from app.core.db import Splits
 
     workout = db.query(Workouts).filter(Workouts.WorkoutID == payload.workout_id).first()
@@ -801,77 +803,73 @@ def create_workout_session(
         raise HTTPException(status_code=404, detail="Workout not found")
 
     split_name = payload.split_name.strip()
-    split = None
-    if split_name:
-        split = (
-            db.query(Splits)
-            .filter(
-                Splits.ProfileID == me.UserID,
-                Splits.name == split_name,
-            )
-            .first()
-        )
-        if not split:
-            split = Splits(ProfileID=me.UserID, name=split_name)
-            db.add(split)
-            db.commit()
-            db.refresh(split)
+
+    split = db.query(Splits).filter(
+        Splits.ProfileID == me.UserID,
+        Splits.name == split_name
+    ).first()
+    if not split:
+        split = Splits(ProfileID=me.UserID, name=split_name)
+        db.add(split)
+        db.commit()
+        db.refresh(split)
+
+    if payload.date:
+        try:
+            session_dt = datetime.strptime(payload.date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format, expected YYYY-MM-DD")
+    else:
+        session_dt = datetime.utcnow()
+
+    duration_value = payload.duration if payload.duration is not None else 0
 
     new_session = session_workouts(
         WorkoutID=payload.workout_id,
         ProfileID=me.UserID,
-        SplitID=split.SplitID if split else None,
-        date=datetime.utcnow(),
-        duration=payload.duration,
-        notes=None,
+        SplitID=split.SplitID,
+        date=session_dt,
+        duration=duration_value,
     )
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
 
+    exercise_rows = []
     for ex in payload.exercises:
-        for set_number in range(1, ex.sets + 1):
+        for set_num in range(1, ex.sets + 1):
             row = session_exercises(
                 SessionID=new_session.SessionID,
                 ExerciseID=ex.exercise_id,
                 MachineID=ex.machine_id,
-                set_number=set_number,
+                set_number=set_num,
                 reps=ex.reps,
                 weight=ex.weight,
             )
             db.add(row)
-
+            exercise_rows.append(row)
     db.commit()
 
-    exercise_rows = (
-        db.query(session_exercises)
-        .filter(session_exercises.SessionID == new_session.SessionID)
-        .order_by(session_exercises.ExerciseID, session_exercises.set_number)
-        .all()
-    )
-
-    exercises_out: List[SessionExerciseOut] = []
+    ex_out = []
     for row in exercise_rows:
         ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
-        exercises_out.append(
-            SessionExerciseOut(
-                exercise_id=row.ExerciseID,
-                exercise_name=ex_obj.name if ex_obj else "Unknown",
-                machine_id=row.MachineID,
-                set_number=row.set_number,
-                reps=row.reps,
-                weight=row.weight,
-            )
-        )
+        ex_out.append(SessionExerciseOut(
+            exercise_id=row.ExerciseID,
+            exercise_name=ex_obj.name if ex_obj else "Unknown",
+            machine_id=row.MachineID,
+            set_number=row.set_number,
+            reps=row.reps,
+            weight=row.weight,
+        ))
 
     return SessionOut(
         session_id=new_session.SessionID,
-        workout_id=new_session.WorkoutID,
+        workout_id=workout.WorkoutID,
         workout_name=workout.name,
-        split_name=split.name if split else None,
+        split_name=split.name,
         date=str(new_session.date),
         duration=new_session.duration,
-        exercises=exercises_out,
+        exercises=ex_out,
     )
 
 

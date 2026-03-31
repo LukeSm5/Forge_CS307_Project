@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, MachineLookupRow, WorkoutLookup } from '@/core/api';
+import { api, MachineLookupRow, WorkoutLookup, SessionLog } from '@/core/api';
 
 type SingleExercise = {
   name: string;
@@ -18,7 +18,6 @@ type SingleExercise = {
 
 export default function AddWorkoutScreen() {
   const router = useRouter();
-  const profileId = Number(process.env.EXPO_PUBLIC_PROFILE_ID ?? '1');
 
   const [splitName, setSplitName] = useState('');
   const [workouts, setWorkouts] = useState<WorkoutLookup[]>([]);
@@ -36,23 +35,30 @@ export default function AddWorkoutScreen() {
   const [exerciseList, setExerciseList] = useState<SingleExercise[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const [startTime] = useState<number>(Date.now());
+  const [sessionDate, setSessionDate] = useState(formatToday());
+  const [durationMinutes, setDurationMinutes] = useState('');
+  const [allSessions, setAllSessions] = useState<SessionLog[]>([]);
+  const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
 
   useEffect(() => {
     async function loadLookupData() {
       try {
-        const [exerciseRows, machineRows, workoutRows] = await Promise.all([
+        const [exerciseRows, machineRows, workoutRows, sessionRows] = await Promise.all([
           api.getExercises(),
           api.getMachines(),
           api.getWorkouts(),
+          api.getWorkoutHistory(),
         ]);
+
         setExerciseMapping(exerciseRows);
         setMachines(machineRows);
         setWorkouts(workoutRows);
+        setAllSessions(sessionRows);
       } catch {
         setExerciseMapping({});
         setMachines([]);
         setWorkouts([]);
+        setAllSessions([]);
       }
     }
 
@@ -67,6 +73,23 @@ export default function AddWorkoutScreen() {
       })),
     [exerciseMapping]
   );
+
+  const splitSuggestions = useMemo(() => {
+    const normalizedSplit = splitName.trim().toLowerCase();
+    const selectedDate = sessionDate.trim();
+
+    return allSessions.filter((session) => {
+      const sameDate = isoToDisplayDate(session.date) === selectedDate;
+      if (!sameDate) return false;
+
+      if (!normalizedSplit) return true;
+
+      const split = (session.split_name ?? '').toLowerCase();
+      const workout = session.workout_name.toLowerCase();
+
+      return split.includes(normalizedSplit) || workout.includes(normalizedSplit);
+    });
+  }, [allSessions, sessionDate, splitName]);
 
   function addExercise() {
     if (!selectedExerciseName || selectedMachineId == null || !sets || !reps) {
@@ -128,10 +151,24 @@ export default function AddWorkoutScreen() {
 
     setSaving(true);
     try {
+      const apiDate = displayDateToApiDate(sessionDate.trim());
+      if (!apiDate) {
+        Alert.alert('Invalid date', 'Enter date as MM/DD/YYYY.');
+        return;
+      }
+
+      const parsedDuration =
+        durationMinutes.trim() === '' ? null : Number(durationMinutes) * 60;
+
+      if (parsedDuration != null && !Number.isFinite(parsedDuration)) {
+        Alert.alert('Invalid duration', 'Duration must be a number of minutes.');
+        return;
+      }
+
       await api.addWorkoutLog({
-        profile_id: profileId,
         workout_id: selectedWorkoutId,
-        duration: Math.floor((Date.now() - startTime) / 1000),
+        duration: parsedDuration,
+        date: apiDate,
         split_name: splitName.trim(),
         exercises: exerciseList.map((ex) => ({
           exercise_id: exerciseMapping[ex.name] ?? 1,
@@ -152,19 +189,91 @@ export default function AddWorkoutScreen() {
     }
   }
 
+  function formatToday() {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const yyyy = String(now.getFullYear());
+    return `${mm}/${dd}/${yyyy}`;
+  }
+
+  function formatDateInput(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  }
+
+  function isoToDisplayDate(iso: string) {
+    const d = new Date(iso);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    return `${mm}/${dd}/${yyyy}`;
+  }
+
+  function displayDateToApiDate(value: string) {
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const [, mm, dd, yyyy] = match;
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Log Workout</Text>
 
-        <Text style={styles.label}>Split name</Text>
-        <TextInput
-          style={styles.input}
-          value={splitName}
-          onChangeText={setSplitName}
-          placeholder="e.g. Push Day"
-          placeholderTextColor="#94a3b8"
-        />
+        <Text style={styles.label}>Date and split</Text>
+          <View style={styles.row}>
+            <View style={styles.dateBox}>
+              <TextInput
+                style={styles.input}
+                value={sessionDate}
+                onChangeText={(value) => setSessionDate(formatDateInput(value))}
+                placeholder="MM/DD/YYYY"
+                placeholderTextColor="#94a3b8"
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <View style={styles.splitBox}>
+              <TextInput
+                style={styles.input}
+                value={splitName}
+                onChangeText={(value) => {
+                  setSplitName(value);
+                  setShowSplitSuggestions(true);
+                }}
+                onFocus={() => setShowSplitSuggestions(true)}
+                placeholder="e.g. Pull Day"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
+
+          {showSplitSuggestions && splitSuggestions.length > 0 && (
+            <View style={styles.suggestionCard}>
+              {splitSuggestions.map((session) => (
+                <Pressable
+                  key={session.session_id}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setSplitName(session.split_name ?? '');
+                    setSessionDate(isoToDisplayDate(session.date));
+                    setShowSplitSuggestions(false);
+                  }}
+                >
+                  <Text style={styles.suggestionTitle}>
+                    {session.split_name ?? 'Unknown Split'}
+                  </Text>
+                  <Text style={styles.suggestionSubtitle}>
+                    {isoToDisplayDate(session.date)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
         <Text style={styles.sectionTitle}>Muscle group</Text>
         <View style={styles.rowWrap}>
@@ -256,6 +365,16 @@ export default function AddWorkoutScreen() {
           ))
         )}
 
+        <Text style={styles.label}>Duration (minutes)</Text>
+          <TextInput
+            style={styles.input}
+            value={durationMinutes}
+            onChangeText={setDurationMinutes}
+            keyboardType="number-pad"
+            placeholder="e.g. 45"
+            placeholderTextColor="#94a3b8"
+          />
+
         <ForgeButton
           text={saving ? 'Saving...' : 'Log Workout'}
           onPress={() => { void handleSave(); }}
@@ -340,5 +459,35 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontWeight: '600',
     marginBottom: 2,
+  },
+
+  dateBox: {
+    flex: 1,
+  },
+  splitBox: {
+    flex: 1.4,
+  },
+  suggestionCard: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  suggestionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  suggestionSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
   },
 });
