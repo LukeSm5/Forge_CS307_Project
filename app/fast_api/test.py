@@ -1,18 +1,15 @@
-from app.core.seed import SessionLocal, engine, bootstrap
-from app.fast_api import api
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.core.db import Accounts, Base
-import pytest
-from app.core import db, repos
 
-bootstrap(drop_all=True, seed=True)
-db = SessionLocal()
-Base.metadata.create_all(bind=db.get_bind())
-test_account = Accounts(username="user", password="password", bio="Test account for personal testing")
-db.add(test_account)
-db.commit()
-user = db.query(Accounts).filter_by(UserID=1).first()
+from app.fast_api import api
+from app.fast_api.api import LogMenuMealRequest, SessionMenuMealOut
+from app.core.db import Accounts
+import pytest
+from pydantic import BaseModel
+from app.core.session import engine, Base, get_db
+
+Base.metadata.create_all(bind=engine)
+db = next(get_db())
+
+user = db.query(Accounts).filter(Accounts.UserID==1).first()
 '''
 DATABASE_URL = "sqlite:///test.db"
 engine = create_engine(DATABASE_URL)
@@ -20,6 +17,8 @@ Session = sessionmaker(bind=engine)
 session = Session()
 user = session.query(Accounts).filter_by(UserID=1).first()
 '''
+
+
 def test_reset_password_simple():
     print("Testing Reset Password")
     user = db.query(Accounts).filter_by(UserID=1).first()
@@ -127,21 +126,42 @@ def test_delete_fake_account():
     # need someone to implement create account logic first
 
 
-test_reset_password_simple()
-test_reset_password_multiple_times()
-test_reset_password_invalid_user()
-test_reset_password_empty_password()
-test_reset_password_short_password()
-test_reset_password_long_password()
-test_reset_password_multiple_users()
-db.close()
+def test_log_session_menu_meal():
+    menu_meal_id = 618
+    meal_type = 'lunch'
+    payload = LogMenuMealRequest(menu_meal_id=menu_meal_id, meal_type=meal_type)
 
+    try:
+        response: SessionMenuMealOut = api.log_session_menu_meal(payload, user, db)
+        session_id = response.session_id
+
+        print("\nSession menu meal added successfully\n")
+        for field, value in response.model_dump().items():
+            print(f"{field}: {value}")
+
+        delete = api.delete_session_menu_meal(session_id, user, db)
+        print("\n" + delete['message'])
+        
+    except: 
+        Exception
+
+
+
+
+    
+    
 
 
 
 
 if __name__ == '__main__':
-    print()
+    #test_log_session_menu_meal()
+
+    user = db.query(Accounts).filter(Accounts.email == "roan@test.com").first()
+    print(user.email)
+    print(user.password_hash)
+
+
     # test_reset_password_simple()
     # test_reset_password_multiple_times()
     # test_reset_password_invalid_user()

@@ -295,8 +295,14 @@ export default function Diet() {
 
   const [mealTypeModalVisible, setMealTypeModalVisible] = useState(false);
   const [selectedMenuMeal, setSelectedMenuMeal] = useState<RestaurantMeal | null>(null);
+  const [deleteMealModalVisible, setDeleteMealModalVisible] = useState(false);
+  const [mealToDelete, setMealToDelete] = useState<LoggedMenuMeal | null>(null);
+  const [deletingMeal, setDeletingMeal] = useState(false);
+
   const [loggingMeal, setLoggingMeal] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealTypeOption | null>(null);
+
+  
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -558,6 +564,37 @@ export default function Diet() {
     setSelectedMealType(null);
   };
 
+  const openDeleteMealModal = (meal: LoggedMenuMeal) => {
+    setMealToDelete(meal);
+    setDeleteMealModalVisible(true);
+  };
+
+  const closeDeleteMealModal = () => {
+    if (deletingMeal) return;
+    setDeleteMealModalVisible(false);
+    setMealToDelete(null);
+  };
+
+  const handleConfirmDeleteMeal = async () => {
+    if (!mealToDelete) return;
+
+    setDeletingMeal(true);
+
+    try {
+      await api.deleteLoggedMenuMeal(mealToDelete.session_id);
+
+      setLoggedMenuMeals((current) =>
+        current.filter((meal) => meal.session_id !== mealToDelete.session_id)
+      );
+
+      closeDeleteMealModal();
+    } catch {
+      Alert.alert('Could not remove meal', 'Please try again.');
+    } finally {
+      setDeletingMeal(false);
+    }
+  };
+
   const handleConfirmMealType = async () => {
     if (!selectedMenuMeal || !selectedMealType) {
       Alert.alert('Select meal type', 'Please choose breakfast, lunch, dinner, or snack.');
@@ -628,9 +665,21 @@ export default function Diet() {
                       <Text style={styles.myMealDate}>
                         {new Date(`${item.date}Z`).toLocaleDateString()}
                       </Text>
+
                       <Text style={styles.myMealType}>
                         {item.meal_type.charAt(0).toUpperCase() + item.meal_type.slice(1)}
                       </Text>
+
+                      <Pressable
+                        onPress={() => openDeleteMealModal(item)}
+                        style={({ pressed }) => [
+                          styles.addButton,
+                          styles.myMealActionButton,
+                          pressed && { opacity: 0.8 },
+                        ]}
+                      >
+                        <Text style={styles.addButtonText}>-</Text>
+                      </Pressable>
                     </View>
                   </View>
 
@@ -1024,6 +1073,44 @@ export default function Diet() {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={deleteMealModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteMealModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Remove logged meal?</Text>
+
+            {mealToDelete ? (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  {mealToDelete.product} · {mealToDelete.restaurant}
+                </Text>
+
+                <Text style={styles.modalSubtitleSecondary}>
+                  {new Date(`${mealToDelete.date}Z`).toLocaleDateString()} ·{" "}
+                  {mealToDelete.meal_type.charAt(0).toUpperCase() +
+                    mealToDelete.meal_type.slice(1)}
+                </Text>
+              </>
+            ) : null}
+
+            <View style={styles.modalButtonRow}>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton onPress={closeDeleteMealModal} text="Cancel" />
+              </View>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={handleConfirmDeleteMeal}
+                  text={deletingMeal ? 'Removing...' : 'Confirm'}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1403,5 +1490,16 @@ const styles = StyleSheet.create({
 
   modalButtonHalf: {
     flex: 1,
+  },
+
+  myMealActionButton: {
+    marginTop: 8,
+  },
+    modalSubtitleSecondary: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: -4,
+    marginBottom: 8,
   },
 });

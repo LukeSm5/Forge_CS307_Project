@@ -13,6 +13,8 @@ export function setToken(t: string | null) {
 }
 
 function headers() {
+  console.log("AUTH TOKEN:", token);
+
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -92,9 +94,16 @@ export const api = {
   register: async (e: ApiEvent): Promise<User | undefined> => {
     return TEST_USER;
   },
-  login: async (e: ApiEvent): Promise<{ access_token: string | undefined }> => {
+  login: async (e: { email: string; password: string }) => {
+    const result = await post<{
+      access_token: string;
+      refresh_token: string;
+    }>('/auth/login', e);
+
+    setToken(result.access_token);
+
     return {
-      access_token: 'API.LOGIN DEMO TOKEN'
+      access_token: result.access_token,
     };
   },
   updateMe: async (e: { username?: string; bio?: string }): Promise<User | undefined> => {
@@ -185,6 +194,10 @@ export const api = {
 
   getLoggedMenuMeals: async (): Promise<LoggedMenuMeal[]> => {
     return get<LoggedMenuMeal[]>('/session-menu-meals');
+  },
+
+  deleteLoggedMenuMeal: async (sessionId: number): Promise<void> => {
+    return del(`/session-menu-meals/${sessionId}`);
   },
 
   logMenuMeal: async (

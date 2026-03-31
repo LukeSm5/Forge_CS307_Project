@@ -999,6 +999,30 @@ def get_session_menu_meals(
         )
     return result
 
+
+@app.delete("/session-menu-meals/{session_id}")
+def delete_session_menu_meal(
+    session_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    row = (
+        db.query(session_menu_meals)
+        .filter(
+            session_menu_meals.SessionID == session_id,
+            session_menu_meals.ProfileID == me.UserID,
+        )
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Session menu meal not found")
+
+    db.delete(row)
+    db.commit()
+
+    return {"message": "Session menu meal deleted successfully"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.fast_api.api:app", host="0.0.0.0", port=8000, reload=True)
