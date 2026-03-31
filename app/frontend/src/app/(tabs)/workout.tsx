@@ -9,8 +9,10 @@ import { api, SessionExerciseLog } from '@/core/api';
 import { useRouter } from 'expo-router';
 import CardioButton from '@/components/cardioSearch/CardioButton';
 
+
 type LoggedWorkout = {
   id: string;
+  workoutId: number;
   title: string;
   splitName: string;
   loggedAt: string;
@@ -36,7 +38,6 @@ type SplitGroup = {
 };
 
 export default function WorkoutTabScreen() {
-  const profileId = Number(process.env.EXPO_PUBLIC_PROFILE_ID ?? '1');
   const [workoutHistory, setWorkoutHistory] = useState<LoggedWorkout[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -56,22 +57,25 @@ export default function WorkoutTabScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    loadWorkoutHistory();
-  }, [profileId]);
+    void loadWorkoutHistory();
+  }, []);
+
 
   useFocusEffect(
     useCallback(() => {
       void loadWorkoutHistory();
-    }, [profileId])
+    }, [])
   );
 
   async function loadWorkoutHistory() {
     setLoadingHistory(true);
     setHistoryError(null);
+
     try {
-      const logsFromApi = await api.getWorkoutHistory(profileId);
+      const logsFromApi = await api.getWorkoutHistory();
       const mapped = logsFromApi.map((s) => ({
         id: String(s.session_id),
+        workoutId: s.workout_id,
         title: s.workout_name,
         splitName: s.split_name ?? 'Unknown Split',
         loggedAt: s.date,
@@ -135,8 +139,7 @@ export default function WorkoutTabScreen() {
         }));
 
       await api.addWorkoutLog({
-        profile_id: profileId,
-        workout_id: log.exercises[0]?.exercise_id ?? 0,
+        workout_id: log.workoutId,
         duration: elapsed,
         split_name: log.splitName,
         exercises,
@@ -155,9 +158,14 @@ export default function WorkoutTabScreen() {
   }
 
   function handleEditAndAdd(log: LoggedWorkout) {
+    const uniqueExercises = log.exercises.filter(
+      (exercise, index, arr) =>
+        arr.findIndex((e) => e.exercise_id === exercise.exercise_id) === index
+    );
+
     setEditingLog(log);
     setExerciseDrafts(
-      log.exercises.map((exercise) => ({
+      uniqueExercises.map((exercise) => ({
         exercise_id: exercise.exercise_id,
         machine_id: exercise.machine_id,
         exercise_name: exercise.exercise_name,
@@ -197,8 +205,7 @@ export default function WorkoutTabScreen() {
       }));
 
       await api.addWorkoutLog({
-        profile_id: profileId,
-        workout_id: exerciseDrafts[0]?.exercise_id ?? 0,
+        workout_id: editingLog.workoutId,
         duration: elapsedByLogSeconds[editingLog.id] ?? 0,
         split_name: editingLog.splitName,
         exercises,

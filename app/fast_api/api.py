@@ -194,10 +194,9 @@ class SessionExerciseIn(BaseModel):
     weight: Optional[int] = None
 
 class CreateSessionRequest(BaseModel):
-    profile_id: int
     workout_id: int
     duration: int
-    notes: Optional[str] = None
+    split_name: str
     exercises: List[SessionExerciseIn]
 
 class SessionExerciseOut(BaseModel):
@@ -216,13 +215,6 @@ class SessionOut(BaseModel):
     date: str
     duration: int
     exercises: List[SessionExerciseOut]
-
-class CreateSessionRequest(BaseModel):
-    profile_id: int
-    workout_id: int
-    duration: int
-    split_name: str
-    exercises: List[SessionExerciseIn]
 
 
 class LogMenuMealRequest(BaseModel):
@@ -797,113 +789,172 @@ def weight_conversion(db: Session = Depends(get_db), request = WeightConversionR
 
 
 @app.post("/sessions", response_model=SessionOut)
-def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db)):
-    from datetime import datetime
+def create_workout_session(
+    payload: CreateSessionRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
     from app.core.db import Splits
 
     workout = db.query(Workouts).filter(Workouts.WorkoutID == payload.workout_id).first()
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
 
-    # look up or create split
-    split = db.query(Splits).filter(
-        Splits.ProfileID == payload.profile_id,
-        Splits.name == payload.split_name
-    ).first()
-    if not split:
-        split = Splits(ProfileID=payload.profile_id, name=payload.split_name)
-        db.add(split)
-        db.commit()
-        db.refresh(split)
+    split_name = payload.split_name.strip()
+    split = None
+    if split_name:
+        split = (
+            db.query(Splits)
+            .filter(
+                Splits.ProfileID == me.UserID,
+                Splits.name == split_name,
+            )
+            .first()
+        )
+        if not split:
+            split = Splits(ProfileID=me.UserID, name=split_name)
+            db.add(split)
+            db.commit()
+            db.refresh(split)
 
     new_session = session_workouts(
         WorkoutID=payload.workout_id,
-        ProfileID=payload.profile_id,
-        SplitID=split.SplitID,
+        ProfileID=me.UserID,
+        SplitID=split.SplitID if split else None,
         date=datetime.utcnow(),
         duration=payload.duration,
+        notes=None,
     )
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
 
-    exercise_rows = []
     for ex in payload.exercises:
-        for set_num in range(1, ex.sets + 1):
+        for set_number in range(1, ex.sets + 1):
             row = session_exercises(
                 SessionID=new_session.SessionID,
                 ExerciseID=ex.exercise_id,
                 MachineID=ex.machine_id,
-                set_number=set_num,
+                set_number=set_number,
                 reps=ex.reps,
                 weight=ex.weight,
             )
             db.add(row)
-            exercise_rows.append(row)
+
     db.commit()
 
-    ex_out = []
-    for row in exercise_rows:
-        ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
-        ex_out.append(SessionExerciseOut(
-            exercise_id=row.ExerciseID,
-            exercise_name=ex_obj.name if ex_obj else "Unknown",
-            machine_id=row.MachineID,
-            set_number=row.set_number,
-            reps=row.reps,
-            weight=row.weight,
-        ))
-
-    return SessionOut(
-        session_id=new_session.SessionID,
-        workout_id=workout.WorkoutID,
-        workout_name=workout.name,
-        split_name=split.name,
-        date=str(new_session.date),
-        duration=new_session.duration,
-        exercises=ex_out,
-    )
-
-@app.get("/sessions/{profile_id}", response_model=List[SessionOut])
-def get_sessions_for_profile(profile_id: int, db: Session = Depends(get_db)):
-    from app.core.db import Splits
-    sessions = (
-        db.query(session_workouts)
-        .filter(session_workouts.ProfileID == profile_id)
-        .order_by(session_workouts.date.desc())
+    exercise_rows = (
+        db.query(session_exercises)
+        .filter(session_exercises.SessionID == new_session.SessionID)
+        .order_by(session_exercises.ExerciseID, session_exercises.set_number)
         .all()
     )
-    result = []
-    for s in sessions:
-        workout = db.query(Workouts).filter(Workouts.WorkoutID == s.WorkoutID).first()
-        split = db.query(Splits).filter(Splits.SplitID == s.SplitID).first() if s.SplitID else None
-        ex_rows = (
-            db.query(session_exercises)
-            .filter(session_exercises.SessionID == s.SessionID)
-            .order_by(session_exercises.ExerciseID, session_exercises.set_number)
-            .all()
-        )
-        ex_out = []
-        for row in ex_rows:
-            ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
-            ex_out.append(SessionExerciseOut(
+
+    exercises_out: List[SessionExerciseOut] = []
+    for row in exercise_rows:
+        ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
+        exercises_out.append(
+            SessionExerciseOut(
                 exercise_id=row.ExerciseID,
                 exercise_name=ex_obj.name if ex_obj else "Unknown",
                 machine_id=row.MachineID,
                 set_number=row.set_number,
                 reps=row.reps,
                 weight=row.weight,
-            ))
-        result.append(SessionOut(
-            session_id=s.SessionID,
-            workout_id=s.WorkoutID,
-            workout_name=workout.name if workout else "Unknown",
-            split_name=split.name if split else None,
-            date=str(s.date),
-            duration=s.duration,
-            exercises=ex_out,
-        ))
+            )
+        )
+
+    return SessionOut(
+        session_id=new_session.SessionID,
+        workout_id=new_session.WorkoutID,
+        workout_name=workout.name,
+        split_name=split.name if split else None,
+        date=str(new_session.date),
+        duration=new_session.duration,
+        exercises=exercises_out,
+    )
+
+
+@app.get("/sessions", response_model=List[SessionOut])
+def get_my_workout_sessions(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    from app.core.db import Splits
+
+    sessions = (
+        db.query(session_workouts)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .order_by(session_workouts.date.desc())
+        .all()
+    )
+
+    result: List[SessionOut] = []
+    for s in sessions:
+        workout = db.query(Workouts).filter(Workouts.WorkoutID == s.WorkoutID).first()
+        split = db.query(Splits).filter(Splits.SplitID == s.SplitID).first() if s.SplitID else None
+
+        exercise_rows = (
+            db.query(session_exercises)
+            .filter(session_exercises.SessionID == s.SessionID)
+            .order_by(session_exercises.ExerciseID, session_exercises.set_number)
+            .all()
+        )
+
+        ex_out: List[SessionExerciseOut] = []
+        for row in exercise_rows:
+            ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
+            ex_out.append(
+                SessionExerciseOut(
+                    exercise_id=row.ExerciseID,
+                    exercise_name=ex_obj.name if ex_obj else "Unknown",
+                    machine_id=row.MachineID,
+                    set_number=row.set_number,
+                    reps=row.reps,
+                    weight=row.weight,
+                )
+            )
+
+        result.append(
+            SessionOut(
+                session_id=s.SessionID,
+                workout_id=s.WorkoutID,
+                workout_name=workout.name if workout else "Unknown",
+                split_name=split.name if split else None,
+                date=str(s.date),
+                duration=s.duration,
+                exercises=ex_out,
+            )
+        )
+
     return result
+
+
+@app.delete("/sessions/{session_id}")
+def delete_workout_session(
+    session_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    session_row = (
+        db.query(session_workouts)
+        .filter(
+            session_workouts.SessionID == session_id,
+            session_workouts.ProfileID == me.UserID,
+        )
+        .first()
+    )
+
+    if not session_row:
+        raise HTTPException(status_code=404, detail="Workout session not found")
+
+    db.query(session_exercises).filter(
+        session_exercises.SessionID == session_id
+    ).delete(synchronize_session=False)
+
+    db.delete(session_row)
+    db.commit()
+    return {"deleted": True, "session_id": session_id}
 
 VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
 

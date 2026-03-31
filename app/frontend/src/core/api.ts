@@ -71,28 +71,34 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
 }
 
-const TEST_USER: User = {
-  profile_id: 1,
-  email: 'tester@forge307.dev',
-  username: 'Testing',
-  bio: 'I love testing forge307'
-};
-
 export const api = {
   deleteAccount: (userId: number) => del(`/accounts/${userId}`),
+
   deleteWorkoutLog: async (sessionId: number) =>
     del(`/sessions/${sessionId}`),
-  getWorkoutHistory: async (profileId: number): Promise<SessionLog[]> => {
-    return get<SessionLog[]>(`/sessions/${profileId}`);
+
+  getWorkoutHistory: async (): Promise<SessionLog[]> => {
+    return get<SessionLog[]>('/sessions');
   },
+
   addWorkoutLog: async (payload: CreateSessionRequest): Promise<SessionLog> => {
     return post<SessionLog>('/sessions', payload);
   },
+
   me: async (): Promise<User | undefined> => {
     return get<User>('/auth/me');
   },
-  register: async (e: ApiEvent): Promise<User | undefined> => {
-    return TEST_USER;
+  register: async (e: { email: string; username: string; password: string; bio?: string }) => {
+    const result = await post<{
+      access_token: string;
+      refresh_token: string;
+      token_type: string;
+      expires_in: number;
+    }>('/auth/create_account', e);
+
+    setToken(result.access_token);
+
+    return await api.me();
   },
   login: async (e: { email: string; password: string }) => {
     const result = await post<{
@@ -462,7 +468,6 @@ export type WorkoutLookup = {
 };
 
 export type CreateSessionRequest = {
-  profile_id: number;
   workout_id: number;
   duration: number;
   split_name: string;
