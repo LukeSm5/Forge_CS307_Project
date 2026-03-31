@@ -451,6 +451,15 @@ export default function Diet() {
     });
   }, [savedMeals, filter]);
 
+  const consumedCalories = useMemo(() => {
+    return loggedMenuMeals.reduce((sum, meal) => sum + (meal.energy_kcal ?? 0), 0);
+  }, [loggedMenuMeals]);
+
+  const remainingCalories = useMemo(() => {
+    if (calorieGoal == null) return null;
+    return Math.max(Math.round(calorieGoal) - consumedCalories, 0);
+  }, [calorieGoal, consumedCalories]);
+
   const activeFilterCount = [
     filter.spiceLevel,
     filter.cuisine,
@@ -620,12 +629,28 @@ export default function Diet() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.pageTitleRow}>
         <Text style={styles.pageTitle}>Diet</Text>
-        <View style={styles.calorieWidget}>
-          <Text style={styles.calorieWidgetLabel}>Calorie Goal</Text>
-          <Text style={styles.calorieWidgetNumber}>
-            {calorieGoal != null ? Math.round(calorieGoal) : '—'}
-          </Text>
-        </View>
+          <View style={styles.calorieWidget}>
+            <Text style={styles.calorieWidgetLabel}>Calorie Goal</Text>
+            <Text style={styles.calorieWidgetNumber}>
+              {calorieGoal != null ? Math.round(calorieGoal) : '—'}
+            </Text>
+
+            <View style={styles.calorieWidgetStats}>
+              <View style={styles.calorieWidgetStat}>
+                <Text style={styles.calorieWidgetStatLabel}>Consumed</Text>
+                <Text style={styles.calorieWidgetStatValue}>{consumedCalories}</Text>
+              </View>
+
+              <View style={styles.calorieWidgetStat}>
+                <Text style={styles.calorieWidgetStatLabel}>Remaining</Text>
+                <Text style={styles.calorieWidgetStatValue}>
+                  {remainingCalories != null ? remainingCalories : '—'}
+                </Text>
+              </View>
+            </View>
+
+            <ForgeButton onPress={() => {}} text="Recalibrate" />
+          </View>
       </View>
       
       <SectionCard title="My Meals">
@@ -1495,11 +1520,56 @@ const styles = StyleSheet.create({
   myMealActionButton: {
     marginTop: 8,
   },
-    modalSubtitleSecondary: {
+  modalSubtitleSecondary: {
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
     marginTop: -4,
     marginBottom: 8,
+  },
+
+  calorieWidgetStats: {
+    flexDirection: 'row',
+    marginTop: 10,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+    width: '100%',
+    columnGap: 16,
+  },
+  calorieWidgetStat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  calorieWidgetStatLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: '#6b7280',
+    fontWeight: '700',
+  },
+  calorieWidgetStatValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 2,
+  },
+  calorieWidgetButton: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d4d8e1',
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffffff',
+  },
+  calorieWidgetButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2e2f30',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
 });
