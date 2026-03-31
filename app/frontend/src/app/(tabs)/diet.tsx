@@ -452,7 +452,7 @@ export default function Diet() {
   }, [savedMeals, filter]);
 
   const consumedCalories = useMemo(() => {
-    return loggedMenuMeals.reduce((sum, meal) => sum + (meal.energy_kcal ?? 0), 0);
+    return Math.round(loggedMenuMeals.reduce((sum, meal) => sum + (meal.energy_kcal ?? 0), 0));
   }, [loggedMenuMeals]);
 
   const remainingCalories = useMemo(() => {
