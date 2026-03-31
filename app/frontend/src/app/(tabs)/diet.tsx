@@ -694,17 +694,8 @@ export default function Diet() {
                       <Text style={styles.myMealType}>
                         {item.meal_type.charAt(0).toUpperCase() + item.meal_type.slice(1)}
                       </Text>
-
-                      <Pressable
-                        onPress={() => openDeleteMealModal(item)}
-                        style={({ pressed }) => [
-                          styles.addButton,
-                          styles.myMealActionButton,
-                          pressed && { opacity: 0.8 },
-                        ]}
-                      >
-                        <Text style={styles.addButtonText}>-</Text>
-                      </Pressable>
+                      <ForgeButton onPress={() => openDeleteMealModal(item)} text="-" />
+                      <Text style={styles.addButtonText}>-</Text>
                     </View>
                   </View>
 
@@ -1028,15 +1019,8 @@ export default function Diet() {
                   {item.energy_kcal ?? 0} cal
                 </Text>
               </View>
-              <Pressable
-                onPress={() => openMealTypeModal(item)}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <Text style={styles.addButtonText}>+</Text>
-              </Pressable>
+              <ForgeButton onPress={() => openMealTypeModal(item)} text="+" />
+              <Text style={styles.addButtonText}>+</Text>
             </View>
           ))}
         </View>
@@ -1358,24 +1342,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: C?.orange ?? '#f97316',
-  },
-
-  addMealButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: C?.orange ?? '#f97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  addMealButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    textAlign: 'center',
   },
 
   myMealList: {
