@@ -28,6 +28,7 @@ import {
   saveNotificationPreferencesAsync,
   timeStringFromDate,
 } from "@/core/notifications";
+import { useUnits } from "@/core/conversions";
 
 type Status = { type: "ok" | "err"; msg: string } | null;
 type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
@@ -176,8 +177,8 @@ export default function SettingsScreen() {
   const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
   const router = useRouter();
-  const [units, setUnits] = useState<"metric" | "imperial">("metric");
-
+  const { isImperial, setIsImperial } = useUnits();
+  
   const pickerDate = useMemo(() => {
     if (!activeMealPicker) return new Date();
     return dateFromStoredTime(notificationPrefs[activeMealPicker]);
@@ -311,6 +312,7 @@ export default function SettingsScreen() {
       setLoading(false);
     }
   }
+  
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -484,8 +486,16 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Preferred units</Text>
         <Text style={styles.helper}>Unit preferences will be applied across the app.</Text>
         <View style={styles.modeRow}>
-          <ModeButton label="Metric" selected={units === "metric"} onPress={() => setUnits("metric")} />
-          <ModeButton label="Imperial" selected={units === "imperial"} onPress={() => setUnits("imperial")} />
+          <ModeButton 
+          label="Metric" 
+          selected={!isImperial} 
+          onPress={() => setIsImperial(false)} 
+          />
+          <ModeButton 
+          label="Imperial" 
+          selected={isImperial} 
+          onPress={() => setIsImperial(true)} 
+          />
         </View>
         <SectionHeader title="Account" />
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}

@@ -70,6 +70,7 @@ import "react-native-reanimated";
 import { Redirect, useSegments } from "expo-router";
 import { AccessibilityProvider, useAccessibility } from "@/core/accessibility";
 import { AuthProvider, useAuth } from "@/core/auth";
+import { UnitsProvider } from "@/core/conversions";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -98,7 +99,9 @@ export default function RootLayout() {
   return (
     <AccessibilityProvider>
       <AuthProvider>
-        <RootLayoutNav />
+        <UnitsProvider>
+          <RootLayoutNav />
+        </UnitsProvider>
       </AuthProvider>
     </AccessibilityProvider>
   );
