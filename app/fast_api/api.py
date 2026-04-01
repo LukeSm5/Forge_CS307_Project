@@ -306,6 +306,8 @@ def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db))
 
 @app.post("/profiles/{user_id}")
 def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = Depends(get_db)):
+    if not payload.accepted_terms:
+        return {"ok": False, "error": "Terms must be accepted to create profile"}
     existing = db.query(Profiles).filter(Profiles.ProfileID == user_id).first()
     if existing:
         # update if already exists

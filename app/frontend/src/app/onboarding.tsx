@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import QuizText from '@/components/onboarding/QuizText';
 import ForgeButton from '@/components/ForgeButton';
@@ -9,6 +9,7 @@ import { api } from '@/core/api';
 import { useRouter } from 'expo-router';
 import { useAppColorScheme } from '@/core/accessibility';
 import { Schemes } from '@/constants/Colors';
+import { WebView } from 'react-native-webview';
 
 // Test questions for demo purposes
 const QUESTIONS: Question[] = [
@@ -136,9 +137,17 @@ function responsiveHealthScore(responses: (string | number)[]): number {
 
 export default function OnboardingScreen() {
   const [quizState, setQuizState] = useState(1);
+  /*
+   * quizState:
+   * 1 = start screen
+   * 2 = terms and conditions
+   * 3 = question screen
+   * 4 = end screen
+   */
   const [questionIndex, setQuestionIndex] = useState(0);
   const [currentResponse, setCurrentResponse] = useState<string | number>(0);
   const [responses, setResponses] = useState<(string | number)[]>([]);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const router = useRouter();
   const scheme = useAppColorScheme() ?? 'light';
@@ -157,10 +166,17 @@ export default function OnboardingScreen() {
     if (questionIndex < QUESTIONS.length - 1) {
       setQuestionIndex(questionIndex + 1);
     } else {
-      setQuizState(3);
+      setQuizState(4);
     }
     return true;
   };
+
+  const continueTerms = () => {
+    if (acceptedTerms)
+      setQuizState(3);
+    else
+      alert('You must accept the terms and conditions to continue.');
+  }
 
   const completeQuiz = () => {
     const healthScore = responsiveHealthScore(responses);
@@ -193,6 +209,7 @@ export default function OnboardingScreen() {
       goals,
       previousExperience,
       bio,
+      acceptedTerms,
     }).then((success) => {
       if (!success) {
         console.error('Error uploading onboarding data.');
@@ -221,6 +238,33 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const tocPdfAsset = require('@/assets/toc.pdf');
+  const tocPdfComponent = Platform.OS === 'web' ? (
+    <iframe src={tocPdfAsset} style={{ width: '100%', height: 400 }} title="Terms and Conditions" />
+  ) : (
+    <WebView
+      source={tocPdfAsset}
+      style={{ width: '100%', height: 400 }}
+    />
+  );
+
+  // terms is in @/assets/toc.pdf, but react-native-pdf doesn't work for some reason, so using webview to display
+  const termsComponent = (
+    <View style={styles.transparent}>
+      {tocPdfComponent}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20 }}>
+        <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => setAcceptedTerms(e.target.checked)}
+          style={{ marginRight: 10 }}
+        />
+        <Text style={{ color: Schemes[scheme].text }}>I accept the terms and conditions</Text>
+      </View>
+      <ForgeButton text="Continue" onPress={continueTerms} style={styles.quizButton} />
+    </View>
+  );
+
   const endComponent = (
     <View style={styles.transparent}>
       <QuizText text={`Onboarding Complete! Your health score is ${responsiveHealthScore(responses)}%!`} />
@@ -234,9 +278,12 @@ export default function OnboardingScreen() {
       component = startComponent;
       break;
     case 2:
-      component = questionComponent;
+      component = termsComponent;
       break;
     case 3:
+      component = questionComponent;
+      break;
+    case 4:
       component = endComponent;
       break;
     default:
