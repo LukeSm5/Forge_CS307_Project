@@ -6,6 +6,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
 import { api, MachineLookupRow, WorkoutLookup, SessionLog } from '@/core/api';
+import { useUnits } from '@/core/conversions';
 
 type SingleExercise = {
   name: string;
@@ -39,6 +40,7 @@ export default function AddWorkoutScreen() {
   const [durationMinutes, setDurationMinutes] = useState('');
   const [allSessions, setAllSessions] = useState<SessionLog[]>([]);
   const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
+  const { isImperial } = useUnits();
 
   useEffect(() => {
     async function loadLookupData() {
@@ -97,7 +99,7 @@ export default function AddWorkoutScreen() {
       return;
     }
 
-    const parsedWeight = weight ? Number(weight) : 0;
+    const parsedWeight = weight ? (isImperial ? Number(weight) : Math.round(Number(weight) * 2.20462)): 0;
     const parsedSets = Number(sets);
     const parsedReps = Number(reps);
 

@@ -9,6 +9,8 @@ import { api, SessionExerciseLog } from '@/core/api';
 import { useRouter } from 'expo-router';
 import CardioButton from '@/components/cardioSearch/CardioButton';
 
+import { useUnits } from '@/core/conversions';
+
 
 type LoggedWorkout = {
   id: string;
@@ -53,6 +55,7 @@ export default function WorkoutTabScreen() {
   const [editingLog, setEditingLog] = useState<LoggedWorkout | null>(null);
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const { isImperial } = useUnits();
 
   const router = useRouter();
 
@@ -365,7 +368,7 @@ export default function WorkoutTabScreen() {
                       <Text style={styles.exerciseHeading}>Exercises in this log</Text>
                       {log.exercises.map((exercise) => (
                         <Text key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`} style={styles.exerciseItem}>
-                          - {formatExercise(exercise)}
+                          - {formatExercise(exercise, isImperial)}
                         </Text>
                       ))}
                       <View style={styles.timerRow}>
@@ -781,11 +784,17 @@ const styles = StyleSheet.create({
 });
 
 
-function formatExercise(exercise: SessionExerciseLog): string {
+function formatExercise(exercise: SessionExerciseLog, isImperial: boolean): string {
+
+  const weight = exercise.weight != null ? 
+    isImperial 
+      ? `${exercise.weight} lb`
+      : `${(exercise.weight * 0.453592).toFixed(0)} kg`
+    : null;
   const parts = [
     exercise.exercise_name,
     `Set ${exercise.set_number} · ${exercise.reps} reps`,
-    exercise.weight != null ? `${exercise.weight} lb` : null,
+    weight,
   ].filter(Boolean);
   return parts.join(' • ');
 }
