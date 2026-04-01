@@ -178,7 +178,7 @@ export default function SettingsScreen() {
   const [accountDeleted, setAccountDeleted] = useState(false);
   const router = useRouter();
   const { isImperial, setIsImperial } = useUnits();
-  
+
   const pickerDate = useMemo(() => {
     if (!activeMealPicker) return new Date();
     return dateFromStoredTime(notificationPrefs[activeMealPicker]);
@@ -367,7 +367,6 @@ export default function SettingsScreen() {
         <Text style={styles.footerNote}>
           Settings are saved automatically and will persist after restarting the app.
         </Text>
-
         <SectionHeader title="Notifications" />
         {notificationLoading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
         <Text style={styles.sectionTitle}>App notifications</Text>
@@ -482,15 +481,18 @@ export default function SettingsScreen() {
             )}
           </>
         )}
+        {/* Conversions from Metric to Imperial Units in UI */}
         <SectionHeader title="Measuring Units" />
         <Text style={styles.sectionTitle}>Preferred units</Text>
         <Text style={styles.helper}>Unit preferences will be applied across the app.</Text>
         <View style={styles.modeRow}>
+          {/* When selected, units will be displayed in Metric (kg, cm, mL, L) */}
           <ModeButton 
           label="Metric" 
           selected={!isImperial} 
           onPress={() => setIsImperial(false)} 
           />
+          {/* When selected, units will be displayed in Imperial (lbs, inches, fl oz, gallons) */}
           <ModeButton 
           label="Imperial" 
           selected={isImperial} 
