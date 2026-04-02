@@ -166,6 +166,9 @@ export const api = {
   generateQuickWorkout: async (payload: GenerateQuickWorkoutRequest): Promise<GeneratedQuickWorkout> => {
     return post<GeneratedQuickWorkout>('/ai/quick-workout', payload);
   },
+  generateRecipe: async (payload: GenerateRecipeRequest): Promise<GeneratedRecipe> => {
+    return post<GeneratedRecipe>('/ai/generate-recipe', payload);
+  },
   searchCardioMachine: async (e: SearchCardioMachineEvent): Promise<SearchCardioMachineResponse[]> => {
     // Prompt LLM with user object goals and cardio machie description
     // LLM returns a list of SearchCardioMachineResponse[]
@@ -452,6 +455,23 @@ export type GeneratedQuickWorkout = {
   exercises: GeneratedWorkoutExercise[];
 };
 
+export type GeneratedRecipe = {
+  title: string;
+  summary: string;
+  ingredients: string[];
+  steps: string[];
+  based_on_meals: string[];
+  based_on_workouts: string[];
+  prompt: string;
+};
+
+export type GenerateRecipeRequest = {
+  meal_type?: string;
+  goal?: string;
+  cravings?: string;
+  constraints?: string;
+};
+
 export type MenuMeal = {
   id: number;
   restaurant: string;
@@ -571,4 +591,3 @@ export type RecalibrateCaloriesRequest = {
 export type RecalibrateCaloriesResponse = {
   calorie_goal: number;
 };
-

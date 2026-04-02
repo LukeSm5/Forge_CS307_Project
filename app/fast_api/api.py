@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
 from datetime import timezone, datetime
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from openai import OpenAI
 import os
 import json
@@ -44,6 +44,26 @@ app.add_middleware(
 )
 
 session.Base.metadata.create_all(bind=engine)
+
+
+def ensure_dev_schema() -> None:
+    inspector = inspect(engine)
+    try:
+        profile_columns = {column["name"] for column in inspector.get_columns("Profiles")}
+        menu_meal_columns = {column["name"] for column in inspector.get_columns("menu_meals")}
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "calorie_goal" not in profile_columns:
+            connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN calorie_goal FLOAT'))
+        if "chicken" not in menu_meal_columns:
+            connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN chicken BOOLEAN'))
+        if "beef" not in menu_meal_columns:
+            connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
+
+
+ensure_dev_schema()
 
 
 @app.get("/health")
@@ -328,6 +348,91 @@ class QuickWorkoutResponse(BaseModel):
     exercises: List[QuickWorkoutExercise]
 
 
+class GenerateRecipeResponse(BaseModel):
+    title: str
+    summary: str
+    ingredients: List[str]
+    steps: List[str]
+    based_on_meals: List[str]
+    based_on_workouts: List[str]
+    prompt: str
+
+
+class GenerateRecipeRequest(BaseModel):
+    meal_type: Optional[str] = None
+    goal: Optional[str] = None
+    cravings: Optional[str] = None
+    constraints: Optional[str] = None
+
+
+def _get_openai_client() -> OpenAI | None:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
+
+
+def _fallback_recipe_response(
+    db: Session,
+    profile_id: int,
+    recipe_prompt: str,
+    payload: GenerateRecipeRequest,
+) -> GenerateRecipeResponse:
+    logged_menu_meals = (
+        db.query(session_menu_meals, menu_meals)
+        .join(menu_meals, menu_meals.MenuMealID == session_menu_meals.MenuMealID)
+        .filter(session_menu_meals.ProfileID == profile_id)
+        .order_by(session_menu_meals.date.desc())
+        .limit(2)
+        .all()
+    )
+    logged_workouts = (
+        db.query(session_workouts, Workouts)
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == profile_id)
+        .order_by(session_workouts.date.desc())
+        .limit(2)
+        .all()
+    )
+
+    meal_names = [meal_row.product for _, meal_row in logged_menu_meals if meal_row and meal_row.product]
+    workout_names = [workout_row.name for _, workout_row in logged_workouts if workout_row and workout_row.name]
+
+    primary_meal = meal_names[0] if meal_names else "your recent logged meals"
+    secondary_meal = meal_names[1] if len(meal_names) > 1 else "balanced recovery nutrition"
+    primary_workout = workout_names[0] if workout_names else "your recent workouts"
+    requested_meal_type = payload.meal_type or "meal"
+    requested_goal = payload.goal or "your current goals"
+    cravings = payload.cravings or "ingredients you already gravitate toward"
+    constraints = payload.constraints or "no extra restrictions"
+
+    return GenerateRecipeResponse(
+        title=f"Forge {requested_meal_type.title()} Bowl",
+        summary=(
+            f"This recipe is based on {primary_meal}, tuned to support {primary_workout}, and shaped around {requested_goal}. "
+            f"It also accounts for {cravings} while respecting {constraints}."
+        ),
+        ingredients=[
+            "1 cup cooked rice",
+            "6 oz chicken breast",
+            "1 cup roasted vegetables",
+            "1/2 avocado",
+            "1 tbsp olive oil",
+            "Salt, pepper, and garlic to taste",
+        ],
+        steps=[
+            "Cook the rice and season the chicken with salt, pepper, and garlic.",
+            "Pan-sear or bake the chicken until fully cooked, then slice it.",
+            "Roast or saute the vegetables until tender.",
+            "Assemble the rice, chicken, vegetables, and avocado in a bowl.",
+            "Finish with olive oil and adjust seasoning before serving.",
+        ],
+        based_on_meals=[primary_meal, secondary_meal],
+        based_on_workouts=[primary_workout],
+        prompt=recipe_prompt,
+    )
+
+
 def _send_account_update_notification(
     notifier: NotificationService,
     *,
@@ -410,7 +515,6 @@ def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = De
     else:
         profile = Profiles(
             ProfileID=user_id,
-            metricOrImperial=False,
             age=payload.age,
             gender=payload.gender,
             height_in=payload.height_in,
@@ -700,6 +804,77 @@ def generate_quick_workout(payload: QuickWorkoutRequest, db: Session = Depends(g
         top_k=payload.top_k,
     )
     return QuickWorkoutResponse(**generated)
+
+
+@app.post("/ai/generate-recipe", response_model=GenerateRecipeResponse)
+def generate_recipe(
+    payload: GenerateRecipeRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    recipe_prompt = prompt.generate_recipe_prompt_text(
+        db,
+        me.UserID,
+        meal_type=payload.meal_type,
+        goal=payload.goal,
+        cravings=payload.cravings,
+        constraints=payload.constraints,
+    )
+    client = _get_openai_client()
+
+    if client is None:
+        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
+
+    try:
+        response = client.responses.create(
+            model=os.getenv("OPENAI_RECIPE_MODEL", "gpt-4.1-mini"),
+            input=recipe_prompt,
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "forge_recipe",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "ingredients": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "steps": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "based_on_meals": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "based_on_workouts": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": [
+                            "title",
+                            "summary",
+                            "ingredients",
+                            "steps",
+                            "based_on_meals",
+                            "based_on_workouts",
+                        ],
+                        "additionalProperties": False,
+                    },
+                }
+            },
+        )
+        parsed = json.loads(response.output_text)
+        parsed["prompt"] = recipe_prompt
+        return GenerateRecipeResponse(**parsed)
+    except Exception:
+        logger.exception("Recipe generation failed for profile_id=%s", me.UserID)
+        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
 
 
 @app.delete("/accounts/{user_id}")
