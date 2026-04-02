@@ -381,7 +381,16 @@ export default function CalendarScreen() {
 
       <View style={styles.rowBetween}>
         <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
-
+        <Pressable
+          style={[styles.addButton, { backgroundColor: '#8e44ad' }]}
+        >
+        <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
+      </Pressable>
+      <Pressable
+          style={[styles.addButton, { backgroundColor: '#81ab33' }]}
+        >
+        <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
+      </Pressable>
         <Pressable style={styles.addButton} onPress={openAdd}>
           <Text style={styles.addButtonText}>+ Add workout</Text>
         </Pressable>
