@@ -141,10 +141,12 @@ class Ingredients(Base):
 
 class meal_ingredients(Base):
     __tablename__ = 'meal_ingredients'
-    MealID = Column(Integer, ForeignKey('Meals.MealID'), primary_key=True, nullable=False)
-    IngredientID = Column(Integer, ForeignKey('Ingredients.IngredientID'), primary_key=True, nullable=False)
-    serving_size = Column(Float)
-    instructions = Column(Text)
+    IngredientID = Column(Integer, primary_key=True, autoincrement=True)
+    MealID       = Column(Integer, ForeignKey('Meals.MealID'), nullable=False, index=True)
+    name         = Column(Text, nullable=False)                
+    quantity     = Column(Float, nullable=True)
+    unit         = Column(Text, nullable=False, default="g")
+    note         = Column(Text, nullable=True, default="")
 
 # --- STATIC ---
 
@@ -267,13 +269,18 @@ class session_meals(Base):
     servings      = Column(Float, nullable=True)
     notes         = Column(Text, nullable=True)
 
-
 class session_menu_meals(Base):
     __tablename__ = 'session_menu_meals'
     SessionID = Column(Integer, primary_key=True, autoincrement=True)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'))
     MenuMealID = Column(Integer, ForeignKey('menu_meals.MenuMealID'))
     date = Column(DateTime)
-    meal_type = Column(Text)  # breakfast / lunch / dinner / snack
+    meal_type = Column(Text)
 
 
+class daily_tracker_logs(Base):
+    __tablename__ = 'daily_tracker_logs'
+    DailyTrackerLogID = Column(Integer, primary_key=True, autoincrement=True)
+    ProfileID         = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False, index=True)
+    log_date          = Column(DateTime, nullable=False, index=True)       # date only, but DateTime for SQLAlchemy compat
+    tracker_data      = Column(Text, nullable=False)                       # JSON blob from _serialize_daily_log()
