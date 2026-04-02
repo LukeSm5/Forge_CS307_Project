@@ -53,7 +53,6 @@ class Tracker:
 
     @property
     def progress_pct(self) -> float:
-        """0.0–1.0. Returns 0 when no goal is set."""
         if self.goal is None or self.goal <= 0:
             return 0.0
         return min(self.value / self.goal, 1.0)
@@ -165,6 +164,48 @@ class DailyLog:
             "trackers":       [t.summary() for t in self.trackers],
         }
 
+    def log_meal_macros(
+        self,
+        macros: dict[str, float | None],
+        servings: float = 1.0,
+    ) -> dict[str, float]:
+        if servings <= 0:
+            raise ValueError("Servings must be positive.")
+
+        applied: dict[str, float] = {}
+        for tracker_id, raw in macros.items():
+            if raw is None or raw <= 0:
+                continue
+            amount = raw * servings
+            try:
+                tracker = self.get(tracker_id)
+            except KeyError:
+                continue
+            tracker.value += amount
+            applied[tracker_id] = round(amount, 1)
+        return applied
+
+    def undo_meal_macros(
+        self,
+        macros: dict[str, float | None],
+        servings: float = 1.0,
+    ) -> dict[str, float]:
+        if servings <= 0:
+            raise ValueError("Servings must be positive.")
+
+        removed: dict[str, float] = {}
+        for tracker_id, raw in macros.items():
+            if raw is None or raw <= 0:
+                continue
+            amount = raw * servings
+            try:
+                tracker = self.get(tracker_id)
+            except KeyError:
+                continue
+            tracker.value = max(0.0, tracker.value - amount)
+            removed[tracker_id] = round(amount, 1)
+        return removed
+
 
 if __name__ == "__main__":
     import json
@@ -189,3 +230,24 @@ if __name__ == "__main__":
     print("\n=== clear a goal ===")
     log.clear_goal("water")
     print("water summary:", log.get("water").summary())
+
+    print("\n=== log_meal_macros integration ===")
+    day = DailyLog.default()
+    chicken_rice_macros = {
+        "calories": 480, "protein": 42, "fat": 10,
+        "carbs": 52, "sugar": 3, "fiber": 3, "sodium": 540,
+    }
+    applied = day.log_meal_macros(chicken_rice_macros, servings=1.0)
+    print("Applied from Chicken & Rice:", applied)
+    tofu_macros = {
+        "calories": 320, "protein": 18, "fat": 12,
+        "carbs": 36, "sugar": 8, "fiber": 5, "sodium": 820,
+    }
+    applied2 = day.log_meal_macros(tofu_macros, servings=1.5)
+    print("Applied from Tofu Stir Fry (1.5x):", applied2)
+    print(json.dumps(day.summary(), indent=2))
+
+    print("\n=== undo a meal ===")
+    removed = day.undo_meal_macros(chicken_rice_macros, servings=1.0)
+    print("Removed (undo Chicken & Rice):", removed)
+    print(json.dumps(day.summary(), indent=2))
