@@ -162,15 +162,51 @@ export default function AddWorkoutScreen() {
       Alert.alert('No exercise selected', 'Please select an exercise before tailoring.');
       return;
     }
+
     if (selectedMachineId == null) {
       Alert.alert('No machine selected', 'Please select a machine before tailoring.');
+      return;
+    }
+
+    if (selectedWorkoutId == null) {
+      Alert.alert('No muscle group', 'Select a muscle group before tailoring.');
+      return;
+    }
+
+    if (!splitName.trim()) {
+      Alert.alert('Missing split name', 'Enter a split name before tailoring.');
+      return;
+    }
+
+    const apiDate = displayDateToApiDate(sessionDate.trim());
+    if (!apiDate) {
+      Alert.alert('Invalid date', 'Enter date as MM/DD/YYYY.');
+      return;
+    }
+
+    const selectedMachine = machines.find((m) => m.machine_id === selectedMachineId);
+    if (!selectedMachine) {
+      Alert.alert('Invalid machine', 'Please select a valid machine.');
+      return;
+    }
+
+    const selectedWorkout = workouts.find((w) => w.workout_id === selectedWorkoutId);
+    if (!selectedWorkout) {
+      Alert.alert('Invalid muscle group', 'Please select a valid muscle group.');
       return;
     }
 
     setTailorModalVisible(true);
 
     try {
-      const result = await api.getTailoredExercise(selectedExerciseName, selectedMachineId);
+      const result = await api.getTailoredExercise({
+        date: apiDate,
+        split_name: splitName.trim(),
+        workout_name: selectedWorkout.name,
+        exercise_name: selectedExerciseName,
+        machine_name: selectedMachine.name,
+      });
+
       setWeight(String(result.weight));
       setSets(String(result.sets));
       setReps(String(result.reps));

@@ -1,13 +1,12 @@
 """
 Prompt Construction
 - Should my daily calorie goal be updated?
+- What weight reps sets for this exercise?
 """
 
-import os
 import math
 from datetime import date
-from dotenv import load_dotenv
-from openai import OpenAI
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.core.session import engine, Base, get_db
 from app.core.db import (
@@ -17,12 +16,16 @@ from app.core.db import (
     Profiles
 )
 
-load_dotenv()
-#openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # delete for demo testing and implementation, exists in api.py
 Base.metadata.create_all(bind=engine)
 db = next(get_db())
+
+class TailorExerciseRequest(BaseModel):
+    date: str
+    split_name: str
+    workout_name: str
+    exercise_name: str
+    machine_name: str
 
 def today():
     """
@@ -204,16 +207,27 @@ def calorie_goal_prompt_text(db: Session, profile_id: int) -> str:
     workouts = workout_history_text(db, profile_id)
     menu_meals = menu_meal_history_text(db, profile_id)
 
-    prompt = (
-        f"{profile}"
-        f"My fitness history includes {workouts} "
-        f"My diet history includes {menu_meals}. "
-        f"Today's date is {today()}. Using all of this information that I've given you, do think my daily calorie goal should be updated? "
-        f"If so, what should it change to? Return only the calorie number."
-    )
+    return f"""
+    You are a personal fitness coach tasked with providing specific advice to a profile: {profile}
+    My fitness history includes {workouts} 
+    My diet history includes {menu_meals}. 
+    Today's date is {today()}. Using all of this information that I've given you, do think my daily calorie goal should be updated? If so, what should it change to? 
+    Respond ONLY with a valid JSON object in this exact format, no extra text: {{"calorie_goal": <int in kcal>}}
+    """
 
-    return prompt
+
+def tailor_exercise_prompt_text(db: Session, profile_id: int, payload: TailorExerciseRequest) -> str: 
+    profile = profile_prompt_text(db, profile_id)
+    workouts = workout_history_text(db, profile_id)
+
+    return f"""
+    You are a personal fitness coach tasked with providing specific advice to a profile: {profile}
+    My fitness history includes {workouts} 
+    My ongoing session is: {payload.split_name} split {payload.date}, {payload.workout_name} workout, {payload.exercise_name} exercise, {payload.machine_name}. 
+    Respond ONLY with a valid JSON object in this exact format, no extra text: {{"weight": <int in lbs>, "sets": <int>, "reps": <int>}}
+    """
 
 
 if __name__ == '__main__':
-    print(calorie_goal_prompt_text(db, 1))
+    payload = TailorExerciseRequest(date='2026-04-01', split_name='pull day', workout_name='bicep', exercise_name='bicep curl', machine_name='dumbbell')
+    print(tailor_exercise_prompt_text(db, 1, payload))

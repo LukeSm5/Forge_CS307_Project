@@ -307,10 +307,8 @@ ${e.prompt}
     return post<SessionLog>('/sessions', payload);
   },
 
-  getTailoredExercise: async (exerciseName: string, machineId: number): Promise<TailoredExercise> => {
-    // replace with real server call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return { weight: 45, sets: 4, reps: 8 };
+  getTailoredExercise: async (payload: TailorExerciseRequest): Promise<TailoredExercise> => {
+    return post<TailoredExercise>('/tailor-exercise', payload);
   },
 };
 
@@ -513,5 +511,13 @@ export type TailoredExercise = {
   weight: number;
   sets: number;
   reps: number;
+};
+
+export type TailorExerciseRequest = {
+  date: string;
+  split_name: string;
+  workout_name: string;
+  exercise_name: string;
+  machine_name: string;
 };
 

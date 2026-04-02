@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 import logging
 from datetime import timezone, datetime
 from sqlalchemy import text
+from openai import OpenAI
+import os
+import json
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
+from app.core.prompt import tailor_exercise_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
 from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
@@ -25,6 +29,8 @@ from app.core.auth_tokens import (
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
+# llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -221,6 +227,18 @@ class SessionOut(BaseModel):
 class LogMenuMealRequest(BaseModel):
     menu_meal_id: int
     meal_type: str  # breakfast / lunch / dinner / snack
+
+class TailorExerciseRequest(BaseModel):
+    date: str
+    split_name: str
+    workout_name: str
+    exercise_name: str
+    machine_name: str
+
+class TailorExerciseResponse(BaseModel):
+    weight: int
+    sets: int
+    reps: int
 
 
 class SessionMenuMealOut(BaseModel):
@@ -1073,6 +1091,49 @@ def delete_session_menu_meal(
     db.commit()
 
     return {"message": "Session menu meal deleted successfully"}
+
+
+@app.post("/tailor-exercise", response_model=TailorExerciseResponse)
+def tailor_exercise(
+    payload: TailorExerciseRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    prompt = tailor_exercise_prompt_text(db, me.UserID, payload)
+
+    response = llm.responses.create(
+        model="gpt-5",
+        input=prompt,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "exercise_numbers",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "weight": {"type": "number"},
+                        "sets": {"type": "number"},
+                        "reps": {"type": "number"}
+                    },
+                    "required": ["weight", "sets", "reps"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    parsed = json.loads(response.output_text)
+
+    return TailorExerciseResponse(
+        weight=int(parsed["weight"]),
+        sets=int(parsed["sets"]),
+        reps=int(parsed["reps"]),
+    )
+    """
+
+    return TailorExerciseResponse(weight=45, sets=4, reps=8) 
 
 if __name__ == "__main__":
     import uvicorn
