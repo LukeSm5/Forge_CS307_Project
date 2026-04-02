@@ -5,22 +5,37 @@ import React, { useEffect, useState } from 'react';
 
 import * as Location from "expo-location";
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import { LatLngExpression } from 'leaflet';
-
-// idk what this does but apparently its important! so wtv
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
-
 // Eventually gonna add .env file support, or something.
-const GOOGLE_API_KEY = "GOOGLE_API_KEY";
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "GOOGLE_API_KEY";
 
 export default function GymMapInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
+    const [leafletLoaded, setLeafletLoaded] = useState(false);
+    const [leaflet, setLeaflet] = useState<any>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const L = require("leaflet");
+
+            delete (L.Icon.Default.prototype as any)._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+                iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+            });
+
+            const rl = require("react-leaflet");
+
+            setLeaflet({
+                MapContainer: rl.MapContainer,
+                TileLayer: rl.TileLayer,
+                Marker: rl.Marker,
+                Popup: rl.Popup
+            });
+
+            setLeafletLoaded(true);
+        }
+    }, []);
+    
     const [location, setLocation] = useState<Location.LocationObjectCoords | undefined>(undefined);
     const [gyms, setGyms] = useState([]);
 
@@ -60,9 +75,10 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
         return (<></>);
 
     let mapComponent: React.JSX.Element;
-    if (!location) {
+    if (!location || !leafletLoaded || !leaflet) {
         mapComponent = (<Text style={styles.title}>Location disabled.</Text>);
     } else {
+        const { MapContainer, TileLayer, Marker, Popup } = leaflet;
         mapComponent = (
             <MapContainer
                 {...({center: [location.latitude, location.longitude]} as any)}
