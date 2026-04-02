@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Alert, Modal, ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, MachineLookupRow, WorkoutLookup, SessionLog } from '@/core/api';
+import { api, MachineLookupRow, WorkoutLookup, SessionLog, TailoredExercise } from '@/core/api';
 import { useUnits } from '@/core/conversions';
 
 type SingleExercise = {
@@ -35,6 +35,9 @@ export default function AddWorkoutScreen() {
 
   const [exerciseList, setExerciseList] = useState<SingleExercise[]>([]);
   const [saving, setSaving] = useState(false);
+  const [tailorModalVisible, setTailorModalVisible] = useState(false);
+  const [tailorLoading, setTailorLoading] = useState(false);
+  const [tailorResult, setTailorResult] = useState<TailoredExercise | null>(null);
 
   const [sessionDate, setSessionDate] = useState(formatToday());
   const [durationMinutes, setDurationMinutes] = useState('');
@@ -152,6 +155,31 @@ export default function AddWorkoutScreen() {
     setWeight('');
     setSets('');
     setReps('');
+  }
+
+  async function handleTailor() {
+    if (!selectedExerciseName) {
+      Alert.alert('No exercise selected', 'Please select an exercise before tailoring.');
+      return;
+    }
+    if (selectedMachineId == null) {
+      Alert.alert('No machine selected', 'Please select a machine before tailoring.');
+      return;
+    }
+
+    setTailorModalVisible(true);
+
+    try {
+      const result = await api.getTailoredExercise(selectedExerciseName, selectedMachineId);
+      setWeight(String(result.weight));
+      setSets(String(result.sets));
+      setReps(String(result.reps));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to tailor exercise.';
+      Alert.alert('Tailor failed', message);
+    } finally {
+      setTailorModalVisible(false);
+    }
   }
 
   async function handleSave() {
@@ -373,40 +401,55 @@ export default function AddWorkoutScreen() {
           ))}
         </View>
 
+        
         <View style={styles.row}>
-          <View style={styles.half}>
-            <Text style={styles.label}>Weight (optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              placeholder="25"
-              placeholderTextColor="#94a3b8"
-            />
+          <View style={styles.exerciseInputCol}>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Text style={styles.label}>Weight (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="numeric"
+                  placeholder="25"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+              <View style={styles.half}>
+                <Text style={styles.label}>Sets</Text>
+                <TextInput
+                  style={styles.input}
+                  value={sets}
+                  onChangeText={setSets}
+                  keyboardType="numeric"
+                  placeholder="3"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+            </View>
+            <View>
+              <Text style={styles.label}>Reps</Text>
+              <TextInput
+                style={styles.input}
+                value={reps}
+                onChangeText={setReps}
+                keyboardType="numeric"
+                placeholder="10"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
           </View>
-          <View style={styles.half}>
-            <Text style={styles.label}>Sets</Text>
-            <TextInput
-              style={styles.input}
-              value={sets}
-              onChangeText={setSets}
-              keyboardType="numeric"
-              placeholder="3"
-              placeholderTextColor="#94a3b8"
+
+          <View style={styles.tailorCol}>
+            <ForgeButton
+              text="Tailor"
+              theme="primary"
+              onPress={() => { void handleTailor(); }}
+              style={styles.tailorBtn}
             />
           </View>
         </View>
-
-        <Text style={styles.label}>Reps</Text>
-        <TextInput
-          style={styles.input}
-          value={reps}
-          onChangeText={setReps}
-          keyboardType="numeric"
-          placeholder="10"
-          placeholderTextColor="#94a3b8"
-        />
 
         <ForgeButton text="Add Exercise" onPress={addExercise} theme="teal" />
 
@@ -478,6 +521,23 @@ export default function AddWorkoutScreen() {
           disabled={saving}
         />
         <ForgeButton text="Back" onPress={() => router.back()} theme="neutral" />
+        
+        <Modal
+          visible={tailorModalVisible}
+          transparent
+          animationType="fade"
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.modalTitle}>Tailoring your workout</Text>
+              <Text style={styles.modalSubtitle}>
+                Finding the ideal weight, sets & reps for{'\n'}
+                {selectedExerciseName || 'your exercise'}...
+              </Text>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -610,5 +670,95 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 18,
+  },
+
+
+  exerciseInputCol: {
+    flex: 1,
+    gap: 10,
+  },
+  tailorCol: {
+    justifyContent: 'center',
+    paddingTop: 6,
+  },
+  tailorBtn: {
+    minWidth: 64,
+    alignSelf: 'stretch',
+    flex: 1,
+  },
+  modalLoadingText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  tailorResultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  tailorResultItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  tailorResultValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  tailorResultLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  tailorResultDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#e2e8f0',
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButtonHalf: {
+    flex: 1,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    padding: 28,
+    alignItems: 'center',
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

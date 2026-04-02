@@ -306,6 +306,12 @@ ${e.prompt}
   addSession: async (payload: CreateSessionRequest): Promise<SessionLog> => {
     return post<SessionLog>('/sessions', payload);
   },
+
+  getTailoredExercise: async (exerciseName: string, machineId: number): Promise<TailoredExercise> => {
+    // replace with real server call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return { weight: 45, sets: 4, reps: 8 };
+  },
 };
 
 export type User = {
@@ -501,5 +507,11 @@ export type SessionExerciseLog = {
   set_number: number;
   reps: number;
   weight?: number | null;
+};
+
+export type TailoredExercise = {
+  weight: number;
+  sets: number;
+  reps: number;
 };
 
