@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Switch } from 'react-native';
 
 import QuizText from '@/components/onboarding/QuizText';
 import ForgeButton from '@/components/ForgeButton';
@@ -58,7 +58,8 @@ const QUESTIONS: Question[] = [
     },
   },
   {
-    textPrompt: 'Do you frequently perform active exercise, such as cardio or strength training?',
+    textPrompt:
+      'Do you frequently perform active exercise, such as cardio or strength training?',
     inputType: {
       type: 'MultipleChoice',
       options: ['Yes', 'Sometimes', 'No'],
@@ -109,22 +110,22 @@ function calculateDay1Calorie(
   age: number,
   weightLbs: number,
   heightIn: number,
-  genderIndex: number,  // 0 = male, 1 = female
+  genderIndex: number, // 0 = male, 1 = female
   activityIndex: number
 ): number {
   const weightKg = weightLbs * 0.453592;
   const heightCm = heightIn * 2.54;
-  const bmr = genderIndex === 0
-    ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5      // male
-    : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;   // female
+  const bmr =
+    genderIndex === 0
+      ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
+      : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
   return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityIndex]);
 }
-
 
 function responsiveHealthScore(responses: (string | number)[]): number {
   let healthScore = 0;
   const healthResponses = responses.slice(4, 9);
-  if (healthResponses.every((r) => typeof r === 'number'))
+  if (healthResponses.every((r) => typeof r === 'number')) {
     healthScore = calculateHealthScore(
       responses[4] as number,
       responses[5] as number,
@@ -132,6 +133,7 @@ function responsiveHealthScore(responses: (string | number)[]): number {
       responses[7] as number,
       responses[8] as number
     );
+  }
   return healthScore;
 }
 
@@ -157,8 +159,13 @@ export default function OnboardingScreen() {
   const submitQuestion = () => {
     if (currentResponse === -1) return false;
 
-    if (QUESTIONS[questionIndex].inputType.type == 'Number' && typeof(currentResponse) === 'number' && isNaN(currentResponse))
+    if (
+      QUESTIONS[questionIndex].inputType.type === 'Number' &&
+      typeof currentResponse === 'number' &&
+      isNaN(currentResponse)
+    ) {
       return false;
+    }
 
     setResponses([...responses, currentResponse]);
     setCurrentResponse(-1);
@@ -172,11 +179,12 @@ export default function OnboardingScreen() {
   };
 
   const continueTerms = () => {
-    if (acceptedTerms)
+    if (acceptedTerms) {
       setQuizState(3);
-    else
+    } else {
       alert('You must accept the terms and conditions to continue.');
-  }
+    }
+  };
 
   const completeQuiz = () => {
     const healthScore = responsiveHealthScore(responses);
@@ -195,33 +203,36 @@ export default function OnboardingScreen() {
       weight,
       height,
       genderIndex,
-      activityIndex,
+      activityIndex
     );
 
-    api.submitOnboarding({
-      healthScore,
-      age,
-      height,
-      weight,
-      genderIndex,
-      activityIndex,
-      calorie_goal,
-      goals,
-      previousExperience,
-      bio,
-      acceptedTerms,
-    }).then((success) => {
-      if (!success) {
-        console.error('Error uploading onboarding data.');
-        return;
-      }
-      setQuizState(1);
-      setQuestionIndex(0);
-      setResponses([]);
-      router.replace('/(tabs)');
-    }).catch((err) => {
-      console.error('Onboarding submission failed:', err);
-    });
+    api
+      .submitOnboarding({
+        healthScore,
+        age,
+        height,
+        weight,
+        genderIndex,
+        activityIndex,
+        calorie_goal,
+        goals,
+        previousExperience,
+        bio,
+        acceptedTerms,
+      })
+      .then((success) => {
+        if (!success) {
+          console.error('Error uploading onboarding data.');
+          return;
+        }
+        setQuizState(1);
+        setQuestionIndex(0);
+        setResponses([]);
+        router.replace('/(tabs)');
+      })
+      .catch((err) => {
+        console.error('Onboarding submission failed:', err);
+      });
   };
 
   const startComponent = (
@@ -233,33 +244,40 @@ export default function OnboardingScreen() {
 
   const questionComponent = (
     <View style={styles.transparent}>
-      <QuizQuestion key={questionIndex} question={QUESTIONS[questionIndex]} onUpdate={setCurrentResponse} />
+      <QuizQuestion
+        key={questionIndex}
+        question={QUESTIONS[questionIndex]}
+        onUpdate={setCurrentResponse}
+      />
       <ForgeButton text="Submit" onPress={submitQuestion} />
     </View>
   );
 
   const tocPdfAsset = require('@/assets/toc.pdf');
-  const tocPdfComponent = Platform.OS === 'web' ? (
-    <iframe src={tocPdfAsset} style={{ width: '100%', height: 400 }} title="Terms and Conditions" />
-  ) : (
-    <WebView
-      source={tocPdfAsset}
-      style={{ width: '100%', height: 400 }}
-    />
-  );
+  const tocPdfComponent =
+    Platform.OS === 'web' ? (
+      <iframe
+        src={tocPdfAsset}
+        style={{ width: '100%', height: 400 }}
+        title="Terms and Conditions"
+      />
+    ) : (
+      <WebView source={tocPdfAsset} style={{ width: '100%', height: 400 }} />
+    );
 
   // terms is in @/assets/toc.pdf, but react-native-pdf doesn't work for some reason, so using webview to display
   const termsComponent = (
     <View style={styles.transparent}>
       {tocPdfComponent}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20 }}>
-        <input
-          type="checkbox"
-          checked={acceptedTerms}
-          onChange={(e) => setAcceptedTerms(e.target.checked)}
-          style={{ marginRight: 10 }}
+      <View style={styles.termsRow}>
+        <Switch
+          value={acceptedTerms}
+          onValueChange={setAcceptedTerms}
+          style={styles.termsSwitch}
         />
-        <Text style={{ color: Schemes[scheme].text }}>I accept the terms and conditions</Text>
+        <Text style={{ color: Schemes[scheme].text }}>
+          I accept the terms and conditions
+        </Text>
       </View>
       <ForgeButton text="Continue" onPress={continueTerms} style={styles.quizButton} />
     </View>
@@ -267,7 +285,11 @@ export default function OnboardingScreen() {
 
   const endComponent = (
     <View style={styles.transparent}>
-      <QuizText text={`Onboarding Complete! Your health score is ${responsiveHealthScore(responses)}%!`} />
+      <QuizText
+        text={`Onboarding Complete! Your health score is ${responsiveHealthScore(
+          responses
+        )}%!`}
+      />
       <ForgeButton text="Continue" onPress={completeQuiz} />
     </View>
   );
@@ -341,5 +363,14 @@ const styles = StyleSheet.create({
   },
   transparent: {
     backgroundColor: 'transparent',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: 'transparent',
+  },
+  termsSwitch: {
+    marginRight: 10,
   },
 });
