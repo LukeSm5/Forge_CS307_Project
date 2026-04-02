@@ -65,6 +65,30 @@ export function logAmount(trackers: TrackerState[], id: string, amount: number):
   );
 }
 
+export function logMealMacros(
+  trackers: TrackerState[],
+  macros: Partial<Record<string, number | null>>,
+  servings: number = 1,
+): TrackerState[] {
+  return trackers.map((t) => {
+    const raw = macros[t.id];
+    if (raw == null || raw <= 0) return t;
+    return { ...t, value: Math.max(0, t.value + raw * servings) };
+  });
+}
+
+export function undoMealMacros(
+  trackers: TrackerState[],
+  macros: Partial<Record<string, number | null>>,
+  servings: number = 1,
+): TrackerState[] {
+  return trackers.map((t) => {
+    const raw = macros[t.id];
+    if (raw == null || raw <= 0) return t;
+    return { ...t, value: Math.max(0, t.value - raw * servings) };
+  });
+}
+
 export function setGoalValue(
   trackers: TrackerState[],
   id: string,
@@ -186,7 +210,6 @@ function Ring({ tracker: t, onLog, onSetGoal, onDirectionChange, onSwapClick }: 
     }}>
       <button style={S.swapBtn} onClick={onSwapClick}>⇄</button>
 
-      {/* Ring */}
       <div
         style={S.ringWrap}
         onClick={handleRingClick}
@@ -229,7 +252,6 @@ function Ring({ tracker: t, onLog, onSetGoal, onDirectionChange, onSwapClick }: 
       <div style={S.ringName}>{t.name}</div>
       <div style={{ ...S.ringStatus, color: statusColor }}>{statusText(t)}</div>
 
-      {/* Goal control */}
       {hasGoal ? (
         <div style={S.cfgRow}>
           <span style={S.cfgLabel}>Goal</span>
@@ -259,7 +281,6 @@ function Ring({ tracker: t, onLog, onSetGoal, onDirectionChange, onSwapClick }: 
         </div>
       )}
 
-      {/* Direction toggle */}
       <div style={S.dirToggle}>
         {(["under", "over"] as GoalDirection[]).map((dir) => (
           <button
@@ -316,10 +337,26 @@ function Picker({ slots, swapIndex, onPick, onClose }: PickerProps) {
   );
 }
 
-export default function DietTracker() {
-  const [trackers, setTrackers] = useState<TrackerState[]>(
+export interface DietTrackerProps {
+  trackers?: TrackerState[];
+  onTrackersChange?: (trackers: TrackerState[]) => void;
+}
+
+export default function DietTracker({ trackers: externalTrackers, onTrackersChange }: DietTrackerProps = {}) {
+  const [internalTrackers, setInternalTrackers] = useState<TrackerState[]>(
     ALL_TRACKERS.map((t) => ({ ...t, value: 0 }))
   );
+
+  // Support both controlled and uncontrolled modes
+  const trackers = externalTrackers ?? internalTrackers;
+  const setTrackers = (updater: (prev: TrackerState[]) => TrackerState[]) => {
+    if (onTrackersChange) {
+      onTrackersChange(updater(trackers));
+    } else {
+      setInternalTrackers(updater);
+    }
+  };
+
   const [slots, setSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
