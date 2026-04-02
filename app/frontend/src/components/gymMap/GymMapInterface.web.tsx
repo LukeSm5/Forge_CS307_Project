@@ -2,11 +2,18 @@ import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native'
 
 import { Text, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
+import Constants from 'expo-constants';
 
 import * as Location from "expo-location";
 
-// Eventually gonna add .env file support, or something.
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "GOOGLE_API_KEY";
+const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ??
+  (Platform.OS === 'web'
+    ? 'http://localhost:8000'
+    : expoHost
+      ? `http://${expoHost}:8000`
+      : 'http://localhost:8000');
 
 export default function GymMapInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
     const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -51,14 +58,14 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
     }
 
     async function fetchNearbyGyms(lat: number, lng: number) {
-        const url =
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
-        `?location=${lat},${lng}` +
-        `&radius=3000` +
-        `&type=gym` +
-        `&key=${GOOGLE_API_KEY}`;
+        const url = `${BASE_URL}/gyms?lat=${lat}&lng=${lng}&radius=3000`;
 
         const res = await fetch(url);
+
+        if (!res.ok) {
+            throw new Error(`Request failed: ${res.status}`);
+        }
+
         const data = await res.json();
 
         setGyms(data.results);
@@ -99,8 +106,8 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
                     <Marker
                         key={gym.place_id}
                         position={[
-                            gym.geometry.location.lat,
-                            gym.geometry.location.lng
+                            gym.lat,
+                            gym.lng
                         ]}
                     >
                         <Popup>
