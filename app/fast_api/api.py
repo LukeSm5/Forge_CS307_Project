@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Header, Request
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
@@ -8,6 +8,8 @@ from openai import OpenAI
 import os
 import json
 import app.core.prompt as prompt
+import httpx
+import dotenv
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
@@ -28,9 +30,12 @@ from app.core.auth_tokens import (
     utcnow,
 )
 
+dotenv.load_dotenv()
+
 app = FastAPI()
 logger = logging.getLogger(__name__)
 # llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
 app.add_middleware(
@@ -1140,3 +1145,36 @@ def recalibrate_calories(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.fast_api.api:app", host="0.0.0.0", port=8000, reload=True)
+
+
+@app.get("/gyms")
+async def nearby_gyms(lat: float = Query(...), lng: float = Query(...), radius: int = Query(3000)):
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+
+    params = {
+        "location": f"{lat},{lng}",
+        "radius": radius,
+        "type": "gym",
+        "key": GOOGLE_API_KEY,
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Google API request failed")
+
+    data = response.json()
+    print(GOOGLE_API_KEY, data)
+    results = [
+        {
+            "name": place.get("name"),
+            "lat": place["geometry"]["location"]["lat"],
+            "lng": place["geometry"]["location"]["lng"],
+            "vicinity": place.get("vicinity"),
+            "place_id": place.get("place_id"),
+        }
+        for place in data.get("results", [])
+    ]
+
+    return {"results": results}
