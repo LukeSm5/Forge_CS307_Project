@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -38,9 +38,17 @@ export default function AddWorkoutScreen() {
 
   const [sessionDate, setSessionDate] = useState(formatToday());
   const [durationMinutes, setDurationMinutes] = useState('');
+  const [durationSeconds, setDurationSeconds] = useState('0');
   const [allSessions, setAllSessions] = useState<SessionLog[]>([]);
   const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
   const { isImperial } = useUnits();
+
+  // moving timer from workout
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
+  const baseElapsedRef = useRef<number>(0);
+
 
   useEffect(() => {
     async function loadLookupData() {
@@ -66,6 +74,19 @@ export default function AddWorkoutScreen() {
 
     void loadLookupData();
   }, []);
+
+  // moving timer from workout.tsx
+  useEffect(() => {
+    if (!timerRunning || !startedAtMs) return;
+
+    const intervalId = setInterval(() => {
+      const delta = Math.floor((Date.now() - startedAtMs) / 1000);
+      setElapsedSeconds(baseElapsedRef.current + delta);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [timerRunning, startedAtMs]);
+
 
   const exerciseOptions = useMemo(
     () =>
@@ -159,8 +180,10 @@ export default function AddWorkoutScreen() {
         return;
       }
 
+      const mins = Number(durationMinutes || '0');
+      const secs = Number(durationSeconds || '0');
       const parsedDuration =
-        durationMinutes.trim() === '' ? null : Number(durationMinutes) * 60;
+        durationMinutes.trim() === '' ? null : Math.round((mins * 60) + secs);
 
       if (parsedDuration != null && !Number.isFinite(parsedDuration)) {
         Alert.alert('Invalid duration', 'Duration must be a number of minutes.');
@@ -206,6 +229,17 @@ export default function AddWorkoutScreen() {
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
   }
 
+  // moving timer from workout.tsx
+  function formatElapsed(totalSeconds: number): string {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
   function isoToDisplayDate(iso: string) {
     const d = new Date(iso);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -219,6 +253,27 @@ export default function AddWorkoutScreen() {
     if (!match) return null;
     const [, mm, dd, yyyy] = match;
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // moving timer handleStartWorkout handleEndWorkout from workout.tsx 
+  function handleToggleTimer() {
+    if (timerRunning) {
+      if (startedAtMs != null) {
+        baseElapsedRef.current += Math.floor((Date.now() - startedAtMs) / 1000);
+      }
+      setStartedAtMs(null);
+      setTimerRunning(false);
+    } else {
+      setStartedAtMs(Date.now());
+      setTimerRunning(true);
+    }
+  }
+
+  function handleSaveTimerToDuration() {
+    const totalMins = Math.floor(elapsedSeconds / 60);
+    const remainingSecs = elapsedSeconds % 60;
+    setDurationMinutes(String(totalMins));
+    setDurationSeconds(String(remainingSecs));
   }
 
   return (
@@ -367,15 +422,54 @@ export default function AddWorkoutScreen() {
           ))
         )}
 
-        <Text style={styles.label}>Duration (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            value={durationMinutes}
-            onChangeText={setDurationMinutes}
-            keyboardType="number-pad"
-            placeholder="e.g. 45"
-            placeholderTextColor="#94a3b8"
-          />
+        <Text style={styles.sectionTitle}>Duration</Text>
+
+          <View style={styles.timerCard}>
+            <Text style={styles.timerDisplay}>{formatElapsed(elapsedSeconds)}</Text>
+            <View style={styles.timerButtonRow}>
+              <ForgeButton
+                text={timerRunning ? 'Stop Timer' : (elapsedSeconds > 0 ? 'Resume Timer' : 'Start Timer')}
+                theme={timerRunning ? 'danger' : 'primary'}
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleToggleTimer}
+              />
+              <ForgeButton
+                text="Save to Duration"
+                theme="success"
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleSaveTimerToDuration}
+                disabled={elapsedSeconds === 0}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Or enter manually</Text>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Text style={styles.label}>Minutes</Text>
+                <TextInput
+                  style={styles.input}
+                  value={durationMinutes}
+                  onChangeText={setDurationMinutes}
+                  keyboardType="number-pad"
+                  placeholder="45"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+              <View style={styles.half}>
+                <Text style={styles.label}>Seconds</Text>
+                <TextInput
+                  style={styles.input}
+                  value={durationSeconds}
+                  onChangeText={setDurationSeconds}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+            </View>
 
         <ForgeButton
           text={saving ? 'Saving...' : 'Log Workout'}
@@ -491,5 +585,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     marginTop: 2,
+  },
+
+  timerCard: {
+    borderWidth: 1,
+    borderColor: '#dbe3f0',
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    gap: 12,
+  },
+  timerDisplay: {
+    fontSize: 44,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 2,
+  },
+  timerButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  timerToggleBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
   },
 });
