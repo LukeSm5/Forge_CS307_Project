@@ -11,11 +11,13 @@ import {
 
 import { useAuth } from '@/core/auth';
 
-import ForgeButton from '@/components/ForgeButton'; // Adjust path if needed
+import ForgeButton from '@/components/ForgeButton'; 
 import { Text, View } from '@/components/Themed';
 import {
   TaggedMeal,
   MealTagSet,
+  MealMacros,
+  Ingredient,
   Dietary,
   SpiceLevel,
   Cuisine,
@@ -36,8 +38,18 @@ import {
   TIME_COLOR,
   TIME_ICON,
   EMPTY_TAGS,
+  EMPTY_MACROS,
   C,
 } from '../mealTypes';
+
+import BrowseMealsScreen from '../BrowseMealsScreen';
+import TagMealScreen from '../TagMealScreen';
+import DietTracker, {
+  TrackerState,
+  ALL_TRACKERS,
+  logMealMacros,
+  undoMealMacros,
+} from '../macro_tracker';
 
 import { api } from '../../core/api'
 
@@ -303,6 +315,12 @@ export default function Diet() {
   const [selectedMealType, setSelectedMealType] = useState<MealTypeOption | null>(null);
 
   const [recalibrateLoading, setRecalibrateLoading] = useState(false);  
+
+  const [trackers, setTrackers] = useState<TrackerState[]>(
+    ALL_TRACKERS.map((t) => ({ ...t, value: 0 }))
+  );
+
+  const [dietView, setDietView] = useState<'classic' | 'enhanced'>('enhanced');
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -650,6 +668,53 @@ export default function Diet() {
     }
   }
 
+  const handleTagMealSave = (
+    mealName: string,
+    mealTags: MealTagSet,
+    mealMacros: MealMacros,
+    mealIngredients: Ingredient[],
+    id?: number,
+  ) => {
+    const payload: TaggedMeal = {
+      id: id ?? Date.now(),
+      name: mealName,
+      tags: { ...mealTags, dietary: [...mealTags.dietary] },
+      macros: { ...mealMacros },
+      ingredients: mealIngredients.map((i) => ({ ...i })),
+    };
+
+    setSavedMeals((current) => {
+      if (id && editing) {
+        return current.map((meal) => (meal.id === id ? payload : meal));
+      }
+      return [payload, ...current];
+    });
+
+    if (editing) {
+      setEditing(null);
+    }
+  };
+
+  const handleTagMealCancel = () => {
+    setEditing(null);
+  };
+
+  const handleBrowseDelete = (id: number) => {
+    Alert.alert('Delete meal', 'Are you sure you want to remove this meal?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setSavedMeals((current) => current.filter((meal) => meal.id !== id));
+          if (editing?.id === id) {
+            setEditing(null);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.pageTitleRow}>
@@ -680,7 +745,52 @@ export default function Diet() {
             />
           </View>
       </View>
-      
+
+      <SectionCard title="Macro Tracker">
+        <DietTracker
+          trackers={trackers}
+          onTrackersChange={setTrackers}
+        />
+      </SectionCard>
+
+      <View style={styles.pillWrap}>
+        <Pill
+          label="Classic View"
+          active={dietView === 'classic'}
+          color={C?.orange ?? '#f97316'}
+          onPress={() => setDietView('classic')}
+        />
+        <Pill
+          label="Enhanced View"
+          active={dietView === 'enhanced'}
+          color={C?.orange ?? '#f97316'}
+          onPress={() => setDietView('enhanced')}
+        />
+      </View>
+
+      {dietView === 'enhanced' && (
+        <>
+          <SectionCard title={editing ? 'Meal Tagging · Edit Meal' : 'Meal Tagging · Add Meal'}>
+            <TagMealScreen
+              editing={editing}
+              mealCount={savedMeals.length}
+              onSave={handleTagMealSave}
+              onCancel={handleTagMealCancel}
+            />
+          </SectionCard>
+
+          <SectionCard title={`Meal Browser${activeFilterCount ? ` · ${activeFilterCount} Active Filters` : ''}`}>
+            <BrowseMealsScreen
+              meals={savedMeals}
+              onEdit={setEditing}
+              onDelete={handleBrowseDelete}
+            />
+          </SectionCard>
+        </>
+      )}
+
+      {dietView === 'classic' && (
+      <>
       <SectionCard title="My Meals">
         <View style={styles.pillWrap}>
           <Pill
@@ -1053,6 +1163,8 @@ export default function Diet() {
           ))}
         </View>
       </SectionCard>
+      </>
+      )}
 
       <Modal
         visible={mealTypeModalVisible}
