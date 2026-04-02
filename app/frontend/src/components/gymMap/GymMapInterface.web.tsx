@@ -158,7 +158,8 @@ const styles = StyleSheet.create({
         borderRadius: '15px',
         overflowX: 'hidden',
         overflowY: 'scroll',
-        padding: '2%'
+        padding: '2%',
+        zIndex: 100,
     },
     title: {
         fontSize: 20,
