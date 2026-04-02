@@ -1,10 +1,12 @@
 import { useState } from "react";
 import {
-  TaggedMeal, MealTagSet, MealMacros, Dietary, SpiceLevel, Cuisine, Complexity, Goal, TimeLabel,
+  TaggedMeal, MealTagSet, MealMacros, Ingredient, Dietary, SpiceLevel, Cuisine, Complexity, Goal, TimeLabel,
   SPICE_LEVELS, CUISINES, COMPLEXITIES, GOALS, TIME_LABELS, DIETARY_OPTS,
   SPICE_COLOR, SPICE_ICON, GOAL_COLOR, GOAL_ICON, COMPLEXITY_COLOR, TIME_COLOR, TIME_ICON,
+  INGREDIENT_UNITS,
   C, chip, Pill, GLOBAL_STYLES,
 } from "./mealTypes";
+
 type MacroRange = { min: number | null; max: number | null };
 type FilterState = Partial<Omit<MealTagSet, "dietary">> & {
   dietary:  Dietary[];
@@ -16,6 +18,7 @@ type FilterState = Partial<Omit<MealTagSet, "dietary">> & {
   fiber:    MacroRange;
   sodium:   MacroRange;
 };
+
 const EMPTY_RANGE: MacroRange = { min: null, max: null };
 const EMPTY_FILTER: FilterState = {
   spiceLevel: null, cuisine: null, complexity: null,
@@ -29,7 +32,9 @@ const EMPTY_FILTER: FilterState = {
   fiber:    { ...EMPTY_RANGE },
   sodium:   { ...EMPTY_RANGE },
 };
+
 type MacroFilterKey = "calories" | "protein" | "fat" | "carbs" | "sugar" | "fiber" | "sodium";
+
 const MACRO_FILTER_FIELDS: { key: MacroFilterKey; label: string; unit: string }[] = [
   { key: "calories", label: "Calories", unit: "kcal" },
   { key: "protein",  label: "Protein",  unit: "g"    },
@@ -39,6 +44,7 @@ const MACRO_FILTER_FIELDS: { key: MacroFilterKey; label: string; unit: string }[
   { key: "fiber",    label: "Fiber",    unit: "g"    },
   { key: "sodium",   label: "Sodium",   unit: "mg"   },
 ];
+
 function MacroBadge({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
   return (
     <div style={{
@@ -67,6 +73,7 @@ function MacroBadge({ label, value, unit, color }: { label: string; value: numbe
     </div>
   );
 }
+
 const MACRO_DISPLAY: { key: MacroFilterKey; label: string; unit: string; color: string }[] = [
   { key: "calories", label: "Cal",     unit: "kcal", color: C.orange  },
   { key: "protein",  label: "Protein", unit: "g",    color: "#60a5fa" },
@@ -76,33 +83,91 @@ const MACRO_DISPLAY: { key: MacroFilterKey; label: string; unit: string; color: 
   { key: "fiber",    label: "Fiber",   unit: "g",    color: "#34d399" },
   { key: "sodium",   label: "Sodium",  unit: "mg",   color: "#94a3b8" },
 ];
-function MealCard({ meal, onEdit, onDelete }: {
-  meal: TaggedMeal; onEdit: (m: TaggedMeal) => void; onDelete: (id: number) => void;
+
+function IngredientLine({ ingredient }: { ingredient: Ingredient }) {
+  const unitLabel = INGREDIENT_UNITS.find(u => u.value === ingredient.unit)?.label ?? ingredient.unit;
+  const showQty = ingredient.unit !== "to_taste" && ingredient.quantity !== null;
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8,
+      padding: "5px 0", borderBottom: `1px solid ${C.border}40`,
+    }}>
+      <span style={{
+        color: C.orange, fontSize: 11, fontWeight: 700, minWidth: 60, textAlign: "right",
+        fontFamily: "'Barlow Condensed', sans-serif",
+      }}>
+        {showQty ? (
+          <>
+            {ingredient.quantity! % 1 === 0 ? ingredient.quantity : ingredient.quantity!.toFixed(2)}
+            <span style={{ color: C.dimmer, fontWeight: 600, fontSize: 10, marginLeft: 2 }}>{unitLabel}</span>
+          </>
+        ) : (
+          <span style={{ color: C.dimmer, fontWeight: 600, fontSize: 10 }}>{unitLabel}</span>
+        )}
+      </span>
+      <span style={{
+        color: C.text, fontSize: 13, fontWeight: 600,
+        fontFamily: "'Barlow Condensed', sans-serif", flex: 1,
+      }}>
+        {ingredient.name}
+      </span>
+      {ingredient.note && (
+        <span style={{
+          color: C.dimmer, fontSize: 10, fontStyle: "italic",
+          fontFamily: "'Barlow Condensed', sans-serif",
+        }}>
+          {ingredient.note}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MealCard({ meal, onEdit, onDelete, expanded, onToggle }: {
+  meal: TaggedMeal;
+  onEdit: (m: TaggedMeal) => void;
+  onDelete: (id: number) => void;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const [hover, setHover] = useState<boolean>(false);
   const t = meal.tags;
   const m = meal.macros;
   const hasMacros = m && MACRO_DISPLAY.some(({ key }) => m[key] !== null && m[key] !== undefined);
+  const hasIngredients = meal.ingredients && meal.ingredients.length > 0;
+
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: C.surface, border: `1px solid ${hover ? C.orange : C.border}`,
+        background: C.surface, border: `1px solid ${expanded ? C.orange : hover ? C.orange : C.border}`,
         borderRadius: 8, padding: "15px 17px",
         display: "flex", flexDirection: "column", gap: 10,
         transition: "all 0.15s", transform: hover ? "translateY(-2px)" : "none",
-        boxShadow: hover ? `0 4px 20px ${C.orange}18` : "none",
+        boxShadow: hover ? `0 4px 20px ${C.orange}18` : expanded ? `0 2px 12px ${C.orange}12` : "none",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <span style={{
-          color: C.text, fontFamily: "'Barlow Condensed', sans-serif",
-          fontSize: 16, fontWeight: 700, lineHeight: 1.2,
-          flex: 1, letterSpacing: "0.02em",
-        }}>
+        <button
+          onClick={onToggle}
+          style={{
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            color: C.text, fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 16, fontWeight: 700, lineHeight: 1.2,
+            flex: 1, letterSpacing: "0.02em", textAlign: "left",
+            display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
           {meal.name}
-        </span>
+          <span style={{
+            fontSize: 9, color: C.dimmer, transition: "transform 0.15s",
+            transform: expanded ? "rotate(180deg)" : "none",
+          }}>
+            ▼
+          </span>
+        </button>
         <div style={{
           display: "flex", gap: 5,
           opacity: hover ? 1 : 0, transition: "opacity 0.15s",
@@ -118,59 +183,149 @@ function MealCard({ meal, onEdit, onDelete }: {
           </button>
         </div>
       </div>
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
         {t.spiceLevel && <span style={chip(`${SPICE_COLOR[t.spiceLevel]}20`, SPICE_COLOR[t.spiceLevel])}>{SPICE_ICON[t.spiceLevel]} {t.spiceLevel.replace("_", " ")}</span>}
         {t.goal       && <span style={chip(`${GOAL_COLOR[t.goal]}20`,        GOAL_COLOR[t.goal])}>{GOAL_ICON[t.goal]} {t.goal.replace("_", " ")}</span>}
         {t.complexity && <span style={chip(`${COMPLEXITY_COLOR[t.complexity]}20`, COMPLEXITY_COLOR[t.complexity])}>{t.complexity}</span>}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-        {t.cuisine  && <span style={chip(C.border, C.muted)}>{t.cuisine.replace("_", " ")}</span>}
-        {t.prepTime && <span style={chip(`${TIME_COLOR[t.prepTime]}18`, TIME_COLOR[t.prepTime])}>{TIME_ICON[t.prepTime]} prep: {t.prepTime}</span>}
-        {t.cookTime && <span style={chip(`${TIME_COLOR[t.cookTime]}18`, TIME_COLOR[t.cookTime])}>{TIME_ICON[t.cookTime]} cook: {t.cookTime}</span>}
-      </div>
-      {t.dietary.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-          {t.dietary.map(d => <span key={d} style={chip("#1e2533", C.muted)}>{d.replace(/_/g, " ")}</span>)}
-        </div>
-      )}
-      {hasMacros && (
-        <div style={{ paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-          <div style={{
-            fontSize: 8, color: C.dimmer, letterSpacing: "0.2em",
-            textTransform: "uppercase", marginBottom: 7,
-            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600,
-          }}>
-            Macros · per serving
+
+      {!expanded && (
+        <>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {t.cuisine  && <span style={chip(C.border, C.muted)}>{t.cuisine.replace("_", " ")}</span>}
+            {t.prepTime && <span style={chip(`${TIME_COLOR[t.prepTime]}18`, TIME_COLOR[t.prepTime])}>{TIME_ICON[t.prepTime]} prep: {t.prepTime}</span>}
+            {t.cookTime && <span style={chip(`${TIME_COLOR[t.cookTime]}18`, TIME_COLOR[t.cookTime])}>{TIME_ICON[t.cookTime]} cook: {t.cookTime}</span>}
+            {hasIngredients && (
+              <span style={chip(`${C.orange}18`, C.orange)}>
+                🥘 {meal.ingredients.length} ingredient{meal.ingredients.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {MACRO_DISPLAY.map(({ key, label, unit, color }) => {
-              const val = m![key];
-              if (val === null || val === undefined) return null;
-              return <MacroBadge key={key} label={label} value={val} unit={unit} color={color} />;
-            })}
+          {t.dietary.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+              {t.dietary.map(d => <span key={d} style={chip("#1e2533", C.muted)}>{d.replace(/_/g, " ")}</span>)}
+            </div>
+          )}
+          {hasMacros && (
+            <div style={{ paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+              <div style={{
+                fontSize: 8, color: C.dimmer, letterSpacing: "0.2em",
+                textTransform: "uppercase", marginBottom: 7,
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600,
+              }}>
+                Macros · per serving
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {MACRO_DISPLAY.map(({ key, label, unit, color }) => {
+                  const val = m![key];
+                  if (val === null || val === undefined) return null;
+                  return <MacroBadge key={key} label={label} value={val} unit={unit} color={color} />;
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {expanded && (
+        <div style={{
+          display: "flex", flexDirection: "column", gap: 14,
+          borderTop: `1px solid ${C.orange}30`, paddingTop: 12,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 9, color: C.orange, letterSpacing: "0.2em",
+              textTransform: "uppercase", marginBottom: 8,
+              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+            }}>
+              Tags
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {t.cuisine  && <span style={chip(C.border, C.muted)}>{t.cuisine.replace("_", " ")}</span>}
+              {t.prepTime && <span style={chip(`${TIME_COLOR[t.prepTime]}18`, TIME_COLOR[t.prepTime])}>{TIME_ICON[t.prepTime]} prep: {t.prepTime}</span>}
+              {t.cookTime && <span style={chip(`${TIME_COLOR[t.cookTime]}18`, TIME_COLOR[t.cookTime])}>{TIME_ICON[t.cookTime]} cook: {t.cookTime}</span>}
+            </div>
+            {t.dietary.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                {t.dietary.map(d => <span key={d} style={chip("#1e2533", C.muted)}>{d.replace(/_/g, " ")}</span>)}
+              </div>
+            )}
+          </div>
+
+          {hasMacros && (
+            <div>
+              <div style={{
+                fontSize: 9, color: C.orange, letterSpacing: "0.2em",
+                textTransform: "uppercase", marginBottom: 8,
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+              }}>
+                Macros · per serving
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {MACRO_DISPLAY.map(({ key, label, unit, color }) => {
+                  const val = m![key];
+                  if (val === null || val === undefined) return null;
+                  return <MacroBadge key={key} label={label} value={val} unit={unit} color={color} />;
+                })}
+              </div>
+            </div>
+          )}
+          <div>
+            <div style={{
+              fontSize: 9, color: C.orange, letterSpacing: "0.2em",
+              textTransform: "uppercase", marginBottom: 8,
+              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+            }}>
+              Ingredients {hasIngredients ? `(${meal.ingredients.length})` : ""}
+            </div>
+            {hasIngredients ? (
+              <div style={{
+                background: `${C.border}20`, borderRadius: 6,
+                padding: "8px 12px",
+              }}>
+                {meal.ingredients.map(ing => (
+                  <IngredientLine key={ing.id} ingredient={ing} />
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                color: C.dimmer, fontSize: 12,
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontStyle: "italic", padding: "8px 0",
+              }}>
+                No ingredients listed. Edit this meal to add some.
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 }
+
 export interface BrowseMealsScreenProps {
   meals:    TaggedMeal[];
   onEdit:   (m: TaggedMeal) => void;
   onDelete: (id: number) => void;
 }
+
 export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMealsScreenProps) {
   const [filter,      setFilter]      = useState<FilterState>(EMPTY_FILTER);
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [expandedId,  setExpandedId]  = useState<number | null>(null);
+
   const toggleFilter = <K extends keyof Omit<FilterState, "dietary" | MacroFilterKey>>(
     key: K, val: FilterState[K]
   ): void =>
     setFilter(f => ({ ...f, [key]: f[key] === val ? null : val }));
+
   const toggleDietary = (d: Dietary): void =>
     setFilter(f => ({
       ...f,
       dietary: f.dietary.includes(d) ? f.dietary.filter(x => x !== d) : [...f.dietary, d],
     }));
+
   const setMacroRange = (key: MacroFilterKey, bound: "min" | "max", raw: string): void => {
     const parsed = raw === "" ? null : parseFloat(raw);
     setFilter(f => ({
@@ -178,10 +333,12 @@ export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMea
       [key]: { ...f[key], [bound]: parsed === null || isNaN(parsed) ? null : parsed },
     }));
   };
+
   const macroRangeActive = (key: MacroFilterKey): boolean => {
     const r = filter[key] as MacroRange;
     return r.min !== null || r.max !== null;
   };
+
   const filtered = meals.filter(m => {
     const t = m.tags;
     if (filter.spiceLevel && t.spiceLevel !== filter.spiceLevel) return false;
@@ -201,6 +358,7 @@ export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMea
     }
     return true;
   });
+
   const tagActiveCount: number = [
     filter.spiceLevel, filter.cuisine, filter.complexity,
     filter.goal, filter.prepTime, filter.cookTime,
@@ -208,6 +366,7 @@ export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMea
   const macroActiveCount: number = MACRO_FILTER_FIELDS.filter(({ key }) => macroRangeActive(key)).length;
   const activeCount = tagActiveCount + macroActiveCount;
   const hasFilter   = activeCount > 0;
+
   const filterRow = (
     label:   string,
     key:     string,
@@ -308,6 +467,7 @@ export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMea
       </div>
     );
   };
+
   return (
     <>
       <style>{GLOBAL_STYLES}</style>
@@ -401,7 +561,14 @@ export default function BrowseMealsScreen({ meals, onEdit, onDelete }: BrowseMea
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 12 }}>
               {filtered.map(m => (
-                <MealCard key={m.id} meal={m} onEdit={onEdit} onDelete={onDelete} />
+                <MealCard
+                  key={m.id}
+                  meal={m}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  expanded={expandedId === m.id}
+                  onToggle={() => setExpandedId(expandedId === m.id ? null : m.id)}
+                />
               ))}
             </div>
           )}
