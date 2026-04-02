@@ -1441,9 +1441,9 @@ def recalibrate_calories(
 
     parsed = json.loads(response.output_text)
 
-    return RecalibrateCaloriesResponse(calorie_goal=int(parsed["calorie_goal"]))
+    return RecalibrateCaloriesResponse(calorie_goal=float(parsed["calorie_goal"]))
     """
-    return RecalibrateCaloriesResponse(calorie_goal=2500)
+    return RecalibrateCaloriesResponse(calorie_goal=2500.0)
 
 if __name__ == "__main__":
     import uvicorn
