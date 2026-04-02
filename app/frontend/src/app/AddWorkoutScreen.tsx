@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { Alert, Modal, ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
-import { api, MachineLookupRow, WorkoutLookup, SessionLog } from '@/core/api';
+import { api, MachineLookupRow, WorkoutLookup, SessionLog, TailoredExercise } from '@/core/api';
 import { useUnits } from '@/core/conversions';
 
 type SingleExercise = {
@@ -35,12 +35,23 @@ export default function AddWorkoutScreen() {
 
   const [exerciseList, setExerciseList] = useState<SingleExercise[]>([]);
   const [saving, setSaving] = useState(false);
+  const [tailorModalVisible, setTailorModalVisible] = useState(false);
+  const [tailorLoading, setTailorLoading] = useState(false);
+  const [tailorResult, setTailorResult] = useState<TailoredExercise | null>(null);
 
   const [sessionDate, setSessionDate] = useState(formatToday());
   const [durationMinutes, setDurationMinutes] = useState('');
+  const [durationSeconds, setDurationSeconds] = useState('0');
   const [allSessions, setAllSessions] = useState<SessionLog[]>([]);
   const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
   const { isImperial } = useUnits();
+
+  // moving timer from workout
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
+  const baseElapsedRef = useRef<number>(0);
+
 
   useEffect(() => {
     async function loadLookupData() {
@@ -66,6 +77,19 @@ export default function AddWorkoutScreen() {
 
     void loadLookupData();
   }, []);
+
+  // moving timer from workout.tsx
+  useEffect(() => {
+    if (!timerRunning || !startedAtMs) return;
+
+    const intervalId = setInterval(() => {
+      const delta = Math.floor((Date.now() - startedAtMs) / 1000);
+      setElapsedSeconds(baseElapsedRef.current + delta);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [timerRunning, startedAtMs]);
+
 
   const exerciseOptions = useMemo(
     () =>
@@ -133,6 +157,67 @@ export default function AddWorkoutScreen() {
     setReps('');
   }
 
+  async function handleTailor() {
+    if (!selectedExerciseName) {
+      Alert.alert('No exercise selected', 'Please select an exercise before tailoring.');
+      return;
+    }
+
+    if (selectedMachineId == null) {
+      Alert.alert('No machine selected', 'Please select a machine before tailoring.');
+      return;
+    }
+
+    if (selectedWorkoutId == null) {
+      Alert.alert('No muscle group', 'Select a muscle group before tailoring.');
+      return;
+    }
+
+    if (!splitName.trim()) {
+      Alert.alert('Missing split name', 'Enter a split name before tailoring.');
+      return;
+    }
+
+    const apiDate = displayDateToApiDate(sessionDate.trim());
+    if (!apiDate) {
+      Alert.alert('Invalid date', 'Enter date as MM/DD/YYYY.');
+      return;
+    }
+
+    const selectedMachine = machines.find((m) => m.machine_id === selectedMachineId);
+    if (!selectedMachine) {
+      Alert.alert('Invalid machine', 'Please select a valid machine.');
+      return;
+    }
+
+    const selectedWorkout = workouts.find((w) => w.workout_id === selectedWorkoutId);
+    if (!selectedWorkout) {
+      Alert.alert('Invalid muscle group', 'Please select a valid muscle group.');
+      return;
+    }
+
+    setTailorModalVisible(true);
+
+    try {
+      const result = await api.getTailoredExercise({
+        date: apiDate,
+        split_name: splitName.trim(),
+        workout_name: selectedWorkout.name,
+        exercise_name: selectedExerciseName,
+        machine_name: selectedMachine.name,
+      });
+
+      setWeight(String(result.weight));
+      setSets(String(result.sets));
+      setReps(String(result.reps));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to tailor exercise.';
+      Alert.alert('Tailor failed', message);
+    } finally {
+      setTailorModalVisible(false);
+    }
+  }
+
   async function handleSave() {
     if (saving) return;
 
@@ -159,8 +244,10 @@ export default function AddWorkoutScreen() {
         return;
       }
 
+      const mins = Number(durationMinutes || '0');
+      const secs = Number(durationSeconds || '0');
       const parsedDuration =
-        durationMinutes.trim() === '' ? null : Number(durationMinutes) * 60;
+        durationMinutes.trim() === '' ? null : Math.round((mins * 60) + secs);
 
       if (parsedDuration != null && !Number.isFinite(parsedDuration)) {
         Alert.alert('Invalid duration', 'Duration must be a number of minutes.');
@@ -206,6 +293,17 @@ export default function AddWorkoutScreen() {
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
   }
 
+  // moving timer from workout.tsx
+  function formatElapsed(totalSeconds: number): string {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
   function isoToDisplayDate(iso: string) {
     const d = new Date(iso);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -219,6 +317,27 @@ export default function AddWorkoutScreen() {
     if (!match) return null;
     const [, mm, dd, yyyy] = match;
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // moving timer handleStartWorkout handleEndWorkout from workout.tsx 
+  function handleToggleTimer() {
+    if (timerRunning) {
+      if (startedAtMs != null) {
+        baseElapsedRef.current += Math.floor((Date.now() - startedAtMs) / 1000);
+      }
+      setStartedAtMs(null);
+      setTimerRunning(false);
+    } else {
+      setStartedAtMs(Date.now());
+      setTimerRunning(true);
+    }
+  }
+
+  function handleSaveTimerToDuration() {
+    const totalMins = Math.floor(elapsedSeconds / 60);
+    const remainingSecs = elapsedSeconds % 60;
+    setDurationMinutes(String(totalMins));
+    setDurationSeconds(String(remainingSecs));
   }
 
   return (
@@ -318,40 +437,55 @@ export default function AddWorkoutScreen() {
           ))}
         </View>
 
+        
         <View style={styles.row}>
-          <View style={styles.half}>
-            <Text style={styles.label}>Weight (optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              placeholder="25"
-              placeholderTextColor="#94a3b8"
-            />
+          <View style={styles.exerciseInputCol}>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Text style={styles.label}>Weight (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="numeric"
+                  placeholder="25"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+              <View style={styles.half}>
+                <Text style={styles.label}>Sets</Text>
+                <TextInput
+                  style={styles.input}
+                  value={sets}
+                  onChangeText={setSets}
+                  keyboardType="numeric"
+                  placeholder="3"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+            </View>
+            <View>
+              <Text style={styles.label}>Reps</Text>
+              <TextInput
+                style={styles.input}
+                value={reps}
+                onChangeText={setReps}
+                keyboardType="numeric"
+                placeholder="10"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
           </View>
-          <View style={styles.half}>
-            <Text style={styles.label}>Sets</Text>
-            <TextInput
-              style={styles.input}
-              value={sets}
-              onChangeText={setSets}
-              keyboardType="numeric"
-              placeholder="3"
-              placeholderTextColor="#94a3b8"
+
+          <View style={styles.tailorCol}>
+            <ForgeButton
+              text="Tailor"
+              theme="primary"
+              onPress={() => { void handleTailor(); }}
+              style={styles.tailorBtn}
             />
           </View>
         </View>
-
-        <Text style={styles.label}>Reps</Text>
-        <TextInput
-          style={styles.input}
-          value={reps}
-          onChangeText={setReps}
-          keyboardType="numeric"
-          placeholder="10"
-          placeholderTextColor="#94a3b8"
-        />
 
         <ForgeButton text="Add Exercise" onPress={addExercise} theme="teal" />
 
@@ -367,15 +501,54 @@ export default function AddWorkoutScreen() {
           ))
         )}
 
-        <Text style={styles.label}>Duration (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            value={durationMinutes}
-            onChangeText={setDurationMinutes}
-            keyboardType="number-pad"
-            placeholder="e.g. 45"
-            placeholderTextColor="#94a3b8"
-          />
+        <Text style={styles.sectionTitle}>Duration</Text>
+
+          <View style={styles.timerCard}>
+            <Text style={styles.timerDisplay}>{formatElapsed(elapsedSeconds)}</Text>
+            <View style={styles.timerButtonRow}>
+              <ForgeButton
+                text={timerRunning ? 'Stop Timer' : (elapsedSeconds > 0 ? 'Resume Timer' : 'Start Timer')}
+                theme={timerRunning ? 'danger' : 'primary'}
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleToggleTimer}
+              />
+              <ForgeButton
+                text="Save to Duration"
+                theme="success"
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleSaveTimerToDuration}
+                disabled={elapsedSeconds === 0}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Or enter manually</Text>
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Text style={styles.label}>Minutes</Text>
+                <TextInput
+                  style={styles.input}
+                  value={durationMinutes}
+                  onChangeText={setDurationMinutes}
+                  keyboardType="number-pad"
+                  placeholder="45"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+              <View style={styles.half}>
+                <Text style={styles.label}>Seconds</Text>
+                <TextInput
+                  style={styles.input}
+                  value={durationSeconds}
+                  onChangeText={setDurationSeconds}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+            </View>
 
         <ForgeButton
           text={saving ? 'Saving...' : 'Log Workout'}
@@ -384,6 +557,23 @@ export default function AddWorkoutScreen() {
           disabled={saving}
         />
         <ForgeButton text="Back" onPress={() => router.back()} theme="neutral" />
+        
+        <Modal
+          visible={tailorModalVisible}
+          transparent
+          animationType="fade"
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.modalTitle}>Tailoring your workout</Text>
+              <Text style={styles.modalSubtitle}>
+                Finding the ideal weight, sets & reps for{'\n'}
+                {selectedExerciseName || 'your exercise'}...
+              </Text>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -491,5 +681,120 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     marginTop: 2,
+  },
+
+  timerCard: {
+    borderWidth: 1,
+    borderColor: '#dbe3f0',
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    gap: 12,
+  },
+  timerDisplay: {
+    fontSize: 44,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 2,
+  },
+  timerButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  timerToggleBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+
+
+  exerciseInputCol: {
+    flex: 1,
+    gap: 10,
+  },
+  tailorCol: {
+    justifyContent: 'center',
+    paddingTop: 6,
+  },
+  tailorBtn: {
+    minWidth: 64,
+    alignSelf: 'stretch',
+    flex: 1,
+  },
+  modalLoadingText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  tailorResultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  tailorResultItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  tailorResultValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  tailorResultLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  tailorResultDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#e2e8f0',
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButtonHalf: {
+    flex: 1,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    padding: 28,
+    alignItems: 'center',
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

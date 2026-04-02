@@ -302,7 +302,7 @@ export default function Diet() {
   const [loggingMeal, setLoggingMeal] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealTypeOption | null>(null);
 
-  
+  const [recalibrateLoading, setRecalibrateLoading] = useState(false);  
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -625,6 +625,31 @@ export default function Diet() {
     }
   };
 
+  async function handleRecalibrate() {
+    setRecalibrateLoading(true);
+
+    try {
+      const result = await api.recalibrateCalories({
+        current_calorie_goal: calorieGoal,
+        consumed_calories: consumedCalories,
+        remaining_calories: remainingCalories,
+      });
+
+      setCalorieGoal(result.calorie_goal);
+
+      Alert.alert(
+        'Calorie goal updated',
+        `Your new calorie goal is ${result.calorie_goal}.`
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to recalibrate calorie goal.';
+      Alert.alert('Recalibrate failed', message);
+    } finally {
+      setRecalibrateLoading(false);
+    }
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.pageTitleRow}>
@@ -649,7 +674,10 @@ export default function Diet() {
               </View>
             </View>
 
-            <ForgeButton onPress={() => {}} text="Recalibrate" />
+            <ForgeButton
+              onPress={() => { void handleRecalibrate(); }}
+              text={recalibrateLoading ? 'Recalibrating...' : 'Recalibrate'}
+            />
           </View>
       </View>
       

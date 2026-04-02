@@ -1,13 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
 from datetime import timezone, datetime
 from sqlalchemy import text
+from openai import OpenAI
+import os
+import json
+import app.core.prompt as prompt
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
+from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
 from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
@@ -25,6 +30,8 @@ from app.core.auth_tokens import (
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
+# llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -223,6 +230,18 @@ class LogMenuMealRequest(BaseModel):
     menu_meal_id: int
     meal_type: str  # breakfast / lunch / dinner / snack
 
+class TailorExerciseRequest(BaseModel):
+    date: str
+    split_name: str
+    workout_name: str
+    exercise_name: str
+    machine_name: str
+
+class TailorExerciseResponse(BaseModel):
+    weight: int
+    sets: int
+    reps: int
+
 
 class SessionMenuMealOut(BaseModel):
     session_id: int = Field(validation_alias="SessionID")
@@ -248,6 +267,15 @@ class SessionMenuMealOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RecalibrateCaloriesRequest(BaseModel):
+    current_calorie_goal: int | None = None
+    consumed_calories: int
+    remaining_calories: int | None = None
+
+class RecalibrateCaloriesResponse(BaseModel):
+    calorie_goal: int
 
 
 def _send_account_update_notification(
@@ -736,60 +764,19 @@ def get_all_menumeals(db: Session = Depends(get_db)):
 def get_menumeals(db: Session = Depends(get_db)):
     return repos.lookup_all_menumeals(db)
 
-'''@app.get("/auth/llm-context")
+@app.get("/auth/llm-context")
 async def get_llm_context(request: Request, db: Session = Depends(get_db)):
     user = db.query(Accounts).filter(Accounts.email == request.user_email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     profile = db.query(Profiles).filter(Profiles.UserID == user.UserID).first()
-    workouts = db.query(session_workouts).filter(session_workouts.ProfileID == profile.ProfileID).order_by(session_workouts.date.desc()).limit(5).all()
-    workoutString = ""
-    for i in range(len(workouts)):
-        workoutString += f"Workout {workouts[i].SessionID}:\n"
-        exercises = db.query(session_exercises).filter(session_exercises.SessionID == workouts[i].SessionID).all()
-        for j in range(len(exercises)):
-            workoutString += f"Exercise {j}: {workouts[i].exercises[j].name}\n Sets: {workouts[i].exercises[j].sets}\n Reps: {workouts[i].exercises[j].reps}\n Weight: {workouts[i].exercises[j].weight}\n"
-    
-    mealString = ""
-    meals = db.query(session_meals).filter(session_meals.ProfileID == profile.ProfileID).order_by(session_meals.date.desc()).limit(5).all()
-    for i in range(len(meals)):
-        mealString += f"Meal {meals[i].name}:\n"
-        mealString += f"Calories: {meals[i].calories}\n Servings: {meals[i].servings}\n Protein: {meals[i].protein_g}g\n Carbs: {meals[i].carbohydrates_g}g\n Fat: {meals[i].fat_g}g\n"
-    # Need to contruct a string that prints recent workouts and recent meals in a readable LLM format
-    profile_data = f"""
-    Age: {profile.age}
-    Weight: {profile.weight}
-    Height: {profile.height_in}
-    Health Status: {profile.health_status}
-    Health Goals: {profile.health_goals}
-    Recent Workouts:
-    {workoutString}
-    Recent Meals:
-    {mealString}
-    """
-'''
-
-# @app.get("/weightConversion")
-def weight_conversion(db: Session = Depends(get_db), request = WeightConversionRequest):
-    profile = db.query(Profiles).filter(Profiles.ProfileID == request.profileID).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    # conversion logic to be used for button, imperial = true, metric = false
-    if not request.metricOrImperial and profile.metricOrImperial: # currently imperial, want metric
-
-        # have to convert everything to metric 
-        profile.height_in = round(profile.height_in * 2.54)
-        profile.weight = round(profile.weight * 0.453592)
-        #TODO: convert all workouts/meals logged for this profile to metric as well
-    elif request.metricOrImperial and not profile.metricOrImperial: # currently metric, want imperial
-
-        # have to convert everything to imperial
-        profile.height_in = round(profile.height_in / 2.54)
-        profile.weight = round(profile.weight / 0.453592)
-        #TODO: convert all workouts/meals logged for this profile to imperial as well
-    profile.metricOrImperial = request.metricOrImperial
-    db.commit()
+    prompt = prompt.profile_prompt_text(db, profile.profileID)
+    workoutString = prompt.workout_history_text(db, profile.profileID)
+    prompt += workoutString
+    mealString = prompt.menu_meal_history_text(db, profile.profileID)
+    prompt += mealString
+    return prompt
 
 
 @app.post("/sessions", response_model=SessionOut)
@@ -1074,6 +1061,81 @@ def delete_session_menu_meal(
     db.commit()
 
     return {"message": "Session menu meal deleted successfully"}
+
+
+@app.post("/tailor-exercise", response_model=TailorExerciseResponse)
+def tailor_exercise(
+    payload: TailorExerciseRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    prompt = tailor_exercise_prompt_text(db, me.UserID, payload)
+
+    response = llm.responses.create(
+        model="gpt-5",
+        input=prompt,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "my_exercise_numbers",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "weight": {"type": "number"},
+                        "sets": {"type": "number"},
+                        "reps": {"type": "number"}
+                    },
+                    "required": ["weight", "sets", "reps"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    parsed = json.loads(response.output_text)
+
+    return TailorExerciseResponse(weight=int(parsed["weight"]), sets=int(parsed["sets"]), reps=int(parsed["reps"]))
+    """
+
+    return TailorExerciseResponse(weight=45, sets=4, reps=8) 
+
+
+@app.post("/recalibrate-calories", response_model=RecalibrateCaloriesResponse)
+def recalibrate_calories(
+    payload: RecalibrateCaloriesRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    prompt = calorie_goal_prompt_text(db, me.UserID, payload)
+
+    response = llm.responses.create(
+        model="gpt-5",
+        input=prompt,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "my_calorie_goal",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "calorie_goal": {"type": "number"}
+                    },
+                    "required": ["calorie_goal"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    parsed = json.loads(response.output_text)
+
+    return RecalibrateCaloriesResponse(calorie_goal=int(parsed["calorie_goal"]))
+    """
+    return RecalibrateCaloriesResponse(calorie_goal=2500)
 
 if __name__ == "__main__":
     import uvicorn

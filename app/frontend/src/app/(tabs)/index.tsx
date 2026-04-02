@@ -104,6 +104,7 @@ export default function CalendarScreen() {
   const [extraExercises, setExtraExercises] = useState<ExerciseItem[]>([]);
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -368,6 +369,8 @@ export default function CalendarScreen() {
       return copy;
     });
   }
+  function generateWeeklyReport() {}
+  function generateMonthlyReport() {}
 
   return (
     <View style={styles.container}>
@@ -381,7 +384,18 @@ export default function CalendarScreen() {
 
       <View style={styles.rowBetween}>
         <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
-
+        <Pressable
+          style={[styles.addButton, { backgroundColor: '#8e44ad' }]}
+          onPress={() => setIsReportOpen(true)}
+        >
+        <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
+      </Pressable>
+      <Pressable
+          style={[styles.addButton, { backgroundColor: '#81ab33' }]}
+          onPress={() => setIsReportOpen(true)}
+        >
+        <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
+      </Pressable>
         <Pressable style={styles.addButton} onPress={openAdd}>
           <Text style={styles.addButtonText}>+ Add workout</Text>
         </Pressable>
@@ -613,6 +627,26 @@ export default function CalendarScreen() {
                 </Pressable>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={isReportOpen} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Reports</Text>
+            <ScrollView>
+              <Text>Number of Lifts: </Text>
+              <Text>Average Lift Duration: </Text>
+              <Text>Max Weight Lifted: </Text>
+              <Text>Hardest Hit Muscle Group: </Text>
+              <Text>Least Hit Muscle Group: </Text>
+              <Text>Weekly Workout Streak: </Text>
+            </ScrollView>
+            <Pressable 
+              style={[styles.actionBtn, styles.saveBtn, {marginTop: 16}]} 
+              onPress={() => setIsReportOpen(false)}>
+              <Text style={styles.saveText}>Close</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>

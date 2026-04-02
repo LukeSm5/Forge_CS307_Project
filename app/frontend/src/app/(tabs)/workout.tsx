@@ -99,7 +99,7 @@ export default function WorkoutTabScreen() {
   }
 
   function handleGenerateWorkout() {
-    Alert.alert('Generate Workout', 'Workout generation flow will be added in a later stage.');
+    router.push({ pathname: "/GenerateWorkoutScreen" });
   }
 
   function handleStartWorkout(logId: string) {
