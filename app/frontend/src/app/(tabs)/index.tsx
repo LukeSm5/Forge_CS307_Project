@@ -369,6 +369,8 @@ export default function CalendarScreen() {
       return copy;
     });
   }
+  function generateWeeklyReport() {}
+  function generateMonthlyReport() {}
 
   return (
     <View style={styles.container}>
@@ -633,7 +635,12 @@ export default function CalendarScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reports</Text>
             <ScrollView>
-              <Text>Report content goes here...</Text>
+              <Text>Number of Lifts: </Text>
+              <Text>Average Lift Duration: </Text>
+              <Text>Max Weight Lifted: </Text>
+              <Text>Hardest Hit Muscle Group: </Text>
+              <Text>Least Hit Muscle Group: </Text>
+              <Text>Weekly Workout Streak: </Text>
             </ScrollView>
             <Pressable 
               style={[styles.actionBtn, styles.saveBtn, {marginTop: 16}]} 
