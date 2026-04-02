@@ -170,8 +170,16 @@ def populate_meals(sess):
 
 
 def create_account(sess: Session, username: str, password: str, bio: str) -> bool:
+    """
+    Create an Accounts object with an inputted username, password, bio.\n
+    Add and flush to session, commit in server file.\n
+    Returns True if successful and False otherwise.
+    """
 
 def lookup_account_by_token(sess: Session, authorization: str = Header(None)) -> Accounts:
+    """
+    hashed token decrypted to UserID then looks up and returns Accounts object if exists
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
 
@@ -188,17 +196,26 @@ def lookup_account_by_token(sess: Session, authorization: str = Header(None)) ->
 
 
 def lookup_account_by_id(sess: Session, user_id: int) -> Profiles:
+    """
+    return Accounts object if exists
+    """
     account = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
     return account if account else None
 
 
 def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
+    """
+    return Profiles object if exists
+    """
     profile = sess.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
     return profile if profile else None
 
 
 
 def lookup_menumeal_by_restaurant(sess: Session, restaurant: str) -> menu_meals:
+    """
+    return menu_meals object(s) meeting criteria if exists
+    """
     results = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
     return results if results else []
 
