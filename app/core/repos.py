@@ -24,11 +24,16 @@ from app.core.db import (
     meal_tags,
     meal_dietary_tags,
     meal_macros,
+    meal_ingredients,
     session_meals,
+    daily_tracker_logs,
 )
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
 from app.core.ingest_menu_meals import ingest_menu_meals
+from app.core.macro_tracker import DailyLog, Tracker
+from datetime import date as date_type
+import json
 
 
 # fill all these lists out 
@@ -165,19 +170,8 @@ def populate_meals(sess):
 
 
 def create_account(sess: Session, username: str, password: str, bio: str) -> bool:
-    """
-    Create an Accounts object with an inputted username, password, bio.\n
-    Add and flush to session, commit in server file.\n
-    Returns True if successful and False otherwise.
-    """
-
-
-
 
 def lookup_account_by_token(sess: Session, authorization: str = Header(None)) -> Accounts:
-    """
-    hashed token decrypted to UserID then looks up and returns Accounts object if exists
-    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
 
@@ -194,26 +188,17 @@ def lookup_account_by_token(sess: Session, authorization: str = Header(None)) ->
 
 
 def lookup_account_by_id(sess: Session, user_id: int) -> Profiles:
-    """
-    return Accounts object if exists
-    """
     account = sess.query(Accounts).filter(Accounts.UserID == user_id).first()
     return account if account else None
 
 
 def lookup_profile_by_id(sess: Session, profile_id: int) -> Profiles:
-    """
-    return Profiles object if exists
-    """
     profile = sess.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
     return profile if profile else None
 
 
 
 def lookup_menumeal_by_restaurant(sess: Session, restaurant: str) -> menu_meals:
-    """
-    return menu_meals object(s) meeting criteria if exists
-    """
     results = sess.query(menu_meals).filter(menu_meals.restaurant.ilike(f"%{restaurant}%")).all()
     return results if results else []
 
@@ -559,6 +544,211 @@ def get_meal_log(sess: Session, profile_id: int) -> list[dict]:
         multiplier = e.servings if e.servings is not None else 1.0
 
         consumed: dict[str, float | None] = {}
+        for field in ("calories", "protein", "fat", "carbs", "sugar", "fiber", "sodium"):
+            base = getattr(macro_row, field, None) if macro_row else None
+            consumed[field] = round(base * multiplier, 1) if base is not None else None
+
+        results.append({
+            "session_meal_id": e.SessionMealID,
+            "meal_id":         e.MealID,
+            "meal_name":       meal_row.name if meal_row else None,
+            "date":            e.date,
+            "servings":        e.servings,
+            "notes":           e.notes,
+            "consumed_macros": consumed,
+        })
+
+    return results
+
+def get_meal_ingredients(sess: Session, meal_id: int) -> list:
+    """Return all ingredient rows for a meal."""
+    return sess.query(meal_ingredients).filter_by(MealID=meal_id).all()
+
+
+def set_meal_ingredients(
+    sess: Session,
+    meal_id: int,
+    ingredients: list[dict],
+) -> list:
+    if not sess.query(Meals).filter_by(MealID=meal_id).first():
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    sess.query(meal_ingredients).filter_by(MealID=meal_id).delete()
+    sess.flush()
+
+    created = []
+    for item in ingredients:
+        row = meal_ingredients(
+            MealID=meal_id,
+            name=item["name"],
+            quantity=item.get("quantity"),
+            unit=item.get("unit", "g"),
+            note=item.get("note", ""),
+        )
+        sess.add(row)
+        sess.flush()
+        created.append(row)
+
+    sess.commit()
+    return created
+
+
+def delete_meal_ingredients(sess: Session, meal_id: int) -> bool:
+    deleted = sess.query(meal_ingredients).filter_by(MealID=meal_id).delete()
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No ingredients found for this meal")
+    sess.commit()
+    return True
+    
+def _serialize_daily_log(daily_log: DailyLog) -> str:
+    return json.dumps({
+        "date": str(daily_log.log_date),
+        "trackers": [
+            {
+                "id":        t.id,
+                "name":      t.name,
+                "unit":      t.unit,
+                "goal":      t.goal,
+                "direction": t.direction,
+                "value":     round(t.value, 2),
+            }
+            for t in daily_log.trackers
+        ],
+    })
+
+
+def _deserialize_daily_log(data: str, log_date: date_type) -> DailyLog:
+    """Reconstruct a DailyLog from its JSON representation."""
+    parsed = json.loads(data)
+    trackers = []
+    for t in parsed.get("trackers", []):
+        trackers.append(Tracker(
+            id=t["id"],
+            name=t["name"],
+            unit=t["unit"],
+            goal=t.get("goal"),
+            direction=t.get("direction", "under"),
+            value=t.get("value", 0.0),
+        ))
+    dl = DailyLog(log_date=log_date, trackers=trackers)
+    return dl
+
+
+def get_or_create_daily_log(
+    sess: Session,
+    profile_id: int,
+    log_date: date_type,
+) -> DailyLog:
+    row = (
+        sess.query(daily_tracker_logs)
+        .filter_by(ProfileID=profile_id, log_date=log_date)
+        .first()
+    )
+    if row and row.tracker_data:
+        return _deserialize_daily_log(row.tracker_data, log_date)
+    return DailyLog.default()
+
+
+def save_daily_log(
+    sess: Session,
+    profile_id: int,
+    log_date: date_type,
+    daily_log: DailyLog,
+) -> None:
+    serialized = _serialize_daily_log(daily_log)
+
+    row = (
+        sess.query(daily_tracker_logs)
+        .filter_by(ProfileID=profile_id, log_date=log_date)
+        .first()
+    )
+    if row:
+        row.tracker_data = serialized
+    else:
+        row = daily_tracker_logs(
+            ProfileID=profile_id,
+            log_date=log_date,
+            tracker_data=serialized,
+        )
+        sess.add(row)
+
+    sess.commit()
+
+
+def get_daily_log(
+    sess: Session,
+    profile_id: int,
+    log_date: date_type,
+) -> dict | None:
+    daily_log = get_or_create_daily_log(sess, profile_id, log_date)
+    return daily_log.summary()
+
+def get_daily_logs_range(
+    sess: Session,
+    profile_id: int,
+    start_date: date_type,
+    end_date: date_type,
+) -> list[dict]:
+    rows = (
+        sess.query(daily_tracker_logs)
+        .filter_by(ProfileID=profile_id)
+        .filter(daily_tracker_logs.log_date >= start_date)
+        .filter(daily_tracker_logs.log_date <= end_date)
+        .order_by(daily_tracker_logs.log_date.asc())
+        .all()
+    )
+    results = []
+    for row in rows:
+        dl = _deserialize_daily_log(row.tracker_data, row.log_date)
+        results.append(dl.summary())
+    return results
+
+def delete_meal_log_entry(
+    sess: Session,
+    profile_id: int,
+    meal_id: int,
+    date,
+) -> bool:
+    entry = (
+        sess.query(session_meals)
+        .filter_by(ProfileID=profile_id, MealID=meal_id)
+        .filter(session_meals.date == date)
+        .order_by(session_meals.SessionMealID.desc())
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="No matching meal log entry found")
+    sess.delete(entry)
+    sess.commit()
+    return True
+
+
+def get_daily_meal_log(
+    sess: Session,
+    profile_id: int,
+    log_date: date_type,
+) -> list[dict]:
+    from datetime import datetime, timedelta
+
+    day_start = datetime.combine(log_date, datetime.min.time())
+    day_end   = datetime.combine(log_date + timedelta(days=1), datetime.min.time())
+
+    entries = (
+        sess.query(session_meals)
+        .filter_by(ProfileID=profile_id)
+        .filter(session_meals.date >= day_start)
+        .filter(session_meals.date < day_end)
+        .order_by(session_meals.date.asc())
+        .all()
+    )
+
+    results = []
+    for e in entries:
+        macro_row = sess.query(meal_macros).filter_by(MealID=e.MealID).first()
+        meal_row  = sess.query(Meals).filter_by(MealID=e.MealID).first()
+        multiplier = e.servings if e.servings is not None else 1.0
+
+        consumed = {}
         for field in ("calories", "protein", "fat", "carbs", "sugar", "fiber", "sodium"):
             base = getattr(macro_row, field, None) if macro_row else None
             consumed[field] = round(base * multiplier, 1) if base is not None else None
