@@ -176,6 +176,7 @@ class CreateProfileRequest(BaseModel):
     health_goals: str
     health_status: str
     calorie_goal: float
+    accepted_terms: bool | None
 
 class WeightConversionRequest(BaseModel):
     profileID: int 

@@ -249,6 +249,7 @@ export default function OnboardingScreen() {
   );
 
   // terms is in @/assets/toc.pdf, but react-native-pdf doesn't work for some reason, so using webview to display
+  // iframe if web tho bc webview ironically doesnt work on web :P
   const termsComponent = (
     <View style={styles.transparent}>
       {tocPdfComponent}

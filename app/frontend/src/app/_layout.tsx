@@ -63,6 +63,7 @@ import { Redirect, useSegments } from "expo-router";
 import { AccessibilityProvider, useAccessibility } from "@/core/accessibility";
 import { AuthProvider, useAuth } from "@/core/auth";
 import { UnitsProvider } from "@/core/conversions";
+import 'leaflet/dist/leaflet.css';
 
 export { ErrorBoundary } from "expo-router";
 

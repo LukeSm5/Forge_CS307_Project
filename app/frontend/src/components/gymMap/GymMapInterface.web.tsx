@@ -1,0 +1,191 @@
+import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+
+import { Text, View } from '@/components/Themed';
+import React, { useEffect, useState } from 'react';
+
+import * as Location from "expo-location";
+
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import { LatLngExpression } from 'leaflet';
+
+// idk what this does but apparently its important! so wtv
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+
+// Eventually gonna add .env file support, or something.
+const GOOGLE_API_KEY = "GOOGLE_API_KEY";
+
+export default function GymMapInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
+    const [location, setLocation] = useState<Location.LocationObjectCoords | undefined>(undefined);
+    const [gyms, setGyms] = useState([]);
+
+    async function getLocation() {
+        let { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted")
+            return;
+
+        let loc = await Location.getCurrentPositionAsync();
+        setLocation(loc.coords);
+
+        fetchNearbyGyms(loc.coords.latitude, loc.coords.longitude);
+    }
+
+    async function fetchNearbyGyms(lat: number, lng: number) {
+        const url =
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
+        `?location=${lat},${lng}` +
+        `&radius=3000` +
+        `&type=gym` +
+        `&key=${GOOGLE_API_KEY}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        setGyms(data.results);
+    };
+
+    useEffect(() => {
+        if (visible)
+            getLocation();
+        else
+            setVisible(false);
+    }, [visible]);
+
+    if (!visible)
+        return (<></>);
+
+    let mapComponent: React.JSX.Element;
+    if (!location) {
+        mapComponent = (<Text style={styles.title}>Location disabled.</Text>);
+    } else {
+        mapComponent = (
+            <MapContainer
+                {...({center: [location.latitude, location.longitude]} as any)}
+                zoom={14}
+                style={{ height: "400px", width: "100%", borderRadius: 10 }}
+            >
+                <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                {/* User marker */}
+                <Marker position={[location.latitude, location.longitude]}>
+                    <Popup>You</Popup>
+                </Marker>
+
+                {/* Gym markers */}
+                {gyms.map((gym) => (
+                    <Marker
+                        key={gym.place_id}
+                        position={[
+                            gym.geometry.location.lat,
+                            gym.geometry.location.lng
+                        ]}
+                    >
+                        <Popup>
+                            <strong>{gym.name}</strong><br />
+                            {gym.vicinity}
+                        </Popup>
+                    </Marker>
+                ))}
+            </MapContainer>
+        );
+    }
+
+    return (
+        <View style={styles.container} lightColor="#0007" darkColor="#fff7">
+            <View style={styles.popup}>
+                <Text style={styles.title}>Nearby Gyms</Text>
+                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+
+                {mapComponent}
+
+                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+                <TouchableOpacity style={styles.button} onPress={() => setVisible(false)}>
+                    <Text style={styles.buttonText}>{"Close Gym Search"}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    map: {
+        flex: 1
+    },
+    container: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+    },
+    popup: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '75%',
+        marginVertical: '3%',
+        borderRadius: '15px',
+        overflowX: 'hidden',
+        overflowY: 'scroll',
+        padding: '2%'
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    separator: {
+        marginVertical: 30,
+        height: 1,
+        width: '80%',
+    },
+    button: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        marginVertical: 10,
+    },
+    searchButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        width: '30%',
+        height: 60,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    searchResults: {
+        width: '80%',
+        height: '45%',
+        overflowX: 'hidden',
+        overflowY: 'scroll',
+        boxShadow: 'inset 3px 3px 10px #0007',
+        borderRadius: '10px',
+        marginBottom: 10,
+        padding: '2%'
+    },
+    questionContainer: {
+        alignItems: 'center',
+        marginHorizontal: 50,
+    },
+    questionText: {
+        fontSize: 17,
+        lineHeight: 24,
+        textAlign: 'center',
+    },
+});

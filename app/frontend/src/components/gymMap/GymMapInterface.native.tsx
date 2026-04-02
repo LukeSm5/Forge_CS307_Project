@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
@@ -50,6 +50,21 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
     let mapComponent: React.JSX.Element;
     if (!location) {
         mapComponent = (<Text style={styles.title}>Location disabled.</Text>);
+    } else if (Platform.OS === 'web') {
+        const mapUrl = `https://www.google.com/maps?q=${location.latitude},${location.longitude}&z=14&output=embed`;
+
+        mapComponent = (
+            <iframe
+                src={mapUrl}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    border: 0,
+                    borderRadius: 10,
+                }}
+                loading="lazy"
+            />
+        );
     } else {
         mapComponent = (<MapView
             style={styles.map}
