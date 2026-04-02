@@ -13,6 +13,7 @@ from app.core.db import (
     session_workouts, session_exercises,
     Exercises, Machines, Workouts, Splits,
     session_menu_meals, menu_meals,
+    session_meals, Meals, meal_ingredients, Ingredients,
     Profiles
 )
 
@@ -182,6 +183,57 @@ def menu_meal_history_text(db: Session, profile_id: int) -> str:
     return " ".join(menu_meal_session_text(db, s) for s in sessions)
 
 
+def at_home_meal_history_text(db: Session, profile_id: int) -> str:
+    """
+    Joins session_meals -> Meals -> meal_ingredients and formats at-home meal logs
+    into prompt-friendly text for recipe generation.
+    """
+    sessions = (
+        db.query(session_meals)
+        .filter(session_meals.ProfileID == profile_id)
+        .order_by(session_meals.date.desc())
+        .all()
+    )
+
+    if not sessions:
+        return "No at-home meal history logged."
+
+    meal_strings = []
+    for session in sessions:
+        meal = db.query(Meals).filter(Meals.MealID == session.MealID).first()
+        ingredient_rows = (
+            db.query(meal_ingredients, Ingredients.name)
+            .outerjoin(Ingredients, Ingredients.IngredientID == meal_ingredients.IngredientID)
+            .filter(meal_ingredients.MealID == session.MealID)
+            .order_by(meal_ingredients.IngredientID.asc())
+            .all()
+        )
+
+        meal_name = meal.name if meal else "Unknown Meal"
+        date_str = session.date.strftime("%Y-%m-%d") if session.date else "unknown date"
+        servings = session.servings if session.servings is not None else 1
+        ingredients = ", ".join(
+            (
+                f"{ingredient_name or f'ingredient {ingredient_row.IngredientID}'} ({ingredient_row.serving_size or 0})"
+                if ingredient_row.serving_size is not None
+                else f"{ingredient_name or f'ingredient {ingredient_row.IngredientID}'}"
+            )
+            for ingredient_row, ingredient_name in ingredient_rows
+        ) or "ingredients unavailable"
+        instructions = " ".join(
+            ingredient_row.instructions
+            for ingredient_row, _ in ingredient_rows
+            if ingredient_row.instructions
+        ) or "no instructions"
+        notes = session.notes or instructions
+
+        meal_strings.append(
+            f"{meal_name}, {date_str}, servings {servings}: ingredients {ingredients}. notes: {notes}"
+        )
+
+    return " ".join(meal_strings)
+
+
 def profile_prompt_text(db: Session, profile_id: int) -> str:
     """
     Formats profile characteristics from saved onboarding responses into string for LLM prompt
@@ -226,6 +278,53 @@ def tailor_exercise_prompt_text(db: Session, profile_id: int, payload: TailorExe
     My fitness history includes {workouts} 
     My ongoing session is: {payload.split_name} split {payload.date}, {payload.workout_name} workout, {payload.exercise_name} exercise, {payload.machine_name}. 
     Respond ONLY with a valid JSON object in this exact format, no extra text: {{"weight": <int in lbs>, "sets": <int>, "reps": <int>}}
+    """
+
+
+def generate_recipe_prompt_text(
+    db: Session,
+    profile_id: int,
+    meal_type: str | None = None,
+    goal: str | None = None,
+    cravings: str | None = None,
+    constraints: str | None = None,
+) -> str:
+    profile = profile_prompt_text(db, profile_id)
+    workouts = workout_history_text(db, profile_id)
+    menu_meals = menu_meal_history_text(db, profile_id)
+    at_home_meals = at_home_meal_history_text(db, profile_id)
+    meal_type_text = meal_type or "any meal type"
+    goal_text = goal or "use the profile goals"
+    cravings_text = cravings or "no specific cravings"
+    constraints_text = constraints or "no additional constraints"
+
+    return f"""
+    You are FORGE's nutrition coach. Build one practical recipe tailored to this user.
+
+    User profile: {profile}
+    Logged workout history: {workouts}
+    Logged restaurant meal history: {menu_meals}
+    Logged at-home meal history: {at_home_meals}
+    Today's date is {today()}.
+    Requested meal type: {meal_type_text}
+    User's immediate goal for this meal: {goal_text}
+    Current cravings or foods they want included: {cravings_text}
+    Constraints or foods to avoid: {constraints_text}
+
+    Use the logged meals to infer flavors, ingredients, meal size, and nutrition preferences.
+    Use the logged workouts and health goals to infer what kind of recovery or performance meal fits best.
+    Prefer ingredients or meal patterns already present in the user's history when possible.
+    Make the recipe directly responsive to the requested meal type, goal, cravings, and constraints.
+
+    Respond ONLY with a valid JSON object in this exact format, with no extra text:
+    {{
+      "title": "<short recipe name>",
+      "summary": "<1-2 sentence explanation of why this recipe fits the user>",
+      "ingredients": ["<ingredient 1>", "<ingredient 2>"],
+      "steps": ["<step 1>", "<step 2>"],
+      "based_on_meals": ["<logged meal or pattern 1>", "<logged meal or pattern 2>"],
+      "based_on_workouts": ["<workout insight 1>", "<workout insight 2>"]
+    }}
     """
 
 

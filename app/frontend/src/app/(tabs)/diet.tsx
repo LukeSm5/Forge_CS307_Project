@@ -51,7 +51,7 @@ import DietTracker, {
   undoMealMacros,
 } from '../macro_tracker';
 
-import { api } from '../../core/api'
+import { api, GeneratedRecipe } from '../../core/api'
 
 type FilterState = Partial<Omit<MealTagSet, 'dietary'>> & { dietary: Dietary[] };
 
@@ -321,8 +321,14 @@ export default function Diet() {
   );
 
   const [dietView, setDietView] = useState<'classic' | 'enhanced'>('enhanced');
-
-  const API_BASE_URL = 'http://localhost:8000';
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
+  const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
+  const [recipeModalVisible, setRecipeModalVisible] = useState(false);
+  const [recipePromptModalVisible, setRecipePromptModalVisible] = useState(false);
+  const [recipeMealType, setRecipeMealType] = useState('');
+  const [recipeGoal, setRecipeGoal] = useState('');
+  const [recipeCravings, setRecipeCravings] = useState('');
+  const [recipeConstraints, setRecipeConstraints] = useState('');
 
   useEffect(() => {
     setName(editing?.name ?? '');
@@ -390,6 +396,16 @@ export default function Diet() {
         ...tags,
         dietary: [...tags.dietary],
       },
+      macros: editing?.macros ?? {
+        calories: null,
+        protein: null,
+        fat: null,
+        carbs: null,
+        sugar: null,
+        fiber: null,
+        sodium: null,
+      },
+      ingredients: editing?.ingredients ?? [],
     };
 
     setSavedMeals((current) => {
@@ -715,6 +731,28 @@ export default function Diet() {
     ]);
   };
 
+  async function handleGenerateRecipe() {
+    setGeneratingRecipe(true);
+
+    try {
+      const result = await api.generateRecipe({
+        meal_type: recipeMealType.trim() || undefined,
+        goal: recipeGoal.trim() || undefined,
+        cravings: recipeCravings.trim() || undefined,
+        constraints: recipeConstraints.trim() || undefined,
+      });
+      setGeneratedRecipe(result);
+      setRecipePromptModalVisible(false);
+      setRecipeModalVisible(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to generate recipe.';
+      Alert.alert('Generate recipe failed', message);
+    } finally {
+      setGeneratingRecipe(false);
+    }
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.pageTitleRow}>
@@ -745,6 +783,23 @@ export default function Diet() {
             />
           </View>
       </View>
+
+      <SectionCard title="AI Recipe">
+        <Text style={styles.sectionDescription}>
+          Generate a recipe using this user&apos;s logged meals and workout history.
+        </Text>
+        <ForgeButton
+          onPress={() => setRecipePromptModalVisible(true)}
+          text={'Generate Recipe'}
+        />
+
+        {generatedRecipe ? (
+          <View style={styles.generatedRecipePreview}>
+            <Text style={styles.generatedRecipeTitle}>{generatedRecipe.title}</Text>
+            <Text style={styles.generatedRecipeSummary}>{generatedRecipe.summary}</Text>
+          </View>
+        ) : null}
+      </SectionCard>
 
       <SectionCard title="Macro Tracker">
         <DietTracker
@@ -1260,6 +1315,121 @@ export default function Diet() {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={recipePromptModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !generatingRecipe && setRecipePromptModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, styles.recipePromptCard]}>
+            <Text style={styles.modalTitle}>Recipe Preferences</Text>
+            <Text style={styles.modalSubtitle}>
+              Add a few details, then FORGE will use your logged meals and workouts to generate a recipe.
+            </Text>
+
+            <TextInput
+              value={recipeMealType}
+              onChangeText={setRecipeMealType}
+              placeholder="Meal type: breakfast, lunch, dinner, snack"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+            <TextInput
+              value={recipeGoal}
+              onChangeText={setRecipeGoal}
+              placeholder="Goal for this meal: high protein, cut calories, recovery"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+            <TextInput
+              value={recipeCravings}
+              onChangeText={setRecipeCravings}
+              placeholder="Cravings or foods you want included"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+            <TextInput
+              value={recipeConstraints}
+              onChangeText={setRecipeConstraints}
+              placeholder="Constraints or foods to avoid"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+
+            <View style={styles.modalButtonRow}>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={() => setRecipePromptModalVisible(false)}
+                  text="Cancel"
+                />
+              </View>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={() => { void handleGenerateRecipe(); }}
+                  text={generatingRecipe ? 'Generating...' : 'Generate'}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={recipeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRecipeModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, styles.recipeModalCard]}>
+            <Text style={styles.modalTitle}>{generatedRecipe?.title ?? 'Generated Recipe'}</Text>
+
+            {generatedRecipe ? (
+              <ScrollView
+                style={styles.recipeScroll}
+                contentContainerStyle={styles.recipeScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.recipeSectionText}>{generatedRecipe.summary}</Text>
+
+                <Text style={styles.recipeSectionTitle}>Ingredients</Text>
+                {generatedRecipe.ingredients.map((ingredient) => (
+                  <Text key={ingredient} style={styles.recipeListItem}>
+                    • {ingredient}
+                  </Text>
+                ))}
+
+                <Text style={styles.recipeSectionTitle}>Steps</Text>
+                {generatedRecipe.steps.map((step, index) => (
+                  <Text key={`${index + 1}-${step}`} style={styles.recipeListItem}>
+                    {index + 1}. {step}
+                  </Text>
+                ))}
+
+                <Text style={styles.recipeSectionTitle}>Based On Meals</Text>
+                {generatedRecipe.based_on_meals.map((meal, index) => (
+                  <Text key={`${index + 1}-${meal}`} style={styles.recipeListItem}>
+                    • {meal}
+                  </Text>
+                ))}
+
+                <Text style={styles.recipeSectionTitle}>Based On Workouts</Text>
+                {generatedRecipe.based_on_workouts.map((workout, index) => (
+                  <Text key={`${index + 1}-${workout}`} style={styles.recipeListItem}>
+                    • {workout}
+                  </Text>
+                ))}
+              </ScrollView>
+            ) : null}
+
+            <View style={styles.modalButtonRow}>
+              <View style={styles.modalButtonFull}>
+                <ForgeButton onPress={() => setRecipeModalVisible(false)} text="Close" />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1326,6 +1496,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     marginTop: 4,
+  },
+  sectionDescription: {
+    color: C?.muted ?? '#474d56',
+    fontSize: 14,
+    lineHeight: 20,
   },
   pillWrap: {
     flexDirection: 'row',
@@ -1677,5 +1852,55 @@ const styles = StyleSheet.create({
     color: '#2e2f30',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  generatedRecipePreview: {
+    gap: 6,
+    backgroundColor: '#fff7ed',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  generatedRecipeTitle: {
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  generatedRecipeSummary: {
+    color: '#374151',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  recipeModalCard: {
+    maxHeight: '80%',
+  },
+  recipePromptCard: {
+    maxWidth: 460,
+  },
+  recipeScroll: {
+    maxHeight: 420,
+  },
+  recipeScrollContent: {
+    gap: 8,
+    paddingBottom: 4,
+  },
+  recipeSectionTitle: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  recipeSectionText: {
+    color: '#374151',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  recipeListItem: {
+    color: '#374151',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButtonFull: {
+    flex: 1,
   },
 });

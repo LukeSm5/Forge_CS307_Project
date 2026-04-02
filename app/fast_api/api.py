@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
 from datetime import timezone, datetime
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from openai import OpenAI
 import os
 import json
@@ -14,6 +14,7 @@ import dotenv
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
+from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
@@ -48,6 +49,26 @@ app.add_middleware(
 )
 
 session.Base.metadata.create_all(bind=engine)
+
+
+def ensure_dev_schema() -> None:
+    inspector = inspect(engine)
+    try:
+        profile_columns = {column["name"] for column in inspector.get_columns("Profiles")}
+        menu_meal_columns = {column["name"] for column in inspector.get_columns("menu_meals")}
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "calorie_goal" not in profile_columns:
+            connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN calorie_goal FLOAT'))
+        if "chicken" not in menu_meal_columns:
+            connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN chicken BOOLEAN'))
+        if "beef" not in menu_meal_columns:
+            connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
+
+
+ensure_dev_schema()
 
 
 @app.get("/health")
@@ -283,6 +304,140 @@ class RecalibrateCaloriesResponse(BaseModel):
     calorie_goal: int
 
 
+class IngestResponse(BaseModel):
+    namespace: str
+    ingested_count: int
+
+
+class VectorQueryRequest(BaseModel):
+    query: str
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class VectorQueryMatch(BaseModel):
+    doc_id: str
+    score: float
+    text: str
+    metadata: Dict
+
+
+class ProfileContextResponse(BaseModel):
+    profile_id: int
+    context: str
+
+
+class QuickWorkoutRequest(BaseModel):
+    profile_id: int
+    focus: Optional[str] = None
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class QuickWorkoutExercise(BaseModel):
+    exercise_id: int
+    exercise_name: str
+    machine_id: Optional[int] = None
+    machine_name: Optional[str] = None
+    sets: int
+    reps: int
+    weight: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class QuickWorkoutResponse(BaseModel):
+    profile_id: int
+    workout_name: str
+    profile_context: str
+    profile_matches: List[VectorQueryMatch]
+    prompt: str
+    source_matches: List[VectorQueryMatch]
+    exercises: List[QuickWorkoutExercise]
+
+
+class GenerateRecipeResponse(BaseModel):
+    title: str
+    summary: str
+    ingredients: List[str]
+    steps: List[str]
+    based_on_meals: List[str]
+    based_on_workouts: List[str]
+    prompt: str
+
+
+class GenerateRecipeRequest(BaseModel):
+    meal_type: Optional[str] = None
+    goal: Optional[str] = None
+    cravings: Optional[str] = None
+    constraints: Optional[str] = None
+
+
+def _get_openai_client() -> OpenAI | None:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
+
+
+def _fallback_recipe_response(
+    db: Session,
+    profile_id: int,
+    recipe_prompt: str,
+    payload: GenerateRecipeRequest,
+) -> GenerateRecipeResponse:
+    logged_menu_meals = (
+        db.query(session_menu_meals, menu_meals)
+        .join(menu_meals, menu_meals.MenuMealID == session_menu_meals.MenuMealID)
+        .filter(session_menu_meals.ProfileID == profile_id)
+        .order_by(session_menu_meals.date.desc())
+        .limit(2)
+        .all()
+    )
+    logged_workouts = (
+        db.query(session_workouts, Workouts)
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == profile_id)
+        .order_by(session_workouts.date.desc())
+        .limit(2)
+        .all()
+    )
+
+    meal_names = [meal_row.product for _, meal_row in logged_menu_meals if meal_row and meal_row.product]
+    workout_names = [workout_row.name for _, workout_row in logged_workouts if workout_row and workout_row.name]
+
+    primary_meal = meal_names[0] if meal_names else "your recent logged meals"
+    secondary_meal = meal_names[1] if len(meal_names) > 1 else "balanced recovery nutrition"
+    primary_workout = workout_names[0] if workout_names else "your recent workouts"
+    requested_meal_type = payload.meal_type or "meal"
+    requested_goal = payload.goal or "your current goals"
+    cravings = payload.cravings or "ingredients you already gravitate toward"
+    constraints = payload.constraints or "no extra restrictions"
+
+    return GenerateRecipeResponse(
+        title=f"Forge {requested_meal_type.title()} Bowl",
+        summary=(
+            f"This recipe is based on {primary_meal}, tuned to support {primary_workout}, and shaped around {requested_goal}. "
+            f"It also accounts for {cravings} while respecting {constraints}."
+        ),
+        ingredients=[
+            "1 cup cooked rice",
+            "6 oz chicken breast",
+            "1 cup roasted vegetables",
+            "1/2 avocado",
+            "1 tbsp olive oil",
+            "Salt, pepper, and garlic to taste",
+        ],
+        steps=[
+            "Cook the rice and season the chicken with salt, pepper, and garlic.",
+            "Pan-sear or bake the chicken until fully cooked, then slice it.",
+            "Roast or saute the vegetables until tender.",
+            "Assemble the rice, chicken, vegetables, and avocado in a bowl.",
+            "Finish with olive oil and adjust seasoning before serving.",
+        ],
+        based_on_meals=[primary_meal, secondary_meal],
+        based_on_workouts=[primary_workout],
+        prompt=recipe_prompt,
+    )
+
+
 def _send_account_update_notification(
     notifier: NotificationService,
     *,
@@ -305,7 +460,11 @@ def _send_account_update_notification(
         return False
 
 @app.post("/auth/create_account", response_model=TokenResponse)
-def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db)):
+def create_account(
+    payload: CreateAccountRequest,
+    db: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
+):
     try:
         new_account = am.register_user(
             db,
@@ -335,6 +494,12 @@ def create_account(payload: CreateAccountRequest, db: Session = Depends(get_db))
     db.add(new_account)
     db.commit()
 
+    _send_account_update_notification(
+        notifier,
+        account=new_account,
+        update_type="account created",
+    )
+
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
 
@@ -355,7 +520,6 @@ def create_profile(user_id: int, payload: CreateProfileRequest, db: Session = De
     else:
         profile = Profiles(
             ProfileID=user_id,
-            metricOrImperial=False,
             age=payload.age,
             gender=payload.gender,
             height_in=payload.height_in,
@@ -550,7 +714,9 @@ def logout(me: Accounts = Depends(get_current_account), db: Session = Depends(ge
 
 @app.post("/auth/reset_password")
 async def resetPasswordEndpoint(
-    request: ResetPasswordRequest, session: Session = Depends(get_db)
+    request: ResetPasswordRequest,
+    session: Session = Depends(get_db),
+    notifier: NotificationService = Depends(get_notification_service),
 ):
     user = am.get_user_by_email(session, Accounts, request.user_email)
     if not user:
@@ -558,7 +724,18 @@ async def resetPasswordEndpoint(
     
     try:
         resetPassword(user, request.new_password, session)
-        return {"message": "Password reset successful"}
+        notification_sent = _send_account_update_notification(
+            notifier,
+            account=user,
+            update_type="password reset",
+        )
+        return {
+            "message": (
+                "Password reset successful and notification sent"
+                if notification_sent
+                else "Password reset successful (notification failed)"
+            )
+        }
     except TypeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
@@ -577,6 +754,132 @@ def resetPassword(user, newPassword, session):
     user.refresh_token_hash = None
     user.refresh_expires_at = None
     session.commit()
+
+
+@app.get("/profiles/{profile_id}/context", response_model=ProfileContextResponse)
+def get_profile_context(profile_id: int, db: Session = Depends(get_db)):
+    return ProfileContextResponse(
+        profile_id=profile_id,
+        context=ai_retrieval.build_profile_context(db, profile_id),
+    )
+
+
+@app.post("/ai/ingest/workouts", response_model=IngestResponse)
+def ingest_workout_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "workouts")
+    return IngestResponse(namespace="workouts", ingested_count=ingested_count)
+
+
+@app.post("/ai/ingest/meals", response_model=IngestResponse)
+def ingest_meal_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "meals")
+    return IngestResponse(namespace="meals", ingested_count=ingested_count)
+
+
+@app.post("/ai/ingest/profiles", response_model=IngestResponse)
+def ingest_profile_vectors(db: Session = Depends(get_db)):
+    ingested_count = ai_retrieval.ingest_namespace(db, "profiles")
+    return IngestResponse(namespace="profiles", ingested_count=ingested_count)
+
+
+@app.post("/ai/query/workouts", response_model=List[VectorQueryMatch])
+def query_workout_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "workouts", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/query/meals", response_model=List[VectorQueryMatch])
+def query_meal_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "meals", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/query/profiles", response_model=List[VectorQueryMatch])
+def query_profile_vectors(payload: VectorQueryRequest, db: Session = Depends(get_db)):
+    matches = ai_retrieval.query_namespace(db, "profiles", payload.query, payload.top_k)
+    return [VectorQueryMatch(**match) for match in matches]
+
+
+@app.post("/ai/quick-workout", response_model=QuickWorkoutResponse)
+def generate_quick_workout(payload: QuickWorkoutRequest, db: Session = Depends(get_db)):
+    generated = ai_retrieval.generate_quick_workout(
+        db,
+        profile_id=payload.profile_id,
+        focus=payload.focus,
+        top_k=payload.top_k,
+    )
+    return QuickWorkoutResponse(**generated)
+
+
+@app.post("/ai/generate-recipe", response_model=GenerateRecipeResponse)
+def generate_recipe(
+    payload: GenerateRecipeRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    recipe_prompt = prompt.generate_recipe_prompt_text(
+        db,
+        me.UserID,
+        meal_type=payload.meal_type,
+        goal=payload.goal,
+        cravings=payload.cravings,
+        constraints=payload.constraints,
+    )
+    client = _get_openai_client()
+
+    if client is None:
+        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
+
+    try:
+        response = client.responses.create(
+            model=os.getenv("OPENAI_RECIPE_MODEL", "gpt-4.1-mini"),
+            input=recipe_prompt,
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "forge_recipe",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "ingredients": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "steps": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "based_on_meals": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "based_on_workouts": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": [
+                            "title",
+                            "summary",
+                            "ingredients",
+                            "steps",
+                            "based_on_meals",
+                            "based_on_workouts",
+                        ],
+                        "additionalProperties": False,
+                    },
+                }
+            },
+        )
+        parsed = json.loads(response.output_text)
+        parsed["prompt"] = recipe_prompt
+        return GenerateRecipeResponse(**parsed)
+    except Exception:
+        logger.exception("Recipe generation failed for profile_id=%s", me.UserID)
+        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
 
 
 @app.delete("/accounts/{user_id}")

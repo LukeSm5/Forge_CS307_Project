@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import CardioButton from '@/components/cardioSearch/CardioButton';
 
 import { useUnits } from '@/core/conversions';
+import { useAppColorScheme } from '@/core/accessibility';
 
 
 type LoggedWorkout = {
@@ -56,6 +57,19 @@ export default function WorkoutTabScreen() {
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const { isImperial } = useUnits();
+  const scheme = useAppColorScheme() ?? 'light';
+  const isDark = scheme === 'dark';
+  const palette = {
+    background: isDark ? '#0b0f14' : '#ffffff',
+    surface: isDark ? '#131922' : '#f8fafc',
+    surfaceAlt: isDark ? '#111827' : '#ffffff',
+    border: isDark ? '#243041' : '#dbe3f0',
+    mutedBorder: isDark ? '#334155' : '#cbd5e1',
+    text: isDark ? '#f8fafc' : '#0f172a',
+    mutedText: isDark ? '#94a3b8' : '#64748b',
+    splitSurface: isDark ? '#0f172a' : '#eff6ff',
+    splitBorder: isDark ? '#1d4ed8' : '#93c5fd',
+  };
 
   const router = useRouter();
 
@@ -309,19 +323,19 @@ export default function WorkoutTabScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>My Workouts</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <FontAwesome name="search" size={14} color="#64748b" />
+      <View style={[styles.searchContainer, { borderColor: palette.border, backgroundColor: palette.surfaceAlt }]}>
+        <FontAwesome name="search" size={14} color={palette.mutedText} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: palette.text }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search workouts"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={palette.mutedText}
           autoCorrect={false}
           autoCapitalize="none"
           clearButtonMode="while-editing"
@@ -344,9 +358,9 @@ export default function WorkoutTabScreen() {
         )}
 
         {!loadingHistory && !historyError && groupedWorkouts.map((group) => (
-          <View key={`${group.splitName}-${group.date}`} style={styles.splitCard}>
-            <Text style={styles.splitTitle}>{group.splitName}</Text>
-            <Text style={styles.splitDate}>{group.date}</Text>
+          <View key={`${group.splitName}-${group.date}`} style={[styles.splitCard, { borderColor: palette.splitBorder, backgroundColor: palette.splitSurface }]}>
+            <Text style={[styles.splitTitle, { color: palette.text }]}>{group.splitName}</Text>
+            <Text style={[styles.splitDate, { color: palette.mutedText }]}>{group.date}</Text>
 
             {group.sessions.map((log) => {
               const isExpanded = expandedLogId === log.id;
@@ -354,26 +368,29 @@ export default function WorkoutTabScreen() {
               const elapsed = elapsedByLogSeconds[log.id] ?? 0;
               const sessionState = sessionStateByLog[log.id] ?? 'idle';
               return (
-                <View key={log.id} style={styles.logCard}>
+                <View key={log.id} style={[styles.logCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
                   <Pressable style={styles.logHeaderRow} onPress={() => setExpandedLogId(isExpanded ? null : log.id)}>
                     <View>
-                      <Text style={styles.logTitle}>{log.title}</Text>
-                      <Text style={styles.logDate}>{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
+                      <Text style={[styles.logTitle, { color: palette.text }]}>{log.title}</Text>
+                      <Text style={[styles.logDate, { color: palette.mutedText }]}>{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
                     </View>
-                    <FontAwesome name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color="#64748b" />
+                    <FontAwesome name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={palette.mutedText} />
                   </Pressable>
 
                   {isExpanded && (
-                    <View style={styles.exerciseList}>
-                      <Text style={styles.exerciseHeading}>Exercises in this log</Text>
+                    <View style={[styles.exerciseList, { borderTopColor: palette.border }]}>
+                      <Text style={[styles.exerciseHeading, { color: palette.text }]}>Exercises in this log</Text>
                       {log.exercises.map((exercise) => (
-                        <Text key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`} style={styles.exerciseItem}>
+                        <Text
+                          key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
+                          style={[styles.exerciseItem, { color: palette.text }]}
+                        >
                           - {formatExercise(exercise, isImperial)}
                         </Text>
                       ))}
                       <View style={styles.timerRow}>
                         <View style={styles.leftTimerRow}>
-                          <Text style={styles.timerText}>Timer: {formatDuration(elapsed)}</Text>
+                          <Text style={[styles.timerText, { color: palette.text }]}>Timer: {formatDuration(elapsed)}</Text>
                           <ForgeButton
                             text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
                             theme="danger"
@@ -418,7 +435,12 @@ export default function WorkoutTabScreen() {
 
       <View style={styles.actionsRow}>
         <ForgeButton text="Log Workout" theme="primary" style={styles.actionButton} onPress={handleLogWorkout} />
-        <ForgeButton text="Generate Workout" theme="teal" style={styles.actionButton} onPress={handleGenerateWorkout} />
+        <ForgeButton
+          text="Generate Workout"
+          theme="teal"
+          style={styles.actionButton}
+          onPress={handleGenerateWorkout}
+        />
       </View>
       <View style={styles.actionsRow}>
         <CardioButton />
@@ -426,44 +448,51 @@ export default function WorkoutTabScreen() {
 
       <Modal visible={!!editingLog} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{editingLog?.title}</Text>
-            <Text style={styles.modalSubtitle}>Edit exercises, then add this workout log.</Text>
+          <View style={[styles.modalCard, { backgroundColor: palette.surfaceAlt }]}>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>{editingLog?.title}</Text>
+            <Text style={[styles.modalSubtitle, { color: palette.mutedText }]}>Edit exercises, then add this workout log.</Text>
 
             <ScrollView style={styles.modalScroll}>
               {exerciseDrafts.map((draft, index) => (
-                <View key={`${draft.exercise_id}-${draft.machine_id}-${index}`} style={styles.modalExerciseCard}>
-                  <Text style={styles.exerciseCardTitle}>{draft.exercise_name}</Text>
+                <View
+                  key={`${draft.exercise_id}-${draft.machine_id}-${index}`}
+                  style={[styles.modalExerciseCard, { borderColor: palette.border, backgroundColor: palette.surface }]}
+                >
+                  <Text style={[styles.exerciseCardTitle, { color: palette.text }]}>{draft.exercise_name}</Text>
 
                   <View style={styles.twoCols}>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
                       keyboardType="number-pad"
                       value={draft.sets}
                       onChangeText={(value) => updateDraft(index, { sets: value })}
                       placeholder="Sets"
+                      placeholderTextColor={palette.mutedText}
                     />
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
                       keyboardType="number-pad"
                       value={draft.reps}
                       onChangeText={(value) => updateDraft(index, { reps: value })}
                       placeholder="Reps"
+                      placeholderTextColor={palette.mutedText}
                     />
                   </View>
 
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
                     keyboardType="numeric"
                     value={draft.weight}
                     onChangeText={(value) => updateDraft(index, { weight: value })}
                     placeholder="Weight (optional)"
+                    placeholderTextColor={palette.mutedText}
                   />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
                     value={draft.notes}
                     onChangeText={(value) => updateDraft(index, { notes: value })}
                     placeholder="Notes (optional)"
+                    placeholderTextColor={palette.mutedText}
                   />
                 </View>
               ))}
@@ -485,9 +514,9 @@ export default function WorkoutTabScreen() {
 
       <Modal visible={!!deleteConfirmLog} animationType="fade" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.confirmCard}>
-            <Text style={styles.confirmTitle}>Delete workout?</Text>
-            <Text style={styles.confirmText}>
+          <View style={[styles.confirmCard, { backgroundColor: palette.surfaceAlt }]}>
+            <Text style={[styles.confirmTitle, { color: palette.text }]}>Delete workout?</Text>
+            <Text style={[styles.confirmText, { color: palette.mutedText }]}>
               {deleteConfirmLog
                 ? `Delete "${deleteConfirmLog.title}" from your workout history?`
                 : 'Delete this workout from your workout history?'}
@@ -762,7 +791,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     color: '#334155',
   },
-
   splitCard: {
     borderWidth: 1,
     borderColor: '#93c5fd',

@@ -35,7 +35,16 @@ export default function TabLayout() {
           height: 70,
           paddingBottom: 8,
           paddingTop: 8,
+          backgroundColor: Schemes[colorScheme ?? 'light'].background,
+          borderTopColor: colorScheme === 'dark' ? '#1f2937' : '#e5e7eb',
         },
+        tabBarItemStyle: {
+          backgroundColor: Schemes[colorScheme ?? 'light'].background,
+        },
+        headerStyle: {
+          backgroundColor: Schemes[colorScheme ?? 'light'].background,
+        },
+        headerTintColor: Schemes[colorScheme ?? 'light'].text,
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
