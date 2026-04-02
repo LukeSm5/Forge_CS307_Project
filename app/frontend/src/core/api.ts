@@ -310,6 +310,10 @@ ${e.prompt}
   getTailoredExercise: async (payload: TailorExerciseRequest): Promise<TailoredExercise> => {
     return post<TailoredExercise>('/tailor-exercise', payload);
   },
+
+  recalibrateCalories: async (payload: RecalibrateCaloriesRequest): Promise<RecalibrateCaloriesResponse> => {
+    return post<RecalibrateCaloriesResponse>('/recalibrate-calories', payload);
+  },
 };
 
 export type User = {
@@ -519,5 +523,15 @@ export type TailorExerciseRequest = {
   workout_name: string;
   exercise_name: string;
   machine_name: string;
+};
+
+export type RecalibrateCaloriesRequest = {
+  current_calorie_goal?: number | null;
+  consumed_calories: number;
+  remaining_calories?: number | null;
+};
+
+export type RecalibrateCaloriesResponse = {
+  calorie_goal: number;
 };
 

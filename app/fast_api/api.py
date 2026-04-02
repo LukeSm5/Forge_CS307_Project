@@ -11,7 +11,7 @@ import json
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
-from app.core.prompt import tailor_exercise_prompt_text
+from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
 from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
@@ -265,6 +265,15 @@ class SessionMenuMealOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RecalibrateCaloriesRequest(BaseModel):
+    current_calorie_goal: int | None = None
+    consumed_calories: int
+    remaining_calories: int | None = None
+
+class RecalibrateCaloriesResponse(BaseModel):
+    calorie_goal: int
 
 
 def _send_account_update_notification(
@@ -1108,7 +1117,7 @@ def tailor_exercise(
         text={
             "format": {
                 "type": "json_schema",
-                "name": "exercise_numbers",
+                "name": "my_exercise_numbers",
                 "strict": True,
                 "schema": {
                     "type": "object",
@@ -1126,14 +1135,46 @@ def tailor_exercise(
 
     parsed = json.loads(response.output_text)
 
-    return TailorExerciseResponse(
-        weight=int(parsed["weight"]),
-        sets=int(parsed["sets"]),
-        reps=int(parsed["reps"]),
-    )
+    return TailorExerciseResponse(weight=int(parsed["weight"]), sets=int(parsed["sets"]), reps=int(parsed["reps"]))
     """
 
     return TailorExerciseResponse(weight=45, sets=4, reps=8) 
+
+
+@app.post("/recalibrate-calories", response_model=RecalibrateCaloriesResponse)
+def recalibrate_calories(
+    payload: RecalibrateCaloriesRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    prompt = calorie_goal_prompt_text(db, me.UserID, payload)
+
+    response = llm.responses.create(
+        model="gpt-5",
+        input=prompt,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "my_calorie_goal",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "calorie_goal": {"type": "number"}
+                    },
+                    "required": ["calorie_goal"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    )
+
+    parsed = json.loads(response.output_text)
+
+    return RecalibrateCaloriesResponse(calorie_goal=int(parsed["calorie_goal"]))
+    """
+    return RecalibrateCaloriesResponse(calorie_goal=2500)
 
 if __name__ == "__main__":
     import uvicorn

@@ -211,6 +211,7 @@ def calorie_goal_prompt_text(db: Session, profile_id: int) -> str:
     You are a personal fitness coach tasked with providing specific advice to a profile: {profile}
     My fitness history includes {workouts} 
     My diet history includes {menu_meals}. 
+    My current calorie goal is {payload.current_calorie_goal}, I've consumed {payload.consumed_calories} calories with {payload.remaining_calories} remaining. 
     Today's date is {today()}. Using all of this information that I've given you, do think my daily calorie goal should be updated? If so, what should it change to? 
     Respond ONLY with a valid JSON object in this exact format, no extra text: {{"calorie_goal": <int in kcal>}}
     """
