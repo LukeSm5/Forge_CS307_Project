@@ -213,6 +213,42 @@ export const api = {
   deleteLoggedMenuMeal: async (sessionId: number): Promise<void> => {
     return del(`/session-menu-meals/${sessionId}`);
   },
+  
+  machineAlternative: async (e: AltMachEvent): Promise<AltMachResponse[]> => {
+    // Prompt LLM with user object goals and exercise name
+    // LLM returns a list of AltMachResponse[]
+    const usr = await api.me();
+    if (typeof usr === "undefined")
+      throw new Error("User not signed in.");
+    
+    const responses = JSON.parse((await api.mePrompt({ prompt: `
+The user is requesting a list of alternatives for the exercise ${e.exercise}. This includes
+machines, free weight exercises, bodyweight exercises, etc. Please return an array of JSON objects
+formatted as follows:
+{
+  name: string, // The name of the alternative exercise
+  desc: string, // A brief description of the alternative exercise and how it compares to the original exercise
+}
+
+For example, if the user wants a dumbell bicep curls alternative, you may return
+[
+      {
+        name: "Barbell Bicep Curls",
+        desc: "A similar exercise that also targets the biceps, but allows for heavier weight and more stability. Performed using a barbell and curling, similar to dumbbells."
+      },
+      {
+        name: "Cable Bicep Curls",
+        desc: "This exercise also targets the biceps and provides constant tension throughout the movement, which can lead to increased muscle activation. Performed on a cable stack with a straight handle."
+      }
+]
+
+Be sure to include a BRIEF, but precise description of how the alternative exercise compares to the original exercise and how to perform it. The user will use this information to decide which alternative to do, so it should be informative and helpful.
+Return a maximum of 5 exercises, and at least 2.
+Since the user is requesting an alternative, assume they are not looking for something highly difficult, so avoid exercises with high risks
+of injury or technical difficulty, i.e. deadlift, clean and jerk, snatch, etc.
+      `})).text);
+    return responses;
+  },
 
   logMenuMeal: async (
     menuMealId: number,
@@ -366,6 +402,15 @@ export type SearchCardioMachineResponse = {
 
 export type SearchCardioMachineEvent = {
   desc: string
+};
+
+export type AltMachResponse = {
+  name: string,
+  desc: string,
+};
+
+export type AltMachEvent = {
+  exercise: string
 };
 
 export type ExerciseLookupRow = {
