@@ -17,6 +17,7 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
 
     function getLineData(): lineDataItem[] {
         const lineData: lineDataItem[] = [];
+        console.log(progression)
         const [ present, future ] = progression;
 
         for (let i = Math.max(0, present.time.length - 5); i < present.time.length; i++)
@@ -34,7 +35,7 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
         return lineData;
     }
 
-    if (!visible)
+    if (!visible || !progression)
         return (<></>);
 
     return (
@@ -48,6 +49,7 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
                     overflow: 'visible'
                 }}>
                     <LineChart
+                        disableScroll
                         initialSpacing={20}
                         endSpacing={10}
                         data={getLineData()}
