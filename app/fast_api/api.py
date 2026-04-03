@@ -1465,8 +1465,14 @@ def recalibrate_calories(
     )
 
     parsed = json.loads(response.output_text)
+    new_goal = float(parsed["calorie_goal"])
+    
+    profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
+    profile.calorie_goal = new_goal
+    db.commit()
+    db.refresh(profile)
 
-    return RecalibrateCaloriesResponse(calorie_goal=float(parsed["calorie_goal"]))
+    return RecalibrateCaloriesResponse(calorie_goal=new_goal)
 
 if __name__ == "__main__":
     import uvicorn
