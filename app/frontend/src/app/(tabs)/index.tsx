@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -85,9 +86,13 @@ function parseTimeStringToDate(time?: string) {
 
 export default function CalendarScreen() {
   const today = new Date().toISOString().slice(0, 10);
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 430;
 
   const [selectedDate, setSelectedDate] = useState(today);
-  const [eventsByDate, setEventsByDate] = useState<Record<string, CalendarItem[]>>({});
+  const [eventsByDate, setEventsByDate] = useState<
+    Record<string, CalendarItem[]>
+  >({});
   const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -105,7 +110,6 @@ export default function CalendarScreen() {
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isWeekly, setIsWeekly] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -189,7 +193,7 @@ export default function CalendarScreen() {
     setExtraExercises(
       (item.exercises ?? []).map((exercise) => ({
         ...exercise,
-      }))
+      })),
     );
     setEditingWorkoutId(item.id);
     setIsAddOpen(true);
@@ -204,7 +208,7 @@ export default function CalendarScreen() {
     if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
       Alert.alert(
         "Missing exercise info",
-        "Enter exercise name, sets, and reps before adding it."
+        "Enter exercise name, sets, and reps before adding it.",
       );
       return;
     }
@@ -239,10 +243,14 @@ export default function CalendarScreen() {
     const exercises: ExerciseItem[] = [...extraExercises];
 
     if (exerciseName.trim() || exerciseSets.trim() || exerciseReps.trim()) {
-      if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
+      if (
+        !exerciseName.trim() ||
+        !exerciseSets.trim() ||
+        !exerciseReps.trim()
+      ) {
         Alert.alert(
           "Incomplete exercise",
-          "Finish the current exercise or clear it before saving."
+          "Finish the current exercise or clear it before saving.",
         );
         return;
       }
@@ -271,7 +279,7 @@ export default function CalendarScreen() {
                   id: exercise.id || `${Date.now()}-${index}`,
                 })),
               }
-            : item
+            : item,
         ),
       };
     });
@@ -295,7 +303,7 @@ export default function CalendarScreen() {
       if (!Number.isFinite(parsedWeeks) || parsedWeeks < 1) {
         Alert.alert(
           "Invalid repeat length",
-          "Please enter a valid number of weeks."
+          "Please enter a valid number of weeks.",
         );
         return;
       }
@@ -306,10 +314,14 @@ export default function CalendarScreen() {
     const exercises: ExerciseItem[] = [...extraExercises];
 
     if (exerciseName.trim() || exerciseSets.trim() || exerciseReps.trim()) {
-      if (!exerciseName.trim() || !exerciseSets.trim() || !exerciseReps.trim()) {
+      if (
+        !exerciseName.trim() ||
+        !exerciseSets.trim() ||
+        !exerciseReps.trim()
+      ) {
         Alert.alert(
           "Incomplete exercise",
-          "Finish the current exercise or clear it before saving."
+          "Finish the current exercise or clear it before saving.",
         );
         return;
       }
@@ -370,26 +382,6 @@ export default function CalendarScreen() {
       return copy;
     });
   }
-  function generateWeeklyReport() {
-      let totalLifts = 0; 
-      let totalDuration = 0;
-      let maxWeight = 0;
-      let muscleGroupMostHit = "Muscle";
-      let muscleGroupLeastHit = "Muscle";
-      let workoutStreak = 0;
-      let report = `Weekly Report:\nTotal Lifts: ${totalLifts}\nAverage Lift Duration: ${totalDuration} mins\nMax Weight Lifted: ${maxWeight} lbs\nMost Hit Muscle Group: ${muscleGroupMostHit}\nLeast Hit Muscle Group: ${muscleGroupLeastHit}\nWorkout Streak: ${workoutStreak} days`;
-      return report;
-  }
-  function generateMonthlyReport() {
-      let totalLifts = 1;
-      let totalDuration = 0;
-      let maxWeight = 0;
-      let muscleGroupMostHit = "Muscle";
-      let muscleGroupLeastHit = "Muscle";
-      let workoutStreak = 0;
-      let report = `Monthly Report:\nTotal Lifts: ${totalLifts}\nAverage Lift Duration: ${totalDuration} mins\nMax Weight Lifted: ${maxWeight} lbs\nMost Hit Muscle Group: ${muscleGroupMostHit}\nLeast Hit Muscle Group: ${muscleGroupLeastHit}\nWorkout Streak: ${workoutStreak} days`;
-      return report;
-  }
 
   return (
     <View style={styles.container}>
@@ -401,23 +393,47 @@ export default function CalendarScreen() {
         enableSwipeMonths
       />
 
-      <View style={styles.rowBetween}>
+      <View style={styles.actionsSection}>
         <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
-        <Pressable
-          style={[styles.addButton, { backgroundColor: '#8e44ad' }]}
-          onPress={() => { setIsReportOpen(true), setIsWeekly(true); }}
+
+        <View
+          style={[styles.actionsRow, isSmallScreen && styles.actionsRowSmall]}
         >
-        <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
-      </Pressable>
-      <Pressable
-          style={[styles.addButton, { backgroundColor: '#81ab33' }]}
-          onPress={() => { setIsReportOpen(true); setIsWeekly(false);}}
-        >
-        <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
-      </Pressable>
-        <Pressable style={styles.addButton} onPress ={openAdd}>
-          <Text style={styles.addButtonText}>+ Add workout</Text>
-        </Pressable>
+          <Pressable
+            style={[
+              styles.addButton,
+              styles.actionButton,
+              isSmallScreen && styles.actionButtonSmall,
+              { backgroundColor: "#8e44ad" },
+            ]}
+            onPress={() => setIsReportOpen(true)}
+          >
+            <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.addButton,
+              styles.actionButton,
+              isSmallScreen && styles.actionButtonSmall,
+              { backgroundColor: "#81ab33" },
+            ]}
+            onPress={() => setIsReportOpen(true)}
+          >
+            <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.addButton,
+              styles.actionButton,
+              isSmallScreen && styles.actionButtonSmall,
+            ]}
+            onPress={openAdd}
+          >
+            <Text style={styles.addButtonText}>+ Add workout</Text>
+          </Pressable>
+        </View>
       </View>
 
       <FlatList
@@ -431,7 +447,9 @@ export default function CalendarScreen() {
             <View style={styles.cardTopRow}>
               <View style={styles.cardTitleWrap}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
-                {!!item.time && <Text style={styles.cardTime}>{item.time}</Text>}
+                {!!item.time && (
+                  <Text style={styles.cardTime}>{item.time}</Text>
+                )}
               </View>
 
               <Pressable
@@ -457,14 +475,18 @@ export default function CalendarScreen() {
 
             <Pressable
               onLongPress={() =>
-                Alert.alert("Delete", "Remove this workout from the calendar?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => deleteItem(item.id),
-                  },
-                ])
+                Alert.alert(
+                  "Delete",
+                  "Remove this workout from the calendar?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: () => deleteItem(item.id),
+                    },
+                  ],
+                )
               }
             >
               <Text style={styles.hint}>Long-press to delete</Text>
@@ -649,16 +671,23 @@ export default function CalendarScreen() {
           </View>
         </View>
       </Modal>
+
       <Modal visible={isReportOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reports</Text>
             <ScrollView>
-              <Text>{isWeekly ? generateWeeklyReport() : generateMonthlyReport()}</Text>
+              <Text>Number of Lifts: </Text>
+              <Text>Average Lift Duration: </Text>
+              <Text>Max Weight Lifted: </Text>
+              <Text>Hardest Hit Muscle Group: </Text>
+              <Text>Least Hit Muscle Group: </Text>
+              <Text>Weekly Workout Streak: </Text>
             </ScrollView>
-            <Pressable 
-              style={[styles.actionBtn, styles.saveBtn, {marginTop: 16}]} 
-              onPress={() => setIsReportOpen(false)}>
+            <Pressable
+              style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
+              onPress={() => setIsReportOpen(false)}
+            >
               <Text style={styles.saveText}>Close</Text>
             </Pressable>
           </View>
@@ -672,25 +701,49 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   header: { fontSize: 22, fontWeight: "700", marginBottom: 12 },
 
-  rowBetween: {
+  actionsSection: {
     marginTop: 12,
     marginBottom: 8,
+  },
+
+  listHeaderText: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+
+  actionsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 12,
   },
 
-  listHeaderText: { fontSize: 16, fontWeight: "600", flexShrink: 1 },
+  actionsRowSmall: {
+    flexDirection: "column",
+  },
 
   addButton: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: "#2f80ed",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  addButtonText: { color: "white", fontWeight: "700" },
+  actionButton: {
+    minWidth: 160,
+  },
+
+  actionButtonSmall: {
+    width: "100%",
+  },
+
+  addButtonText: {
+    color: "white",
+    fontWeight: "700",
+    textAlign: "center",
+  },
 
   emptyText: { marginTop: 10, opacity: 0.7 },
 
