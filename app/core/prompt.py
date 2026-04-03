@@ -16,6 +16,7 @@ from app.core.db import (
     session_meals, Meals, meal_ingredients, Ingredients,
     Profiles
 )
+from app.fast_api.api import QuickWorkoutRequest
 
 # delete for demo testing and implementation, exists in api.py
 #Base.metadata.create_all(bind=engine)
@@ -271,19 +272,6 @@ def calorie_goal_prompt_text(db: Session, profile_id: int, payload: RecalibrateC
     My current calorie goal is {payload.current_calorie_goal}, I've consumed {payload.consumed_calories} calories with {payload.remaining_calories} remaining. 
     Today's date is {today()}. Using all of this information that I've given you, do think my daily calorie goal should be updated? If so, what should it change to? 
     Respond ONLY with a valid JSON object in this exact format, no extra text: {{"calorie_goal": <int in kcal>}}
-    """
-
-def quick_workout_prompt_text(db: Session, profile_id: int) -> str: 
-    profile = profile_prompt_text(db, profile_id)
-    workouts = workout_history_text(db, profile_id)
-    meals = menu_meal_history_text(db, profile_id)
-
-    return f"""
-    You are a personal fitness coach tasked with providing specific advice to a profile: {profile}
-    My fitness history includes {workouts} 
-    My diet history includes {meals}.
-    I have limited time today and want to do a quick workout. Can you suggest a workout that would be effective for me given my profile and history? 
-    Respond ONLY with a valid JSON object in this exact format, no extra text: {{"workout": "<workout name>", "exercises": ["<exercise 1>", "<exercise 2>"]}}
     """
 
 def tailor_exercise_prompt_text(db: Session, profile_id: int, payload: TailorExerciseRequest) -> str: 

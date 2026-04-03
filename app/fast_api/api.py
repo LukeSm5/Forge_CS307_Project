@@ -15,7 +15,7 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 from app.core import ai_retrieval
-from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
+from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text, quick_workout_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
 from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
@@ -343,7 +343,6 @@ class ProfileContextResponse(BaseModel):
 
 
 class QuickWorkoutRequest(BaseModel):
-    profile_id: int
     focus: Optional[str] = None
     top_k: int = Field(default=3, ge=1, le=10)
 
@@ -360,12 +359,7 @@ class QuickWorkoutExercise(BaseModel):
 
 
 class QuickWorkoutResponse(BaseModel):
-    profile_id: int
     workout_name: str
-    profile_context: str
-    profile_matches: List[VectorQueryMatch]
-    prompt: str
-    source_matches: List[VectorQueryMatch]
     exercises: List[QuickWorkoutExercise]
 
 
