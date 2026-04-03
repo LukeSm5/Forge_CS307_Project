@@ -105,6 +105,7 @@ export default function CalendarScreen() {
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isWeekly, setIsWeekly] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -369,8 +370,26 @@ export default function CalendarScreen() {
       return copy;
     });
   }
-  function generateWeeklyReport() {}
-  function generateMonthlyReport() {}
+  function generateWeeklyReport() {
+      let totalLifts = 0; 
+      let totalDuration = 0;
+      let maxWeight = 0;
+      let muscleGroupMostHit = "Muscle";
+      let muscleGroupLeastHit = "Muscle";
+      let workoutStreak = 0;
+      let report = `Weekly Report:\nTotal Lifts: ${totalLifts}\nAverage Lift Duration: ${totalDuration} mins\nMax Weight Lifted: ${maxWeight} lbs\nMost Hit Muscle Group: ${muscleGroupMostHit}\nLeast Hit Muscle Group: ${muscleGroupLeastHit}\nWorkout Streak: ${workoutStreak} days`;
+      return report;
+  }
+  function generateMonthlyReport() {
+      let totalLifts = 1;
+      let totalDuration = 0;
+      let maxWeight = 0;
+      let muscleGroupMostHit = "Muscle";
+      let muscleGroupLeastHit = "Muscle";
+      let workoutStreak = 0;
+      let report = `Monthly Report:\nTotal Lifts: ${totalLifts}\nAverage Lift Duration: ${totalDuration} mins\nMax Weight Lifted: ${maxWeight} lbs\nMost Hit Muscle Group: ${muscleGroupMostHit}\nLeast Hit Muscle Group: ${muscleGroupLeastHit}\nWorkout Streak: ${workoutStreak} days`;
+      return report;
+  }
 
   return (
     <View style={styles.container}>
@@ -386,17 +405,17 @@ export default function CalendarScreen() {
         <Text style={styles.listHeaderText}>Scheduled for {selectedDate}</Text>
         <Pressable
           style={[styles.addButton, { backgroundColor: '#8e44ad' }]}
-          onPress={() => setIsReportOpen(true)}
+          onPress={() => { setIsReportOpen(true), setIsWeekly(true); }}
         >
         <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
       </Pressable>
       <Pressable
           style={[styles.addButton, { backgroundColor: '#81ab33' }]}
-          onPress={() => setIsReportOpen(true)}
+          onPress={() => { setIsReportOpen(true); setIsWeekly(false);}}
         >
         <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
       </Pressable>
-        <Pressable style={styles.addButton} onPress={openAdd}>
+        <Pressable style={styles.addButton} onPress ={openAdd}>
           <Text style={styles.addButtonText}>+ Add workout</Text>
         </Pressable>
       </View>
@@ -635,12 +654,7 @@ export default function CalendarScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reports</Text>
             <ScrollView>
-              <Text>Number of Lifts: </Text>
-              <Text>Average Lift Duration: </Text>
-              <Text>Max Weight Lifted: </Text>
-              <Text>Hardest Hit Muscle Group: </Text>
-              <Text>Least Hit Muscle Group: </Text>
-              <Text>Weekly Workout Streak: </Text>
+              <Text>{isWeekly ? generateWeeklyReport() : generateMonthlyReport()}</Text>
             </ScrollView>
             <Pressable 
               style={[styles.actionBtn, styles.saveBtn, {marginTop: 16}]} 
