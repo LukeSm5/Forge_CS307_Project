@@ -313,6 +313,62 @@ sled pull, box jump, cardio
     const responses = JSON.parse(res.text);
     return responses;
   },
+
+  quickMuscleWorkout: async (e: quickMuscleEvent): Promise<QuickWorkoutResponse> => {
+    // Prompt LLM with user object goals and exercise name
+    // LLM returns a QuickWorkoutResponse object
+    const usr = await api.me();
+    if (typeof usr === "undefined")
+      throw new Error("User not signed in.");
+    
+    const res = await api.mePrompt({ prompt: `
+The user is requesting a quick workout that they can do for ${e.muscle}. It should be tailored to a user's goals and profile, so use the user's information to cater the workout to them. The workout should be formatted as a JSON object as follows:
+{
+  workout: string, // The name of the workout
+  exercises: { exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
+}
+
+For example, if the user wants a workout for back, as in the first example, or a bicep, for the second example, you may return objects like the following:
+
+{
+  workout: "Back Day",
+  exercises: [
+    {
+      exercise: "lateral pull down",
+      sets: 3,
+      reps: 10,
+      weight: 100
+    }
+    { exercise: "row",
+      sets: 3,
+      reps: 10,
+      weight: 80
+    }
+  ]
+}
+
+{
+  workout: "bicep",
+  exercises: [
+    {
+      exercise: "bicep curl",
+      sets: 3,
+      reps: 10,
+      weight: 50
+    }
+  ]
+}
+When choosing a workout, only include the listed muscle group. No other muscles should be involved in the workout.
+
+When choosing an exercise for a workout, only choose from these exercises: pull up, lateral pull down, row, face pull, bicep curl, preacher curl, hammer curl, straight-bar curl, bench press
+incline bench press, cable fly, high low cable fly, low high cable fly, skull crusher, tricep push down, shoulder press
+shoulder raise, shrug, bulgarian split squat, romanian deadlift, power clean, burpee, sled push, russian twist
+sled pull, box jump, cardio
+
+      `});
+    const responses = JSON.parse(res.text);
+    return responses;
+  },
   
 
   logMenuMeal: async (
@@ -762,3 +818,7 @@ export type QuickWorkoutResponse = {
   workout: string;
   exercises: { exercise: string; sets: number; reps: number; weight: number}[];
 };
+
+export type quickMuscleEvent = {
+  muscle: string;
+}

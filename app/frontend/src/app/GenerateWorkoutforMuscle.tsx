@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react';
 import { View, Text, } from '@/components/Themed';
 import ForgeButton from '@/components/ForgeButton';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { api, WorkoutLookup } from '@/core/api';
 
-export default function GenerateQuickWorkout() {
+export default function GenerateWorkoutforMuscle() {
     const router = useRouter();
     const [workouts, setWorkouts] = useState<WorkoutLookup[]>([]);
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function loadWorkouts() {
@@ -21,10 +23,49 @@ export default function GenerateQuickWorkout() {
             }
         }
         loadWorkouts();
-    }), [];
-    function handleGenerateQuickWorkout() {
+    }, []);
+    /* function handleSelect(workoutId: number) {
+        const selectedWorkout = workouts.find(w => w.workout_id === workoutId);
+        const isFullBody = selectedWorkout?.name.toLowerCase().includes('full body');
+
+        setSelectedWorkoutId(prev => {
+        const alreadySelected = prev.includes(workoutId);
+        if (alreadySelected) {
+            return prev.filter(id => id !== workoutId);
+        } 
+        if (isFullBody) {
+            return [workoutId];
+        }
+        const fullBodyWorkout = workouts.find(w => w.name.toLowerCase().includes('full body'));
+        const fullBodySelected = fullBodyWorkout && prev.includes(fullBodyWorkout.workout_id);
+        if (fullBodySelected) {
+            return [workoutId];
+        }
+        if (prev.length >= 4) {
+            return prev;
+        }
+        return [...prev, workoutId];
+
+    });
         
-    }
+    } */
+        async function handleGenerateWorkoutForMuscle() {
+            setLoading(true);
+            setError(null);
+            try {
+                const workout = await api.quickMuscleWorkout({ muscle: 'back' }); // Replace 'back' with the selected muscle
+                alert(JSON.stringify(workout));
+                router.push({ pathname: '/LogGeneratedWorkout', 
+                    params: { workout_name: workout.workout, 
+                        exercises: JSON.stringify(workout.exercises) 
+                    } 
+                });
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Something went wrong');
+            } finally {
+                setLoading(false);
+            }
+        }
     return (
         <View style={styles.container}>
             <Text style={styles.sectionTitle}>Muscle group</Text>
@@ -40,7 +81,11 @@ export default function GenerateQuickWorkout() {
                         />
                       ))}
                 </View>
-            <ForgeButton text="Generate Quick Workout" onPress={() => router.push('/LogGeneratedWorkout')} />
+            {error && <Text style={styles.error}>{error}</Text>}
+            {loading ? 
+            <ActivityIndicator /> :
+            <ForgeButton text="Generate Quick Workout" onPress={handleGenerateWorkoutForMuscle} />
+            }
         </View>
     );
 }
@@ -64,5 +109,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  error: {
+        color: 'red',
+        marginBottom: 10,
   },
 });
