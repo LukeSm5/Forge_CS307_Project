@@ -24,7 +24,6 @@ type LoggedWorkout = {
   exercises: SessionExerciseLog[];
 };
 
-type SessionState = 'idle' | 'running' | 'ended';
 type ExerciseDraft = {
   exercise_id: number;
   machine_id: number;
@@ -47,10 +46,6 @@ export default function WorkoutTabScreen() {
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
-  const [runningLogId, setRunningLogId] = useState<string | null>(null);
-  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
-  const [elapsedByLogSeconds, setElapsedByLogSeconds] = useState<Record<string, number>>({});
-  const [sessionStateByLog, setSessionStateByLog] = useState<Record<string, SessionState>>({});
   const [savingLogId, setSavingLogId] = useState<string | null>(null);
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
   const [deleteConfirmLog, setDeleteConfirmLog] = useState<LoggedWorkout | null>(null);
@@ -117,30 +112,11 @@ export default function WorkoutTabScreen() {
     router.push("/GenerateWorkoutScreen");
   }
 
-  function handleStartWorkout(logId: string) {
-    if (runningLogId && runningLogId !== logId) {
-      Alert.alert('Workout in progress', 'Please end the current workout before starting another.');
-      return;
-    }
-
-    setRunningLogId(logId);
-    setStartedAtMs(Date.now());
-    setElapsedByLogSeconds((prev) => ({ ...prev, [logId]: 0 }));
-    setSessionStateByLog((prev) => ({ ...prev, [logId]: 'running' }));
-  }
-
-  function handleEndWorkout(logId: string) {
-    if (runningLogId !== logId) return;
-    setRunningLogId(null);
-    setStartedAtMs(null);
-    setSessionStateByLog((prev) => ({ ...prev, [logId]: 'ended' }));
-  }
-
   async function handleAddToLog(log: LoggedWorkout) {
     if (savingLogId) return;
     setSavingLogId(log.id);
     try {
-      const elapsed = elapsedByLogSeconds[log.id] ?? 0;
+      const elapsed = 0
       const seen = new Set<number>();
       const exercises = log.exercises
         .filter((ex) => {
@@ -163,8 +139,6 @@ export default function WorkoutTabScreen() {
         exercises,
       });
 
-      setSessionStateByLog((prev) => ({ ...prev, [log.id]: 'idle' }));
-      setElapsedByLogSeconds((prev) => ({ ...prev, [log.id]: 0 }));
       Alert.alert('Added to log', 'Session saved!');
       await loadWorkoutHistory();
     } catch (error) {
@@ -224,13 +198,11 @@ export default function WorkoutTabScreen() {
 
       await api.addWorkoutLog({
         workout_id: editingLog.workoutId,
-        duration: elapsedByLogSeconds[editingLog.id] ?? 0,
+        duration: 0,
         split_name: editingLog.splitName,
         exercises,
       });
 
-      setSessionStateByLog((prev) => ({ ...prev, [editingLog.id]: 'idle' }));
-      setElapsedByLogSeconds((prev) => ({ ...prev, [editingLog.id]: 0 }));
       setEditingLog(null);
       setExerciseDrafts([]);
       Alert.alert('Added to log', 'Session saved!');
@@ -244,10 +216,6 @@ export default function WorkoutTabScreen() {
   }
 
   function handleDeleteWorkout(log: LoggedWorkout) {
-    if (runningLogId === log.id) {
-      Alert.alert('Cannot delete', 'Please end the active workout before deleting it.');
-      return;
-    }
     if (deletingLogId) return;
     setDeleteConfirmLog(log);
   }
@@ -270,22 +238,7 @@ export default function WorkoutTabScreen() {
     }
   }
 
-  useEffect(() => {
-    if (!runningLogId || !startedAtMs) return;
 
-    const intervalId = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startedAtMs) / 1000);
-      setElapsedByLogSeconds((prev) => ({ ...prev, [runningLogId]: elapsedSeconds }));
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [runningLogId, startedAtMs]);
-
-  function formatDuration(totalSeconds: number) {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredWorkoutHistory = workoutHistory.filter((log) => {
@@ -365,9 +318,6 @@ export default function WorkoutTabScreen() {
 
             {group.sessions.map((log) => {
               const isExpanded = expandedLogId === log.id;
-              const isRunning = runningLogId === log.id;
-              const elapsed = elapsedByLogSeconds[log.id] ?? 0;
-              const sessionState = sessionStateByLog[log.id] ?? 'idle';
               return (
                 <View key={log.id} style={[styles.logCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
                   <Pressable style={styles.logHeaderRow} onPress={() => setExpandedLogId(isExpanded ? null : log.id)}>
@@ -391,40 +341,14 @@ export default function WorkoutTabScreen() {
                         <ProgressionButton exerciseId={exercise.exercise_name} />
                       </View>))}
                       <View style={styles.timerRow}>
-                        <View style={styles.leftTimerRow}>
-                          <Text style={[styles.timerText, { color: palette.text }]}>Timer: {formatDuration(elapsed)}</Text>
-                          <ForgeButton
-                            text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
-                            theme="danger"
-                            compact
-                            style={styles.deleteButton}
-                            onPress={() => void handleDeleteWorkout(log)}
-                            disabled={deletingLogId === log.id}
-                          />
-                        </View>
-                        {isRunning ? (
-                          <ForgeButton text="End" theme="danger" compact style={styles.sessionButton} onPress={() => handleEndWorkout(log.id)} />
-                        ) : sessionState === 'ended' ? (
-                          <View style={styles.postActionsRow}>
-                            <ForgeButton
-                              text={savingLogId === log.id ? 'Saving...' : 'Add'}
-                              theme="success"
-                              compact
-                              style={styles.sessionButton}
-                              onPress={() => handleAddToLog(log)}
-                              disabled={savingLogId === log.id}
-                            />
-                            <ForgeButton
-                              text="Edit & Add"
-                              theme="secondary"
-                              compact
-                              style={styles.sessionButton}
-                              onPress={() => handleEditAndAdd(log)}
-                            />
-                          </View>
-                        ) : (
-                          <ForgeButton text="Start" theme="primary" compact style={styles.sessionButton} onPress={() => handleStartWorkout(log.id)} />
-                        )}
+                        <ForgeButton
+                          text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
+                          theme="danger"
+                          compact
+                          style={styles.deleteButton}
+                          onPress={() => void handleDeleteWorkout(log)}
+                          disabled={deletingLogId === log.id}
+                        />
                       </View>
                     </View>
                   )}
@@ -636,34 +560,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  leftTimerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timerText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  sessionButton: {
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  startSessionButton: {
-    backgroundColor: '#2563eb',
-  },
-  endSessionButton: {
-    backgroundColor: '#dc2626',
-  },
-  sessionButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  postActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   deleteButton: {
     borderRadius: 8,
     paddingVertical: 6,
@@ -674,15 +570,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
-  },
-  addToLogButton: {
-    backgroundColor: '#16a34a',
-  },
-  editButton: {
-    backgroundColor: '#334155',
-  },
-  disabledButton: {
-    opacity: 0.65,
   },
   actionsRow: {
     marginTop: 20,
