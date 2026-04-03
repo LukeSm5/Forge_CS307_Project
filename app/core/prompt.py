@@ -18,8 +18,8 @@ from app.core.db import (
 )
 
 # delete for demo testing and implementation, exists in api.py
-Base.metadata.create_all(bind=engine)
-db = next(get_db())
+#Base.metadata.create_all(bind=engine)
+#db = next(get_db())
 
 class TailorExerciseRequest(BaseModel):
     date: str
@@ -27,6 +27,11 @@ class TailorExerciseRequest(BaseModel):
     workout_name: str
     exercise_name: str
     machine_name: str
+
+class RecalibrateCaloriesRequest(BaseModel):
+    current_calorie_goal: int | None = None
+    consumed_calories: int
+    remaining_calories: int | None = None
 
 def today():
     """
@@ -254,7 +259,7 @@ def profile_prompt_text(db: Session, profile_id: int) -> str:
     
 
 
-def calorie_goal_prompt_text(db: Session, profile_id: int) -> str: 
+def calorie_goal_prompt_text(db: Session, profile_id: int, payload: RecalibrateCaloriesRequest) -> str: 
     profile = profile_prompt_text(db, profile_id)
     workouts = workout_history_text(db, profile_id)
     menu_meals = menu_meal_history_text(db, profile_id)
