@@ -1339,6 +1339,7 @@ def create_workout_session(
     )
 
 
+
 @app.get("/sessions", response_model=List[SessionOut])
 def get_my_workout_sessions(
     me: Accounts = Depends(get_current_account),
