@@ -193,17 +193,17 @@ const MACRO_FIELDS: { key: keyof MealMacros; label: string; unit: string; placeh
 ];
 
 const FORGE = {
-  orange: '#E8820A',
-  orangeGlow: '#F5A030',
+  orange: '#0a49e8ff',
+  orangeGlow: '#2f66d3ff',
   red: '#C94040',
-  steel: '#B0AFA8',
-  charcoal: '#1A1917',
-  cardBg: '#222120',
+  steel: '#414140ff',
+  charcoal: '#ffffffff',
+  cardBg: '#fffdfbff',
   cardBorder: '#333230',
-  trackEmpty: '#3A3836',
-  trackMet: '#4A3010',
-  textPrimary: '#F0EDE8',
-  dim: '#5A5855',
+  trackEmpty: '#e3e3e3ff',
+  trackMet: '#2871d7ff',
+  textPrimary: '#020202ff',
+  dim: '#a3a19fff',
 } as const;
 
 let _ingredientCounter = 0;

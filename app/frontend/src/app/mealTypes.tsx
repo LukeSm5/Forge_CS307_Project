@@ -307,15 +307,15 @@ export const SEED: TaggedMeal[] = [
 ];
 
 export const C = {
-  bg:      "#111214",
-  surface: "#1a1c20",
-  border:  "#2a2d35",
-  orange:  "#f97316",
-  amber:   "#fbbf24",
-  gold:    "#f59e0b",
-  muted:   "#6b7280",
-  dimmer:  "#4b5563",
-  text:    "#e5e7eb",
+  bg:      "#ffffffff",
+  surface: "#ffffffff",
+  border:  "#ccccccff",
+  orange:  "#165ef9ff",
+  amber:   "#2452fbff",
+  gold:    "#0b46f5ff",
+  muted:   "#686868ff",
+  dimmer:  "#474747ff",
+  text:    "#2e2e2eff",
 };
 
 export const chip = (bg: string, color: string, extra: CSSProperties = {}): CSSProperties => ({
