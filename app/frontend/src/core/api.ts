@@ -225,7 +225,7 @@ export const api = {
   },
 
   genericPrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
-    return { text: 'Placeholder response' }
+    return post<GenericPromptResponse>('/generic-prompt', e);
   },
 
   mePrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
@@ -268,41 +268,37 @@ ${e.prompt}
   promptWeightProgression: async (exerciseId: string): Promise<WeightProgression[]> => {
     const present = await api.getWeightProgression(exerciseId);
     // TODO: uncomment after prompting is implemented
-//     const future = JSON.parse((await api.mePrompt({ prompt: `
-// This user would like to see some future data points on weight progression.
-// This information will be used to generate a graph of their previous weight progression
-// alongside their future weight progression, which you will provide as a JSON object.
+    const aiFuture = JSON.parse((await api.mePrompt({ prompt: `
+This user would like to see some future data points on weight progression.
+This information will be used to generate a graph of their previous weight progression
+alongside their future weight progression, which you will provide as a JSON object.
 
-// The ID of the exercise in question is ${exerciseId}.
-// Their previous progression is provided in the following object:
-// {
-//   time: [${present.time.map(x => `${x}`).join(", ")}],
-//   weight: [${present.weight.map(x => `${x}`).join(", ")}]
-// }
+The ID of the exercise in question is ${exerciseId}.
+Their previous progression is provided in the following object:
+{
+  time: [${present.time.map(x => `${x}`).join(", ")}],
+  weight: [${present.weight.map(x => `${x}`).join(", ")}]
+}
 
-// The time is provided as epoch timestamps, and each time corresponds to the
-// weight at the same index.
+The time is provided as epoch timestamps, and each time corresponds to the
+weight at the same index.
 
-// Please return a similar JSON object of the following format:
-// {
-//   time: [ epoch timestamp, epoch timestamp, epoch timestamp, ... ]
-//   weight: [ pounds, pounds, pounds, ... ]
-// }
+Please return a similar JSON object of the following format:
+{
+  time: [ epoch timestamp, epoch timestamp, epoch timestamp, ... ]
+  weight: [ pounds, pounds, pounds, ... ]
+}
 
-// for example:
-// {
-//   time: [100, 200, 300],
-//   weight: [400, 500, 600]
-// }
+for example:
+{
+  time: [100, 200, 300],
+  weight: [400, 500, 600]
+}
 
-// This should correspond a reasonable weight progression in the future that would
-// look pleasing on a graph.
-//     ` })).text);
-    const future = {
-      time: [1774813005, 1774899405, 1774985805],
-      weight: [255, 275, 305]
-    }
-    return [present, future];
+This should correspond a reasonable weight progression in the future that would
+look pleasing on a graph.
+    ` })).text);
+    return [present, aiFuture];
   },
 
   getWorkouts: async (): Promise<WorkoutLookup[]> => {
