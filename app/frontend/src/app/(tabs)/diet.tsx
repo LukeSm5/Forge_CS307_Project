@@ -47,7 +47,7 @@ import {
   C,
 } from '../mealTypes';
 
-import { api } from '../../core/api';
+import { api, GeneratedRecipe, LoggedAtHomeMeal } from '../../core/api';
 
 /* ─────────────────── types ─────────────────── */
 
@@ -140,6 +140,7 @@ const ALL_TRACKERS: Omit<TrackerState, 'value'>[] = [
 ];
 
 const DEFAULT_SLOTS = ['calories', 'protein', 'carbs', 'water'];
+const RECIPE_MEAL_TYPES: MealTypeOption[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 /* ─────────────────── constants ─────────────────── */
 
@@ -1042,6 +1043,7 @@ export default function Diet() {
   /* ─── calorie / logged meals state ─── */
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
   const [myMealFilter, setMyMealFilter] = useState<'at_home' | 'restaurant'>('restaurant');
+  const [loggedAtHomeMeals, setLoggedAtHomeMeals] = useState<LoggedAtHomeMeal[]>([]);
   const [loggedMenuMeals, setLoggedMenuMeals] = useState<LoggedMenuMeal[]>([]);
   const [loggedMealsLoading, setLoggedMealsLoading] = useState(false);
 
@@ -1055,6 +1057,18 @@ export default function Diet() {
   const [loggingMeal, setLoggingMeal] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealTypeOption | null>(null);
   const [recalibrateLoading, setRecalibrateLoading] = useState(false);
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
+  const [addingGeneratedRecipe, setAddingGeneratedRecipe] = useState(false);
+  const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
+  const [recipeModalVisible, setRecipeModalVisible] = useState(false);
+  const [recipePromptModalVisible, setRecipePromptModalVisible] = useState(false);
+  const [recipeMealType, setRecipeMealType] = useState('');
+  const [recipeGoal, setRecipeGoal] = useState('');
+  const [recipeCravings, setRecipeCravings] = useState('');
+  const [recipeConstraints, setRecipeConstraints] = useState('');
+  const [recipeNoCook, setRecipeNoCook] = useState(false);
+  const [recipeDropdown, setRecipeDropdown] = useState<null | 'mealType' | 'goal'>(null);
+  const [addingRestaurantSuggestion, setAddingRestaurantSuggestion] = useState<string | null>(null);
 
   /* ─── macro tracker state ─── */
   const [trackers, setTrackers] = useState<TrackerState[]>(
@@ -1062,8 +1076,6 @@ export default function Diet() {
   );
   const [trackerSlots, setTrackerSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
-
-  const API_BASE_URL = 'http://localhost:8000';
 
   /* ─── effects ─── */
   useEffect(() => {
@@ -1091,6 +1103,7 @@ export default function Diet() {
 
   useEffect(() => {
     if (isLoadingAuth) return;
+    loadLoggedAtHomeMeals().catch(() => {});
     loadLoggedMenuMeals().catch(() => {});
   }, [isLoadingAuth]);
 
@@ -1376,6 +1389,18 @@ export default function Diet() {
     }
   };
 
+  const loadLoggedAtHomeMeals = async () => {
+    setLoggedMealsLoading(true);
+    try {
+      const data = await api.getLoggedAtHomeMeals();
+      setLoggedAtHomeMeals(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setLoggedAtHomeMeals([]);
+    } finally {
+      setLoggedMealsLoading(false);
+    }
+  };
+
   const openMealTypeModal = (meal: RestaurantMeal) => {
     setSelectedMenuMeal(meal);
     setSelectedMealType(null);
@@ -1459,6 +1484,70 @@ export default function Diet() {
     }
   }
 
+  async function handleGenerateRecipe() {
+    setGeneratingRecipe(true);
+    try {
+      const result = await api.generateRecipe({
+        meal_type: recipeMealType.trim() || undefined,
+        goal: recipeGoal.trim() || undefined,
+        cravings: recipeCravings.trim() || undefined,
+        constraints: recipeConstraints.trim() || undefined,
+        no_cook: recipeNoCook,
+      });
+      setGeneratedRecipe(result);
+      setRecipeDropdown(null);
+      setRecipePromptModalVisible(false);
+      setRecipeModalVisible(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate recipe.';
+      Alert.alert('Generate recipe failed', message);
+    } finally {
+      setGeneratingRecipe(false);
+    }
+  }
+
+  async function handleAddGeneratedRecipe() {
+    if (!generatedRecipe) return;
+
+    setAddingGeneratedRecipe(true);
+    try {
+      const created = await api.addGeneratedRecipeToLog({
+        title: generatedRecipe.title,
+        summary: generatedRecipe.summary,
+        ingredients: generatedRecipe.ingredients,
+        steps: generatedRecipe.steps,
+        meal_type: recipeMealType.trim() || undefined,
+      });
+      setLoggedAtHomeMeals((current) => [created, ...current]);
+      setRecipeModalVisible(false);
+      setGeneratedRecipe(null);
+      setMyMealFilter('at_home');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add recipe to meal log.';
+      Alert.alert('Could not add recipe', message);
+    } finally {
+      setAddingGeneratedRecipe(false);
+    }
+  }
+
+  async function handleAddRestaurantSuggestion(restaurant: string, order: string) {
+    const normalizedMealType = ((recipeMealType.trim().toLowerCase() || 'lunch') as MealTypeOption);
+    const suggestionKey = `${restaurant}:${order}`;
+    setAddingRestaurantSuggestion(suggestionKey);
+    try {
+      const created = await api.logRecommendedMenuMeal(restaurant, order, normalizedMealType);
+      setLoggedMenuMeals((current) => [created, ...current]);
+      setRecipeModalVisible(false);
+      setGeneratedRecipe(null);
+      setMyMealFilter('restaurant');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add restaurant recommendation.';
+      Alert.alert('Could not add restaurant meal', message);
+    } finally {
+      setAddingRestaurantSuggestion(null);
+    }
+  }
+
   /* ─── macro tracker handlers ─── */
   const getTracker = (id: string) => trackers.find((t) => t.id === id)!;
 
@@ -1516,6 +1605,25 @@ export default function Diet() {
           />
         </View>
       </View>
+
+      <SectionCard title="AI Recipe">
+        <Text style={styles.sectionDescription}>
+          Add a few details, then FORGE will use your logged meals and workouts to generate a recipe.
+        </Text>
+        <ForgeButton
+          onPress={() => {
+            setRecipeDropdown(null);
+            setRecipePromptModalVisible(true);
+          }}
+          text="Generate Recipe"
+        />
+        {generatedRecipe ? (
+          <View style={styles.generatedRecipePreview}>
+            <Text style={styles.generatedRecipeTitle}>{generatedRecipe.title}</Text>
+            <Text style={styles.generatedRecipeSummary}>{generatedRecipe.summary}</Text>
+          </View>
+        ) : null}
+      </SectionCard>
 
       {/* ─── MACRO TRACKER ─── */}
       <SectionCard title="Macro Tracker">
@@ -1598,7 +1706,56 @@ export default function Diet() {
         )}
 
         {myMealFilter === 'at_home' && (
-          <Text style={styles.emptyText}>At home meals coming soon.</Text>
+          loggedMealsLoading ? (
+            <ActivityIndicator style={styles.loader} />
+          ) : loggedAtHomeMeals.length === 0 ? (
+            <Text style={styles.emptyText}>No at-home meals logged yet.</Text>
+          ) : (
+            <View style={styles.myMealList}>
+              {loggedAtHomeMeals.map((item) => (
+                <View key={item.session_meal_id} style={styles.myMealRow}>
+                  <View style={styles.myMealHeader}>
+                    <View style={styles.restaurantMealInfo}>
+                      <Text style={styles.restaurantMealName}>{item.meal_name}</Text>
+                      <Text style={styles.restaurantMealProtein}>
+                        {new Date(`${item.date}Z`).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {item.notes ? (
+                    <Text style={styles.recipeSummaryPreview}>{item.notes}</Text>
+                  ) : null}
+
+                  {item.ingredients.length > 0 ? (
+                    <Text style={styles.recipeBasedOnText}>
+                      Ingredients: {item.ingredients.join(', ')}
+                    </Text>
+                  ) : null}
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.nutritionScroll}
+                    contentContainerStyle={styles.nutritionScrollContent}
+                  >
+                    {[
+                      { label: 'Servings', value: `${item.servings ?? 1}` },
+                      { label: 'Cal', value: item.calories != null ? `${item.calories} kcal` : '—' },
+                      { label: 'Protein', value: item.protein != null ? `${item.protein}g` : '—' },
+                      { label: 'Carbs', value: item.carbs != null ? `${item.carbs}g` : '—' },
+                      { label: 'Fat', value: item.fat != null ? `${item.fat}g` : '—' },
+                    ].map((nutrient) => (
+                      <View key={nutrient.label} style={styles.nutritionChip}>
+                        <Text style={styles.nutritionChipLabel}>{nutrient.label}</Text>
+                        <Text style={styles.nutritionChipValue}>{nutrient.value}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ))}
+            </View>
+          )
         )}
       </SectionCard>
 
@@ -1936,6 +2093,231 @@ export default function Diet() {
         </View>
       </Modal>
 
+      <Modal
+        visible={recipePromptModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (generatingRecipe) return;
+          setRecipeDropdown(null);
+          setRecipePromptModalVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, styles.recipePromptCard]}>
+            <Text style={styles.modalTitle}>Generate Recipe</Text>
+            <Text style={styles.modalSubtitle}>
+              Add a few details, then FORGE will use your logged meals and workouts to generate a recipe.
+            </Text>
+
+            <Text style={styles.inputLabel}>Meal Type</Text>
+            <Pressable
+              onPress={() => setRecipeDropdown((current) => current === 'mealType' ? null : 'mealType')}
+              style={styles.selectInput}
+            >
+              <Text style={recipeMealType ? styles.selectInputText : styles.selectInputPlaceholder}>
+                {recipeMealType
+                  ? recipeMealType.charAt(0).toUpperCase() + recipeMealType.slice(1)
+                  : 'Breakfast'}
+              </Text>
+            </Pressable>
+            {recipeDropdown === 'mealType' ? (
+              <View style={styles.dropdownList}>
+                {RECIPE_MEAL_TYPES.map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      setRecipeMealType(option);
+                      setRecipeDropdown(null);
+                    }}
+                    style={styles.dropdownOption}
+                  >
+                    <Text style={styles.dropdownOptionText}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <Text style={styles.inputLabel}>Goal</Text>
+            <Pressable
+              onPress={() => setRecipeDropdown((current) => current === 'goal' ? null : 'goal')}
+              style={styles.selectInput}
+            >
+              <Text style={recipeGoal ? styles.selectInputText : styles.selectInputPlaceholder}>
+                {recipeGoal ? formatLabel(recipeGoal) : 'Goal'}
+              </Text>
+            </Pressable>
+            {recipeDropdown === 'goal' ? (
+              <View style={styles.dropdownList}>
+                {GOALS.map((option) => (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      setRecipeGoal(option);
+                      setRecipeDropdown(null);
+                    }}
+                    style={styles.dropdownOption}
+                  >
+                    <Text style={styles.dropdownOptionText}>{formatLabel(option)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <Text style={styles.inputLabel}>Cravings or foods to include</Text>
+            <TextInput
+              style={styles.input}
+              value={recipeCravings}
+              onChangeText={setRecipeCravings}
+              placeholder="Cravings"
+              placeholderTextColor="#6b7280"
+            />
+
+            <Text style={styles.inputLabel}>Constraints or foods to avoid</Text>
+            <TextInput
+              style={styles.input}
+              value={recipeConstraints}
+              onChangeText={setRecipeConstraints}
+              placeholder="Constraints or foods to avoid"
+              placeholderTextColor="#6b7280"
+            />
+
+            <Pressable
+              onPress={() => setRecipeNoCook((current) => !current)}
+              style={styles.checkboxRow}
+            >
+              <View style={[styles.checkbox, recipeNoCook && styles.checkboxChecked]}>
+                {recipeNoCook ? <Text style={styles.checkboxTick}>✓</Text> : null}
+              </View>
+              <Text style={styles.checkboxLabel}>I don't want to cook</Text>
+            </Pressable>
+
+            <View style={styles.modalButtonRow}>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={() => {
+                    if (generatingRecipe) return;
+                    setRecipeDropdown(null);
+                    setRecipePromptModalVisible(false);
+                  }}
+                  text="Cancel"
+                />
+              </View>
+              <View style={styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={() => {
+                    void handleGenerateRecipe();
+                  }}
+                  text={generatingRecipe ? 'Generating...' : 'Generate'}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={recipeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (addingGeneratedRecipe) return;
+          setRecipeModalVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, styles.recipeModalCard]}>
+            <Text style={styles.modalTitle}>{generatedRecipe?.title ?? 'Generated Recipe'}</Text>
+
+            {generatedRecipe ? (
+              <ScrollView style={styles.recipeScroll} contentContainerStyle={styles.recipeScrollContent}>
+                <Text style={styles.recipeSectionTitle}>Summary</Text>
+                <Text style={styles.recipeSectionText}>{generatedRecipe.summary}</Text>
+
+                {generatedRecipe.mode === 'restaurant' ? (
+                  <>
+                    <Text style={styles.recipeSectionTitle}>Restaurant Options</Text>
+                    {(generatedRecipe.restaurant_suggestions ?? []).map((suggestion, index) => (
+                      <View key={`${suggestion.restaurant}-${suggestion.order}-${index}`} style={styles.restaurantSuggestionCard}>
+                        <Text style={styles.restaurantSuggestionTitle}>{suggestion.restaurant}</Text>
+                        <Text style={styles.restaurantSuggestionOrder}>{suggestion.order}</Text>
+                        <Text style={styles.recipeSectionText}>{suggestion.reason}</Text>
+                        <View style={styles.restaurantSuggestionButton}>
+                          <ForgeButton
+                            onPress={() => {
+                              void handleAddRestaurantSuggestion(suggestion.restaurant, suggestion.order);
+                            }}
+                            text={
+                              addingRestaurantSuggestion === `${suggestion.restaurant}:${suggestion.order}`
+                                ? 'Adding...'
+                                : 'Add'
+                            }
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.recipeSectionTitle}>Ingredients</Text>
+                    {generatedRecipe.ingredients.map((ingredient) => (
+                      <Text key={ingredient} style={styles.recipeListItem}>
+                        • {ingredient}
+                      </Text>
+                    ))}
+
+                    <Text style={styles.recipeSectionTitle}>Steps</Text>
+                    {generatedRecipe.steps.map((step, index) => (
+                      <Text key={`${index + 1}-${step}`} style={styles.recipeListItem}>
+                        {index + 1}. {step}
+                      </Text>
+                    ))}
+                  </>
+                )}
+
+                <Text style={styles.recipeSectionTitle}>Based On Meals</Text>
+                {generatedRecipe.based_on_meals.map((meal, index) => (
+                  <Text key={`${index + 1}-${meal}`} style={styles.recipeListItem}>
+                    • {meal}
+                  </Text>
+                ))}
+
+                <Text style={styles.recipeSectionTitle}>Based On Workouts</Text>
+                {generatedRecipe.based_on_workouts.map((workout, index) => (
+                  <Text key={`${index + 1}-${workout}`} style={styles.recipeListItem}>
+                    • {workout}
+                  </Text>
+                ))}
+              </ScrollView>
+            ) : null}
+
+            <View style={styles.modalButtonRow}>
+              <View style={generatedRecipe?.mode === 'restaurant' ? styles.modalButtonFull : styles.modalButtonHalf}>
+                <ForgeButton
+                  onPress={() => {
+                    if (addingGeneratedRecipe) return;
+                    setRecipeModalVisible(false);
+                  }}
+                  text="Close"
+                />
+              </View>
+              {generatedRecipe?.mode !== 'restaurant' ? (
+                <View style={styles.modalButtonHalf}>
+                  <ForgeButton
+                    onPress={() => {
+                      void handleAddGeneratedRecipe();
+                    }}
+                    text={addingGeneratedRecipe ? 'Adding...' : 'Add'}
+                  />
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ─── Tagged meal delete confirmation modal ─── */}
       <Modal visible={taggedMealToDelete !== null} transparent animationType="fade" onRequestClose={cancelDeleteTaggedMeal}>
         <View style={styles.modalBackdrop}>
@@ -1966,6 +2348,8 @@ const styles = StyleSheet.create({
   pageTitle: { color: C?.text ?? '#000000', fontSize: 28, fontWeight: '800', marginBottom: 4 },
   sectionCard: { backgroundColor: C?.surface ?? '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#ffffff', borderRadius: 16, padding: 16, gap: 14 },
   sectionEyebrow: { color: C?.muted ?? '#5a5757', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2 },
+  inputLabel: { color: C?.muted ?? '#666b75', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  sectionDescription: { color: C?.muted ?? '#474d56', fontSize: 14, lineHeight: 20 },
   input: { width: '100%', borderWidth: 1.5, borderColor: C?.border ?? '#8a93a7', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: C?.text ?? '#000000', backgroundColor: '#ffffff', fontSize: 15 },
   sectionLabel: { color: C?.text ?? '#000000', fontSize: 15, fontWeight: '700', marginTop: 4 },
   pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -2029,7 +2413,35 @@ const styles = StyleSheet.create({
   modalOptionTextActive: { color: '#f97316' },
   modalButtonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   modalButtonHalf: { flex: 1 },
+  modalButtonFull: { flex: 1 },
   modalSubtitleSecondary: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: -4, marginBottom: 8 },
+  selectInput: { borderWidth: 1, borderColor: '#d4d8e1', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, backgroundColor: '#ffffff' },
+  selectInputText: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  selectInputPlaceholder: { color: '#6b7280', fontSize: 15 },
+  dropdownList: { borderWidth: 1, borderColor: '#d4d8e1', borderRadius: 12, overflow: 'hidden', backgroundColor: '#ffffff', marginTop: -4 },
+  dropdownOption: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  dropdownOptionText: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#d4d8e1', backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { borderColor: '#2563eb', backgroundColor: '#2563eb' },
+  checkboxTick: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  checkboxLabel: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  generatedRecipePreview: { gap: 6, backgroundColor: '#fff7ed', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#fed7aa' },
+  generatedRecipeTitle: { color: '#111827', fontSize: 16, fontWeight: '800' },
+  generatedRecipeSummary: { color: '#374151', fontSize: 14, lineHeight: 20 },
+  recipeModalCard: { maxHeight: '80%' },
+  recipePromptCard: { maxWidth: 460 },
+  recipeScroll: { maxHeight: 420 },
+  recipeScrollContent: { gap: 8, paddingBottom: 4 },
+  recipeSectionTitle: { color: '#111827', fontSize: 15, fontWeight: '800', marginTop: 8 },
+  recipeSectionText: { color: '#374151', fontSize: 14, lineHeight: 20 },
+  recipeSummaryPreview: { color: '#6b7280', fontSize: 13, lineHeight: 19, marginTop: 8 },
+  recipeBasedOnText: { color: '#374151', fontSize: 13, lineHeight: 18, marginTop: 8 },
+  recipeListItem: { color: '#374151', fontSize: 14, lineHeight: 20 },
+  restaurantSuggestionCard: { borderWidth: 1, borderColor: '#d4d8e1', borderRadius: 12, padding: 12, gap: 6, backgroundColor: '#f9fafb' },
+  restaurantSuggestionTitle: { color: '#111827', fontSize: 15, fontWeight: '800' },
+  restaurantSuggestionOrder: { color: '#1f2937', fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  restaurantSuggestionButton: { marginTop: 6 },
 
   /* ─── New styles for enhanced features ─── */
   tabRow: { flexDirection: 'row', gap: 6, backgroundColor: colorWithAlpha(C?.border ?? '#e2e8f0', '40'), borderRadius: 6, padding: 4 },
