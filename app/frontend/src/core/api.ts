@@ -221,7 +221,7 @@ export const api = {
     if (typeof usr === "undefined")
       throw new Error("User not signed in.");
     
-    const responses = JSON.parse((await api.mePrompt({ prompt: `
+    const res = await api.mePrompt({ prompt: `
 The user is requesting a list of alternatives for the exercise ${e.exercise}. This includes
 machines, free weight exercises, bodyweight exercises, etc. Please return an array of JSON objects
 formatted as follows:
@@ -246,7 +246,8 @@ Be sure to include a BRIEF, but precise description of how the alternative exerc
 Return a maximum of 5 exercises, and at least 2.
 Since the user is requesting an alternative, assume they are not looking for something highly difficult, so avoid exercises with high risks
 of injury or technical difficulty, i.e. deadlift, clean and jerk, snatch, etc.
-      `})).text);
+      `});
+    const responses = JSON.parse(res.text);
     return responses;
   },
 
@@ -302,7 +303,7 @@ ${e.prompt}
     const present = await api.getWeightProgression(exerciseId);
     console.log(present);
     console.log("mega bummer");
-    const aiFuture = JSON.parse((await api.mePrompt({ prompt: `
+    const res = await api.mePrompt({ prompt: `
 This user would like to see some future data points on weight progression.
 This information will be used to generate a graph of their previous weight progression
 alongside their future weight progression, which you will provide as a JSON object.
@@ -331,7 +332,9 @@ for example:
 
 This should correspond a reasonable weight progression in the future that would
 look pleasing on a graph.
-    ` })).text);
+    ` });
+    console.log(res);
+    const aiFuture = JSON.parse(res.text);
     return [present, aiFuture];
   },
 
