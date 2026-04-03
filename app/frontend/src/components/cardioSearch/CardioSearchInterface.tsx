@@ -5,6 +5,7 @@ import CardioMachineResult from '@/components/cardioSearch/CardioMachineResult';
 import React, { useState } from 'react';
 import { api, SearchCardioMachineResponse } from '@/core/api';
 import ForgeButton from '../ForgeButton';
+import { Modal } from 'react-native';
 
 export default function CardioSearchInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
     if (!visible)
@@ -30,7 +31,7 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
         setResults(res);
     }
 
-    return (
+    return (<Modal>
         <View style={styles.container} lightColor="#0007" darkColor="#fff7">
             <View style={styles.popup}>
                 <Text style={styles.title}>Cardio Machine Search</Text>
@@ -61,17 +62,14 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
                 <ForgeButton text="Close Cardio Machine Search" onPress={() => setVisible(false)}/>
             </View>
         </View>
-    );
+    </Modal>);
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        ...StyleSheet.absoluteFill,
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
         zIndex: 100,
     },
     popup: {

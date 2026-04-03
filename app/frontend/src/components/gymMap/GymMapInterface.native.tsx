@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from 'expo-constants';
+import { Modal } from 'react-native';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
@@ -104,7 +105,7 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
         </MapView>);
     }
 
-    return (
+    return (<Modal>
         <View style={styles.container} lightColor="#0007" darkColor="#fff7">
             <View style={styles.popup}>
                 <Text style={styles.title}>Nearby Gyms</Text>
@@ -118,7 +119,7 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
                 </TouchableOpacity>
             </View>
         </View>
-    );
+    </Modal>);
 }
 
 const styles = StyleSheet.create({
@@ -126,13 +127,9 @@ const styles = StyleSheet.create({
         flex: 1
     },
     container: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
-        zIndex: 100,
+        ...StyleSheet.absoluteFill,
     },
     popup: {
         flex: 1,

@@ -5,6 +5,7 @@ import { Text, View } from '@/components/Themed';
 import React, { useState, useEffect } from 'react';
 import { api, WeightProgression } from '@/core/api';
 import ForgeButton from '../ForgeButton';
+import { Modal } from 'react-native';
 
 export default function ProgressionInterface({ exerciseId, visible, setVisible }: { exerciseId: string, visible: boolean, setVisible: (visible: boolean) => void }) {
     const [ progression, setProgression ] = useState<WeightProgression[]>();
@@ -38,7 +39,7 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
     if (!visible || !progression)
         return (<></>);
 
-    return (
+    return (<Modal>
         <View style={styles.container} lightColor="#0007" darkColor="#fff7">
             <View style={styles.popup}>
                 <Text style={styles.title}>Weight Progression Chart</Text>
@@ -78,17 +79,14 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
                 <ForgeButton text="Close Progression Chart" onPress={() => setVisible(false)}/>
             </View>
         </View>
-    );
+    </Modal>);
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        ...StyleSheet.absoluteFill,
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
         zIndex: 100,
     },
     popup: {

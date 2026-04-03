@@ -3,6 +3,7 @@ import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native'
 import { Text, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
 import Constants from 'expo-constants';
+import { Modal } from 'react-native';
 
 import * as Location from "expo-location";
 
@@ -120,7 +121,7 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
         );
     }
 
-    return (
+    return (<Modal>
         <View style={styles.container} lightColor="#0007" darkColor="#fff7">
             <View style={styles.popup}>
                 <Text style={styles.title}>Nearby Gyms</Text>
@@ -134,7 +135,7 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
                 </TouchableOpacity>
             </View>
         </View>
-    );
+    </Modal>);
 }
 
 const styles = StyleSheet.create({
@@ -142,12 +143,9 @@ const styles = StyleSheet.create({
         flex: 1
     },
     container: {
-        flex: 1,
+        ...StyleSheet.absoluteFill,
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
         zIndex: 100,
     },
     popup: {
