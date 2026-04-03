@@ -17,7 +17,6 @@ from app.core.db import (
     session_meals, Meals, meal_ingredients, Ingredients,
     Profiles
 )
-from app.fast_api.api import QuickWorkoutRequest
 
 # delete for demo testing and implementation, exists in api.py
 #Base.metadata.create_all(bind=engine)
