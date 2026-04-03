@@ -37,6 +37,10 @@ app = FastAPI()
 logger = logging.getLogger(__name__)
 # llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    logger.warning("GOOGLE_API_KEY not set in environment variables. Google API calls will fail.")
+if not os.getenv("OPENAI_API_KEY"):
+    logger.warning("GOOGLE_API_KEY not set in environment variables. Google API calls will fail.")
 
 
 app.add_middleware(
@@ -255,6 +259,15 @@ class SessionOut(BaseModel):
 class LogMenuMealRequest(BaseModel):
     menu_meal_id: int
     meal_type: str  # breakfast / lunch / dinner / snack
+
+
+class GenericPromptRequest(BaseModel):
+    prompt: str
+
+
+class GenericPromptResponse(BaseModel):
+    text: str
+
 
 class TailorExerciseRequest(BaseModel):
     date: str
@@ -1369,6 +1382,23 @@ def delete_session_menu_meal(
     db.commit()
 
     return {"message": "Session menu meal deleted successfully"}
+
+
+@app.post('/generic-prompt', response_model=GenericPromptResponse)
+def generic_prompt(
+    payload: GenericPromptRequest,
+):
+    prompt = payload.prompt
+    client = _get_openai_client()
+    try:
+        response = client.responses.create(
+            model=os.getenv("OPENAI_GENERIC_MODEL", "gpt-4.1-mini"),
+            input=prompt,
+        )
+        return GenericPromptResponse(text=response.output_text)
+    except Exception:
+        logger.exception("Generic prompt failed")
+        return GenericPromptResponse(text="Sorry, something went wrong with your request.")
 
 
 @app.post("/tailor-exercise", response_model=TailorExerciseResponse)
