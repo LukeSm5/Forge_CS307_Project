@@ -11,6 +11,7 @@ import CardioButton from '@/components/cardioSearch/CardioButton';
 
 import { useUnits } from '@/core/conversions';
 import { useAppColorScheme } from '@/core/accessibility';
+import ProgressionButton from '@/components/workoutProgression/ProgressButton';
 
 
 type LoggedWorkout = {
@@ -380,14 +381,15 @@ export default function WorkoutTabScreen() {
                   {isExpanded && (
                     <View style={[styles.exerciseList, { borderTopColor: palette.border }]}>
                       <Text style={[styles.exerciseHeading, { color: palette.text }]}>Exercises in this log</Text>
-                      {log.exercises.map((exercise) => (
+                      {log.exercises.map((exercise, idx) => (<View key={`${exercise.exercise_id}-${exercise.machine_id}-${idx}`} style={styles.exerciseRow}>
                         <Text
                           key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
                           style={[styles.exerciseItem, { color: palette.text }]}
                         >
                           - {formatExercise(exercise, isImperial)}
                         </Text>
-                      ))}
+                        <ProgressionButton exerciseId={exercise.exercise_name} />
+                      </View>))}
                       <View style={styles.timerRow}>
                         <View style={styles.leftTimerRow}>
                           <Text style={[styles.timerText, { color: palette.text }]}>Timer: {formatDuration(elapsed)}</Text>
@@ -809,11 +811,15 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 8,
   },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });
 
 
 function formatExercise(exercise: SessionExerciseLog, isImperial: boolean): string {
-
   const weight = exercise.weight != null ? 
     isImperial 
       ? `${exercise.weight} lb`
@@ -826,3 +832,4 @@ function formatExercise(exercise: SessionExerciseLog, isImperial: boolean): stri
   ].filter(Boolean);
   return parts.join(' • ');
 }
+
