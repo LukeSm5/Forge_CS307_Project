@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
+import re
 from datetime import timezone, datetime
 from sqlalchemy import inspect, text
 from openai import OpenAI
@@ -173,6 +174,12 @@ class ExerciseLookupOut(BaseModel):
 class MachineLookupOut(BaseModel):
     machine_id: int
     name: str
+
+class ExerciseHelpOut(BaseModel):
+    exercise_id: int
+    name: str
+    advice: str
+    steps: List[str]
 
 class LoginRequest(BaseModel):
     email: str
@@ -1126,6 +1133,45 @@ def get_exercises(db: Session = Depends(get_db)):
         ExerciseLookupOut(exercise_id=row.ExerciseID, name=row.name)
         for row in rows
     ]
+
+
+@app.get("/exercises/{exercise_id}/help", response_model=ExerciseHelpOut)
+def get_exercise_help(exercise_id: int, db: Session = Depends(get_db)):
+    row = (
+        db.query(Exercises)
+        .filter(Exercises.ExerciseID == exercise_id)
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    advice = (row.advice or "").strip()
+
+    matches = re.findall(
+        r'(\d+)\.\s*(.*?)(?=(?:\s+\d+\.\s)|$)',
+        advice,
+        flags=re.DOTALL,
+    )
+    steps = [text.strip() for _, text in matches if text.strip()]
+
+    if not steps and advice:
+        steps = [advice]
+
+    if not steps:
+        steps = [
+            f"Set up for {row.name}.",
+            "Use controlled movement and full range of motion.",
+            "Keep your core tight and maintain good posture.",
+            "Stop if you feel sharp pain and adjust your form.",
+        ]
+
+    return ExerciseHelpOut(
+        exercise_id=row.ExerciseID,
+        name=row.name,
+        advice=advice,
+        steps=steps,
+    )
 
 
 @app.get("/machines", response_model=List[MachineLookupOut])
