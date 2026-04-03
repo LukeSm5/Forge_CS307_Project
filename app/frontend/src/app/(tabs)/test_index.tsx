@@ -14,7 +14,7 @@ export default function TabOneScreen() {
       <EditScreenInfo path="app/(tabs)/index.tsx" />
       <CardioButton/>
       <GymMapButton/>
-      <ProgressionButton exerciseId="bicep_curls"/>
+      <ProgressionButton exerciseId="bicep curl"/>
     </View>
   );
 }

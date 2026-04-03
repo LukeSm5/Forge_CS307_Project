@@ -259,15 +259,13 @@ ${e.prompt}
   },
 
   getWeightProgression: async (exerciseId: string): Promise<WeightProgression> => {
-    return {
-      time: [1774552003, 1774638403, 1774724803],
-      weight: [150, 175, 245],
-    };
+    return get<WeightProgression>(`/exercise_progression_history/${exerciseId}`);
   },
 
   promptWeightProgression: async (exerciseId: string): Promise<WeightProgression[]> => {
     const present = await api.getWeightProgression(exerciseId);
-    // TODO: uncomment after prompting is implemented
+    console.log(present);
+    console.log("mega bummer");
     const aiFuture = JSON.parse((await api.mePrompt({ prompt: `
 This user would like to see some future data points on weight progression.
 This information will be used to generate a graph of their previous weight progression
