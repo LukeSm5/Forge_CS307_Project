@@ -160,6 +160,9 @@ export const api = {
       return acc;
     }, {});
   },
+  getExerciseHelp: async (exerciseId: number): Promise<ExerciseHelp> => {
+    return get<ExerciseHelp>(`/exercises/${exerciseId}/help`);
+  },
   getMachines: async (): Promise<MachineLookupRow[]> => {
     return get<MachineLookupRow[]>('/machines');
   },
@@ -498,6 +501,13 @@ export type AltMachEvent = {
 export type ExerciseLookupRow = {
   exercise_id: number;
   name: string;
+};
+
+export type ExerciseHelp = {
+  exercise_id: number;
+  name: string;
+  advice: string;
+  steps: string[];
 };
 
 export type MachineLookupRow = {
