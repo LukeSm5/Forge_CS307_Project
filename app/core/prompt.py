@@ -7,6 +7,7 @@ Prompt Construction
 import math
 from datetime import date
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.core.session import engine, Base, get_db
 from app.core.db import (
@@ -207,29 +208,32 @@ def at_home_meal_history_text(db: Session, profile_id: int) -> str:
     meal_strings = []
     for session in sessions:
         meal = db.query(Meals).filter(Meals.MealID == session.MealID).first()
-        ingredient_rows = (
-            db.query(meal_ingredients, Ingredients.name)
-            .outerjoin(Ingredients, Ingredients.IngredientID == meal_ingredients.IngredientID)
-            .filter(meal_ingredients.MealID == session.MealID)
-            .order_by(meal_ingredients.IngredientID.asc())
-            .all()
-        )
+        ingredient_rows = db.execute(
+            text(
+                'SELECT mi."IngredientID", i.name, mi.serving_size, mi.instructions '
+                'FROM "meal_ingredients" mi '
+                'LEFT JOIN "Ingredients" i ON i."IngredientID" = mi."IngredientID" '
+                'WHERE mi."MealID" = :meal_id '
+                'ORDER BY mi."IngredientID" ASC'
+            ),
+            {"meal_id": session.MealID},
+        ).fetchall()
 
         meal_name = meal.name if meal else "Unknown Meal"
         date_str = session.date.strftime("%Y-%m-%d") if session.date else "unknown date"
         servings = session.servings if session.servings is not None else 1
         ingredients = ", ".join(
             (
-                f"{ingredient_name or f'ingredient {ingredient_row.IngredientID}'} ({ingredient_row.serving_size or 0})"
-                if ingredient_row.serving_size is not None
-                else f"{ingredient_name or f'ingredient {ingredient_row.IngredientID}'}"
+                f"{ingredient_name or f'ingredient {ingredient_id}'} ({serving_size or 0})"
+                if serving_size is not None
+                else f"{ingredient_name or f'ingredient {ingredient_id}'}"
             )
-            for ingredient_row, ingredient_name in ingredient_rows
+            for ingredient_id, ingredient_name, serving_size, _ in ingredient_rows
         ) or "ingredients unavailable"
         instructions = " ".join(
-            ingredient_row.instructions
-            for ingredient_row, _ in ingredient_rows
-            if ingredient_row.instructions
+            instructions
+            for _, _, _, instructions in ingredient_rows
+            if instructions
         ) or "no instructions"
         notes = session.notes or instructions
 
@@ -293,6 +297,7 @@ def generate_recipe_prompt_text(
     goal: str | None = None,
     cravings: str | None = None,
     constraints: str | None = None,
+    no_cook: bool = False,
 ) -> str:
     profile = profile_prompt_text(db, profile_id)
     workouts = workout_history_text(db, profile_id)
@@ -302,6 +307,55 @@ def generate_recipe_prompt_text(
     goal_text = goal or "use the profile goals"
     cravings_text = cravings or "no specific cravings"
     constraints_text = constraints or "no additional constraints"
+
+    if no_cook:
+        return f"""
+    You are FORGE's nutrition coach. The user does not want to cook, so recommend restaurant options instead of a recipe.
+
+    User profile: {profile}
+    Logged workout history: {workouts}
+    Logged restaurant meal history: {menu_meals}
+    Logged at-home meal history: {at_home_meals}
+    Today's date is {today()}.
+    Requested meal type: {meal_type_text}
+    User's immediate goal for this meal: {goal_text}
+    Current cravings or foods they want included: {cravings_text}
+    Constraints or foods to avoid: {constraints_text}
+
+    Suggest 3 widely known, mostly fast-food or quick-service restaurants.
+    For each restaurant, give one specific order that fits the user's goals, cravings, constraints, and workout context.
+    Prefer popular chains the user is likely to recognize.
+    Use the logged meals to infer flavor and ordering preferences.
+    Use the logged workouts and goals to infer what kind of meal fits best.
+
+    Respond ONLY with a valid JSON object in this exact format, with no extra text:
+    {{
+      "mode": "restaurant",
+      "title": "<short title for these restaurant suggestions>",
+      "summary": "<1-2 sentence explanation of why these picks fit the user>",
+      "ingredients": [],
+      "steps": [],
+      "based_on_meals": ["<logged meal or pattern 1>", "<logged meal or pattern 2>"],
+      "based_on_workouts": ["<workout insight 1>", "<workout insight 2>"],
+      "restaurant_suggestions": [
+        {{
+          "restaurant": "<restaurant 1>",
+          "order": "<specific order>",
+          "reason": "<why this order fits>"
+        }},
+        {{
+          "restaurant": "<restaurant 2>",
+          "order": "<specific order>",
+          "reason": "<why this order fits>"
+        }},
+        {{
+          "restaurant": "<restaurant 3>",
+          "order": "<specific order>",
+          "reason": "<why this order fits>"
+        }}
+      ]
+    }}
+    """
 
     return f"""
     You are FORGE's nutrition coach. Build one practical recipe tailored to this user.
@@ -323,12 +377,14 @@ def generate_recipe_prompt_text(
 
     Respond ONLY with a valid JSON object in this exact format, with no extra text:
     {{
+      "mode": "recipe",
       "title": "<short recipe name>",
       "summary": "<1-2 sentence explanation of why this recipe fits the user>",
       "ingredients": ["<ingredient 1>", "<ingredient 2>"],
       "steps": ["<step 1>", "<step 2>"],
       "based_on_meals": ["<logged meal or pattern 1>", "<logged meal or pattern 2>"],
-      "based_on_workouts": ["<workout insight 1>", "<workout insight 2>"]
+      "based_on_workouts": ["<workout insight 1>", "<workout insight 2>"],
+      "restaurant_suggestions": []
     }}
     """
 

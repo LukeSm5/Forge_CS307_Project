@@ -87,40 +87,218 @@ def populate_workouts(sess):
 
 def populate_exercises(sess):
     e = [
-        Exercises(name='pull up'),
-        Exercises(name='lateral pull down'),
-        Exercises(name='row'),
-        Exercises(name='face pull'),
+        Exercises(name='pull up', advice="""
+1. Grab the bar a little wider than shoulder-width.
+2. Hang with your arms straight.
+3. Tighten your core.
+4. Pull yourself up until your chin is over the bar.
+5. Lower yourself back down slowly.
+6. Repeat.
+        """),
+        Exercises(name='lateral pull down', advice="""
+1. Sit down and adjust the pad so your legs stay in place.
+2. Grab the bar wider than shoulder-width.
+3. Pull the bar down to your upper chest.
+4. Squeeze your back at the bottom.
+5. Slowly let the bar go back up.
+6. Repeat.
+        """),
+        Exercises(name='row', advice="""
+1. Sit down and grab the handle.
+2. Keep your chest up and back straight.
+3. Pull the handle toward your stomach.
+4. Squeeze your back at the end.
+5. Slowly return to the start.
+6. Repeat.
+        """),
+        Exercises(name='face pull', advice="""
+1. Set the rope at upper chest or face height.
+2. Grab the rope with both hands.
+3. Pull the rope toward your face.
+4. Keep your elbows high and wide.
+5. Squeeze your upper back at the end.
+6. Slowly return to the start.
+7. Repeat.
+        """),
 
-        Exercises(name='bicep curl'),
-        Exercises(name='preacher curl'),
-        Exercises(name='hammer curl'),
-        Exercises(name='straight-bar curl'),
+        Exercises(name='bicep curl', advice="""
+1. Stand up and hold the weights at your sides.
+2. Keep your elbows close to your body.
+3. Curl the weights up toward your shoulders.
+4. Squeeze your biceps at the top.
+5. Slowly lower the weights back down.
+6. Repeat.
+        """),
+        Exercises(name='preacher curl', advice="""
+1. Sit at the preacher curl bench and place your arms on the pad.
+2. Grab the bar or handle with your hands shoulder-width apart.
+3. Curl the weight up toward your shoulders.
+4. Squeeze your biceps at the top.
+5. Slowly lower the weight back down.
+6. Repeat.
+        """),
+        Exercises(name='hammer curl', advice="""
+1. Stand up and hold the weights at your sides with your palms facing in.
+2. Keep your elbows close to your body.
+3. Curl the weights up toward your shoulders.
+4. Squeeze at the top.
+5. Slowly lower the weights back down.
+6. Repeat.
+        """),
+        Exercises(name='straight-bar curl', advice="""
+1. Stand up and hold the straight bar with your hands shoulder-width apart.
+2. Keep your elbows close to your body.
+3. Curl the bar up toward your shoulders.
+4. Squeeze your biceps at the top.
+5. Slowly lower the bar back down.
+6. Repeat.
+        """),
+        Exercises(name='bench press', advice="""
+1. Lie flat on the bench with your feet on the floor.
+2. Grab the bar a little wider than shoulder-width.
+3. Lower the bar to your chest.
+4. Press the bar back up until your arms are straight.
+5. Repeat.
+        """),
+        Exercises(name='incline bench press', advice="""
+1. Lie on the incline bench with your feet on the floor.
+2. Grab the bar a little wider than shoulder-width.
+3. Lower the bar to your upper chest.
+4. Press the bar back up until your arms are straight.
+5. Repeat.
+        """),
+        Exercises(name='cable fly', advice="""
+1. Stand in the middle of the cables and grab both handles.
+2. Keep a slight bend in your elbows.
+3. Bring your hands together in front of your chest.
+4. Squeeze your chest at the front.
+5. Slowly return to the start.
+6. Repeat.
+        """),
+        Exercises(name='high low cable fly', advice="""
+1. Set the cables high and grab both handles.
+2. Step forward and keep a slight bend in your elbows.
+3. Bring your hands down and together in front of your lower chest.
+4. Squeeze your chest at the bottom.
+5. Slowly return to the start.
+6. Repeat.
+        """),
+        Exercises(name='low high cable fly', advice="""
+1. Set the cables low and grab both handles.
+2. Step forward and keep a slight bend in your elbows.
+3. Bring your hands up and together in front of your upper chest.
+4. Squeeze your chest at the top.
+5. Slowly return to the start.
+6. Repeat.
+        """),
 
-        Exercises(name='bench press'),
-        Exercises(name='incline bench press'),
-        Exercises(name='cable fly'),
-        Exercises(name='high low cable fly'),
-        Exercises(name='low high cable fly'),
-
-        Exercises(name='skull crusher'),
-        Exercises(name='tricep push down'),
-
-        Exercises(name='shoulder press'),
-        Exercises(name='shoulder raise'),
-        Exercises(name='shrug'),
-
-        Exercises(name='bulgarian split squat'),
-        Exercises(name='romanian deadlift'),
+        Exercises(name='skull crusher', advice="""
+1. Lie on a bench and hold the bar or dumbbells above your chest.
+2. Keep your upper arms still and elbows pointing up.
+3. Lower the weight toward your forehead.
+4. Extend your arms back up.
+5. Repeat.        
+        """),
+        Exercises(name='tricep push down', advice="""
+1. Stand in front of the cable and grab the bar or rope.
+2. Keep your elbows close to your sides.
+3. Push the handle down until your arms are straight.
+4. Squeeze your triceps at the bottom.
+5. Slowly return to the start.
+6. Repeat.        
+        """),
+        Exercises(name='shoulder press', advice="""
+1. Sit or stand and hold the weights at shoulder level.
+2. Keep your core tight and back straight.
+3. Press the weights up over your head.
+4. Lower the weights back to shoulder level.
+5. Repeat.
+        """),
+        Exercises(name='shoulder raise', advice="""
+1. Stand up and hold the weights at your sides.
+2. Keep a slight bend in your elbows.
+3. Raise the weights out to your sides until shoulder height.
+4. Slowly lower the weights back down.
+5. Repeat.
+        """),
+        Exercises(name='shrug', advice="""
+1. Stand up and hold the weights at your sides.
+2. Keep your arms straight.
+3. Lift your shoulders straight up.
+4. Squeeze at the top.
+5. Slowly lower your shoulders back down.
+6. Repeat.
+        """),
+        Exercises(name='bulgarian split squat', advice="""
+1. Stand a few feet in front of a bench.
+2. Place one foot behind you on the bench.
+3. Lower your body until your front thigh is about parallel to the floor.
+4. Push through your front foot to stand back up.
+5. Repeat, then switch legs.
+        """),
+        Exercises(name='romanian deadlift', advice="""
+1. Stand up and hold the bar or weights in front of your legs.
+2. Keep a slight bend in your knees.
+3. Push your hips back and lower the weight down your legs.
+4. Lower until you feel a stretch in your hamstrings.
+5. Drive your hips forward to stand back up.
+6. Repeat.
+        """),
         
-        Exercises(name='power clean'),
-        Exercises(name='burpee'),
-        Exercises(name='sled push'),
-        Exercises(name='russian twist'),
-        Exercises(name='sled pull'),
-        Exercises(name='box jump'),
+        Exercises(name='power clean', advice="""
+1. Stand with the bar over the middle of your feet.
+2. Bend down and grab the bar with your hands just outside your legs.
+3. Lift the bar up by pushing through your legs.
+4. Explosively extend your hips and shrug the bar upward.
+5. Quickly catch the bar at your shoulders in a partial squat.
+6. Stand up tall.
+7. Repeat.
+        """),
+        Exercises(name='burpee', advice="""
+1. Start standing up.
+2. Squat down and place your hands on the floor.
+3. Jump your feet back into a push-up position.
+4. Jump your feet back in toward your hands.
+5. Stand up or jump up.
+6. Repeat.
+        """),
+        Exercises(name='sled push', advice="""
+1. Stand behind the sled and place your hands on the handles.
+2. Lean forward with your body at an angle.
+3. Drive through your legs and push the sled forward.
+4. Keep taking short, strong steps.
+5. Push until you reach the end.
+        """),
+        Exercises(name='russian twist', advice="""
+1. Stand behind the sled and place your hands on the handles.
+2. Lean forward with your body at an angle.
+3. Drive through your legs and push the sled forward.
+4. Keep taking short, strong steps.
+5. Push until you reach the end.
+        """),
+        Exercises(name='sled pull', advice="""
+1. Hold the straps or rope attached to the sled.
+2. Lean back slightly and keep your core tight.
+3. Step backward while pulling the sled toward you.
+4. Keep pulling until you reach the end.
+5. Repeat if needed.
+        """),
+        Exercises(name='box jump', advice="""
+1. Stand in front of the box with your feet shoulder-width apart.
+2. Bend your knees and swing your arms back.
+3. Jump onto the box.
+4. Land softly with both feet.
+5. Stand up fully on the box.
+6. Step back down and repeat.
+        """),
 
-        Exercises(name='cardio')
+        Exercises(name='cardio', advice="""
+1. Choose a cardio exercise like running, biking, or rowing.
+2. Start at a steady pace.
+3. Keep moving for the planned amount of time.
+4. Breathe steadily and stay in control.
+5. Slow down at the end to cool down.
+        """)
     ]
 
     for obj in e:

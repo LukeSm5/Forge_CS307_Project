@@ -210,6 +210,10 @@ export const api = {
     return get<LoggedMenuMeal[]>('/session-menu-meals');
   },
 
+  getLoggedAtHomeMeals: async (): Promise<LoggedAtHomeMeal[]> => {
+    return get<LoggedAtHomeMeal[]>('/session-meals');
+  },
+
   deleteLoggedMenuMeal: async (sessionId: number): Promise<void> => {
     return del(`/session-menu-meals/${sessionId}`);
   },
@@ -316,6 +320,24 @@ sled pull, box jump, cardio
       menu_meal_id: menuMealId,
       meal_type: mealType,
     });
+  },
+
+  logRecommendedMenuMeal: async (
+    restaurant: string,
+    order: string,
+    mealType: MealType
+  ): Promise<LoggedMenuMeal> => {
+    return post<LoggedMenuMeal>('/session-menu-meals/recommended', {
+      restaurant,
+      order,
+      meal_type: mealType,
+    });
+  },
+
+  addGeneratedRecipeToLog: async (
+    payload: AddGeneratedRecipeToLogRequest
+  ): Promise<LoggedAtHomeMeal> => {
+    return post<LoggedAtHomeMeal>('/session-meals/generated', payload);
   },
 
   genericPrompt: async (e: GenericPromptEvent): Promise<GenericPromptResponse> => {
@@ -555,12 +577,14 @@ export type GeneratedQuickWorkout = {
 };
 
 export type GeneratedRecipe = {
+  mode: 'recipe' | 'restaurant';
   title: string;
   summary: string;
   ingredients: string[];
   steps: string[];
   based_on_meals: string[];
   based_on_workouts: string[];
+  restaurant_suggestions?: RestaurantSuggestion[];
   prompt: string;
 };
 
@@ -569,6 +593,21 @@ export type GenerateRecipeRequest = {
   goal?: string;
   cravings?: string;
   constraints?: string;
+  no_cook?: boolean;
+};
+
+export type AddGeneratedRecipeToLogRequest = {
+  title: string;
+  summary: string;
+  ingredients: string[];
+  steps: string[];
+  meal_type?: string;
+};
+
+export type RestaurantSuggestion = {
+  restaurant: string;
+  order: string;
+  reason: string;
 };
 
 export type MenuMeal = {
@@ -614,6 +653,24 @@ export type LoggedMenuMeal = {
   trans_fat_g?: number | null;
   cholesterol_mg?: number | null;
   sodium_mg?: number | null;
+};
+
+export type LoggedAtHomeMeal = {
+  session_meal_id: number;
+  profile_id: number;
+  meal_id: number;
+  meal_name: string;
+  date: string;
+  servings?: number | null;
+  notes?: string | null;
+  ingredients: string[];
+  calories?: number | null;
+  protein?: number | null;
+  fat?: number | null;
+  carbs?: number | null;
+  sugar?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
 };
 
 export type GenericPromptEvent = {

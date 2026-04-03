@@ -46,6 +46,7 @@ class Exercises(Base):
     __tablename__ = 'Exercises'                                            
     ExerciseID = Column(Integer, primary_key=True, autoincrement=True)     
     name = Column(Text, nullable=False)
+    advice = Column(Text, nullable=True)
 
 class Machines(Base):
     "Cables, dumbells, barbell, bodyweight"

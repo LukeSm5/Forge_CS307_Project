@@ -18,7 +18,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text, quick_workout_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals
+from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -66,6 +66,8 @@ def ensure_dev_schema() -> None:
     with engine.begin() as connection:
         if "calorie_goal" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN calorie_goal FLOAT'))
+        if "metricOrImperial" not in profile_columns:
+            connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN "metricOrImperial" BOOLEAN'))
         if "chicken" not in menu_meal_columns:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN chicken BOOLEAN'))
         if "beef" not in menu_meal_columns:
@@ -115,10 +117,40 @@ class CreateWorkoutRequest(BaseModel):
     exercises: List[WorkoutExerciseIn]
     overwrite: bool = True  # if true, replaces saved exercises for this workout
 
+class LogRecommendedMenuMealRequest(BaseModel):
+    restaurant: str
+    order: str
+    meal_type: str  # breakfast / lunch / dinner / snack
+
 class CreateWorkoutResponse(BaseModel):
     workout_id: int
     workout_name: str
     inserted_sets: int
+
+class SessionMealOut(BaseModel):
+    session_meal_id: int
+    profile_id: int
+    meal_id: int
+    meal_name: str
+    date: datetime
+    servings: Optional[float] = None
+    notes: Optional[str] = None
+    ingredients: List[str]
+    calories: Optional[float] = None
+    protein: Optional[float] = None
+    fat: Optional[float] = None
+    carbs: Optional[float] = None
+    sugar: Optional[float] = None
+    fiber: Optional[float] = None
+    sodium: Optional[float] = None
+
+
+class AddGeneratedRecipeRequest(BaseModel):
+    title: str
+    summary: str
+    ingredients: List[str]
+    steps: List[str]
+    meal_type: Optional[str] = None
 
 class WorkoutExerciseOut(BaseModel):
     exercise_id: int
@@ -364,12 +396,14 @@ class QuickWorkoutResponse(BaseModel):
 
 
 class GenerateRecipeResponse(BaseModel):
+    mode: str
     title: str
     summary: str
     ingredients: List[str]
     steps: List[str]
     based_on_meals: List[str]
     based_on_workouts: List[str]
+    restaurant_suggestions: List[Dict[str, str]] = Field(default_factory=list)
     prompt: str
 
 
@@ -421,7 +455,40 @@ def _fallback_recipe_response(
     cravings = payload.cravings or "ingredients you already gravitate toward"
     constraints = payload.constraints or "no extra restrictions"
 
+    if payload.no_cook:
+        return GenerateRecipeResponse(
+            mode="restaurant",
+            title=f"Forge {requested_meal_type.title()} Restaurant Picks",
+            summary=(
+                f"These quick restaurant options fit {requested_goal}, line up with {primary_workout}, "
+                f"and reflect your recent meal patterns while respecting {constraints}."
+            ),
+            ingredients=[],
+            steps=[],
+            based_on_meals=[primary_meal, secondary_meal],
+            based_on_workouts=[primary_workout],
+            restaurant_suggestions=[
+                {
+                    "restaurant": "Chipotle",
+                    "order": "Chicken burrito bowl with white rice, black beans, fajita veggies, pico de gallo, and lettuce",
+                    "reason": "High protein, easy to customize, and good for post-workout recovery.",
+                },
+                {
+                    "restaurant": "Chick-fil-A",
+                    "order": "Grilled nuggets with a fruit cup and kale crunch side",
+                    "reason": "Lean protein with a lighter side if you want a lower-calorie option.",
+                },
+                {
+                    "restaurant": "Subway",
+                    "order": "Rotisserie-style chicken bowl or sub loaded with vegetables",
+                    "reason": "Flexible, widely available, and easy to fit around constraints or cravings.",
+                },
+            ],
+            prompt=recipe_prompt,
+        )
+
     return GenerateRecipeResponse(
+        mode="recipe",
         title=f"Forge {requested_meal_type.title()} Bowl",
         summary=(
             f"This recipe is based on {primary_meal}, tuned to support {primary_workout}, and shaped around {requested_goal}. "
@@ -444,8 +511,62 @@ def _fallback_recipe_response(
         ],
         based_on_meals=[primary_meal, secondary_meal],
         based_on_workouts=[primary_workout],
+        restaurant_suggestions=[],
         prompt=recipe_prompt,
     )
+
+def _recipe_history_defaults(db: Session, profile_id: int) -> tuple[List[str], List[str]]:
+    meal_refs: List[str] = []
+    workout_refs: List[str] = []
+
+    logged_menu_meals = (
+        db.query(session_menu_meals, menu_meals)
+        .join(menu_meals, menu_meals.MenuMealID == session_menu_meals.MenuMealID)
+        .filter(session_menu_meals.ProfileID == profile_id)
+        .order_by(session_menu_meals.date.desc())
+        .limit(2)
+        .all()
+    )
+    meal_refs.extend(
+        meal_row.product
+        for _, meal_row in logged_menu_meals
+        if meal_row and meal_row.product
+    )
+
+    logged_at_home = (
+        db.query(session_meals, Meals)
+        .join(Meals, Meals.MealID == session_meals.MealID)
+        .filter(session_meals.ProfileID == profile_id)
+        .order_by(session_meals.date.desc())
+        .limit(2)
+        .all()
+    )
+    meal_refs.extend(
+        meal_row.name
+        for _, meal_row in logged_at_home
+        if meal_row and meal_row.name
+    )
+
+    logged_workouts = (
+        db.query(session_workouts, Workouts)
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == profile_id)
+        .order_by(session_workouts.date.desc())
+        .limit(2)
+        .all()
+    )
+    workout_refs.extend(
+        workout_row.name
+        for _, workout_row in logged_workouts
+        if workout_row and workout_row.name
+    )
+
+    if not meal_refs:
+        meal_refs = ["No logged meals yet for this user"]
+    if not workout_refs:
+        workout_refs = ["No logged workouts yet for this user"]
+
+    return meal_refs[:2], workout_refs[:2]
 
 
 def _send_account_update_notification(
@@ -834,11 +955,15 @@ def generate_recipe(
         goal=payload.goal,
         cravings=payload.cravings,
         constraints=payload.constraints,
+        no_cook=payload.no_cook,
     )
     client = _get_openai_client()
 
     if client is None:
-        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is not configured for recipe generation",
+        )
 
     try:
         response = client.responses.create(
@@ -853,6 +978,7 @@ def generate_recipe(
                         "type": "object",
                         "properties": {
                             "title": {"type": "string"},
+                            "mode": {"type": "string", "enum": ["recipe", "restaurant"]},
                             "summary": {"type": "string"},
                             "ingredients": {
                                 "type": "array",
@@ -870,14 +996,29 @@ def generate_recipe(
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
+                            "restaurant_suggestions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "restaurant": {"type": "string"},
+                                        "order": {"type": "string"},
+                                        "reason": {"type": "string"},
+                                    },
+                                    "required": ["restaurant", "order", "reason"],
+                                    "additionalProperties": False,
+                                },
+                            },
                         },
                         "required": [
+                            "mode",
                             "title",
                             "summary",
                             "ingredients",
                             "steps",
                             "based_on_meals",
                             "based_on_workouts",
+                            "restaurant_suggestions",
                         ],
                         "additionalProperties": False,
                     },
@@ -885,11 +1026,23 @@ def generate_recipe(
             },
         )
         parsed = json.loads(response.output_text)
+        meal_refs, workout_refs = _recipe_history_defaults(db, me.UserID)
+        if not parsed.get("based_on_meals"):
+            parsed["based_on_meals"] = meal_refs
+        if not parsed.get("based_on_workouts"):
+            parsed["based_on_workouts"] = workout_refs
+        if not parsed.get("mode"):
+            parsed["mode"] = "restaurant" if payload.no_cook else "recipe"
+        if "restaurant_suggestions" not in parsed or parsed["restaurant_suggestions"] is None:
+            parsed["restaurant_suggestions"] = []
         parsed["prompt"] = recipe_prompt
         return GenerateRecipeResponse(**parsed)
-    except Exception:
+    except Exception as exc:
         logger.exception("Recipe generation failed for profile_id=%s", me.UserID)
-        return _fallback_recipe_response(db, me.UserID, recipe_prompt, payload)
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenAI recipe generation failed: {exc}",
+        ) from exc
 
 
 @app.delete("/accounts/{user_id}")
@@ -1263,6 +1416,203 @@ def delete_workout_session(
     return {"deleted": True, "session_id": session_id}
 
 VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+
+def _build_session_meal_out(
+    db: Session,
+    entry: session_meals,
+) -> SessionMealOut:
+    meal = db.query(Meals).filter(Meals.MealID == entry.MealID).first()
+    macros = db.query(meal_macros).filter(meal_macros.MealID == entry.MealID).first()
+    ingredients = db.execute(
+        text(
+            'SELECT i.name '
+            'FROM "meal_ingredients" mi '
+            'JOIN "Ingredients" i ON i."IngredientID" = mi."IngredientID" '
+            'WHERE mi."MealID" = :meal_id '
+            'ORDER BY mi."IngredientID" ASC'
+        ),
+        {"meal_id": entry.MealID},
+    ).fetchall()
+
+    return SessionMealOut(
+        session_meal_id=entry.SessionMealID,
+        profile_id=entry.ProfileID,
+        meal_id=entry.MealID,
+        meal_name=meal.name if meal else "Unknown Meal",
+        date=entry.date,
+        servings=entry.servings,
+        notes=entry.notes,
+        ingredients=[ingredient_name for (ingredient_name,) in ingredients if ingredient_name],
+        calories=macros.calories if macros else None,
+        protein=macros.protein if macros else None,
+        fat=macros.fat if macros else None,
+        carbs=macros.carbs if macros else None,
+        sugar=macros.sugar if macros else None,
+        fiber=macros.fiber if macros else None,
+        sodium=macros.sodium if macros else None,
+    )
+
+
+@app.get("/session-meals", response_model=List[SessionMealOut])
+def get_session_meals(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(session_meals)
+        .filter(session_meals.ProfileID == me.UserID)
+        .order_by(session_meals.date.desc(), session_meals.SessionMealID.desc())
+        .all()
+    )
+    return [_build_session_meal_out(db, row) for row in rows]
+
+
+@app.post("/session-meals/generated", response_model=SessionMealOut, status_code=201)
+def add_generated_recipe_to_log(
+    payload: AddGeneratedRecipeRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    meal_name = payload.title.strip()
+    if not meal_name:
+        raise HTTPException(status_code=400, detail="Recipe title is required")
+
+    summary = payload.summary.strip()
+    steps = [step.strip() for step in payload.steps if step.strip()]
+    ingredient_names = [item.strip() for item in payload.ingredients if item.strip()]
+
+    meal = Meals(name=meal_name)
+    db.add(meal)
+    db.flush()
+
+    for ingredient_name in ingredient_names:
+        ingredient = (
+            db.query(Ingredients)
+            .filter(Ingredients.name == ingredient_name)
+            .first()
+        )
+        if ingredient is None:
+            ingredient = Ingredients(name=ingredient_name)
+            db.add(ingredient)
+            db.flush()
+
+        db.execute(
+            text(
+                'INSERT INTO "meal_ingredients" ("MealID", "IngredientID", serving_size, instructions) '
+                'VALUES (:meal_id, :ingredient_id, :serving_size, :instructions)'
+            ),
+            {
+                "meal_id": meal.MealID,
+                "ingredient_id": ingredient.IngredientID,
+                "serving_size": None,
+                "instructions": "\n".join(steps) if steps else "",
+            },
+        )
+
+    note_lines: List[str] = []
+    if payload.meal_type and payload.meal_type.strip():
+        note_lines.append(f"Meal type: {payload.meal_type.strip()}")
+    if summary:
+        note_lines.append(summary)
+    if steps:
+        note_lines.append("Steps:")
+        note_lines.extend(f"{index + 1}. {step}" for index, step in enumerate(steps))
+
+    entry = session_meals(
+        ProfileID=me.UserID,
+        MealID=meal.MealID,
+        date=datetime.utcnow(),
+        servings=1.0,
+        notes="\n".join(note_lines) if note_lines else None,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+
+    return _build_session_meal_out(db, entry)
+
+
+@app.post("/session-menu-meals/recommended", response_model=SessionMenuMealOut)
+def log_recommended_menu_meal(
+    payload: LogRecommendedMenuMealRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    meal_type = payload.meal_type.strip().lower()
+    if meal_type not in VALID_MEAL_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid meal_type")
+
+    restaurant = payload.restaurant.strip()
+    order = payload.order.strip()
+    if not restaurant or not order:
+        raise HTTPException(status_code=400, detail="Restaurant and order are required")
+
+    meal = (
+        db.query(menu_meals)
+        .filter(
+            menu_meals.restaurant == restaurant,
+            menu_meals.product == order,
+        )
+        .first()
+    )
+
+    if meal is None:
+        current_max = db.query(menu_meals.MenuMealID).order_by(menu_meals.MenuMealID.desc()).first()
+        next_id = (current_max[0] + 1) if current_max and current_max[0] is not None else 0
+        meal = menu_meals(
+            MenuMealID=next_id,
+            restaurant=restaurant,
+            category="AI Recommendation",
+            product=order,
+            serving_size=None,
+            energy_kcal=None,
+            carbohydrates_g=None,
+            protein_g=None,
+            fiber_g=None,
+            sugar_g=None,
+            total_fat_g=None,
+            saturated_fat_g=None,
+            trans_fat_g=None,
+            cholesterol_mg=None,
+            sodium_mg=None,
+            chicken=None,
+            beef=None,
+        )
+        db.add(meal)
+        db.flush()
+
+    new_row = session_menu_meals(
+        ProfileID=me.UserID,
+        MenuMealID=meal.MenuMealID,
+        date=datetime.utcnow(),
+        meal_type=meal_type,
+    )
+    db.add(new_row)
+    db.commit()
+    db.refresh(new_row)
+
+    return SessionMenuMealOut(
+        SessionID=new_row.SessionID,
+        ProfileID=new_row.ProfileID,
+        MenuMealID=new_row.MenuMealID,
+        date=new_row.date,
+        meal_type=new_row.meal_type,
+        restaurant=meal.restaurant,
+        category=meal.category,
+        product=meal.product,
+        serving_size=meal.serving_size,
+        energy_kcal=meal.energy_kcal,
+        carbohydrates_g=meal.carbohydrates_g,
+        protein_g=meal.protein_g,
+        fiber_g=meal.fiber_g,
+        sugar_g=meal.sugar_g,
+        total_fat_g=meal.total_fat_g,
+        saturated_fat_g=meal.saturated_fat_g,
+        trans_fat_g=meal.trans_fat_g,
+        cholesterol_mg=meal.cholesterol_mg,
+        sodium_mg=meal.sodium_mg,
+    )
+
 
 @app.post("/session-menu-meals", response_model=SessionMenuMealOut)
 def log_session_menu_meal(

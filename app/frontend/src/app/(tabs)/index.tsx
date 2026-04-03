@@ -14,6 +14,7 @@ import {
 import { Calendar, DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Text } from "@/components/Themed";
+import { useAppColorScheme } from "@/core/accessibility";
 import {
   CalendarItem,
   ExerciseItem,
@@ -88,6 +89,30 @@ export default function CalendarScreen() {
   const today = new Date().toISOString().slice(0, 10);
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 430;
+
+  const scheme = useAppColorScheme() ?? "light";
+  const isDark = scheme === "dark";
+
+  const modalColors = {
+    bg: isDark ? "#161616" : "#ffffff",
+    inputBg: isDark ? "#0f0f0f" : "#ffffff",
+    text: isDark ? "#ffffff" : "#111111",
+    muted: isDark ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.72)",
+    border: isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.20)",
+    soft: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+    softStrong: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
+    placeholder: isDark ? "rgba(255,255,255,0.40)" : "rgba(0,0,0,0.35)",
+  };
+
+  const modalTextProps = {
+    lightColor: modalColors.text,
+    darkColor: modalColors.text,
+  };
+
+  const modalMutedTextProps = {
+    lightColor: modalColors.muted,
+    darkColor: modalColors.muted,
+  };
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [eventsByDate, setEventsByDate] = useState<
@@ -497,18 +522,29 @@ export default function CalendarScreen() {
 
       <Modal visible={isAddOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: modalColors.bg }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>
+              <Text {...modalTextProps} style={styles.modalTitle}>
                 {isEditing ? "Edit workout" : "Add workout"}
               </Text>
 
-              <Text style={styles.label}>Workout name</Text>
+              <Text {...modalTextProps} style={styles.label}>
+                Workout name
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    color: modalColors.text,
+                    backgroundColor: modalColors.inputBg,
+                    borderColor: modalColors.border,
+                  },
+                ]}
                 value={newTitle}
                 onChangeText={setNewTitle}
                 placeholder="e.g., Push workout"
+                placeholderTextColor={modalColors.placeholder}
+                keyboardAppearance={isDark ? "dark" : "light"}
                 autoCapitalize="sentences"
               />
 
@@ -516,23 +552,40 @@ export default function CalendarScreen() {
                 {SUGGESTED_WORKOUTS.slice(0, 4).map((w) => (
                   <Pressable
                     key={w}
-                    style={styles.suggestionChip}
+                    style={[
+                      styles.suggestionChip,
+                      {
+                        backgroundColor: modalColors.soft,
+                        borderColor: modalColors.border,
+                      },
+                    ]}
                     onPress={() => setNewTitle(w)}
                   >
-                    <Text style={styles.suggestionText}>{w}</Text>
+                    <Text
+                      {...modalMutedTextProps}
+                      style={styles.suggestionText}
+                    >
+                      {w}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
 
-              <Text style={styles.label}>Time</Text>
+              <Text {...modalTextProps} style={styles.label}>
+                Time
+              </Text>
               <Pressable
                 style={[
                   styles.timeToggle,
+                  {
+                    backgroundColor: modalColors.inputBg,
+                    borderColor: modalColors.border,
+                  },
                   includeTime ? styles.timeToggleActive : null,
                 ]}
                 onPress={() => setIncludeTime((prev) => !prev)}
               >
-                <Text style={styles.timeToggleText}>
+                <Text {...modalTextProps} style={styles.timeToggleText}>
                   {includeTime
                     ? `Selected time: ${formatTime(selectedTime)}`
                     : "Tap to add a time"}
@@ -540,11 +593,17 @@ export default function CalendarScreen() {
               </Pressable>
 
               {includeTime && (
-                <View style={styles.pickerWrapper}>
+                <View
+                  style={[
+                    styles.pickerWrapper,
+                    { backgroundColor: isDark ? "#1d1d1d" : "#f7f7f7" },
+                  ]}
+                >
                   <DateTimePicker
                     value={selectedTime}
                     mode="time"
                     display={Platform.OS === "ios" ? "spinner" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
                     onChange={(_, pickedTime) => {
                       if (pickedTime) {
                         setSelectedTime(pickedTime);
@@ -556,15 +615,21 @@ export default function CalendarScreen() {
 
               {!isEditing && (
                 <>
-                  <Text style={styles.sectionHeader}>Repeat</Text>
+                  <Text {...modalTextProps} style={styles.sectionHeader}>
+                    Repeat
+                  </Text>
                   <Pressable
                     style={[
                       styles.repeatToggle,
+                      {
+                        backgroundColor: modalColors.inputBg,
+                        borderColor: modalColors.border,
+                      },
                       repeatWeekly ? styles.repeatToggleActive : null,
                     ]}
                     onPress={() => setRepeatWeekly((prev) => !prev)}
                   >
-                    <Text style={styles.repeatToggleText}>
+                    <Text {...modalTextProps} style={styles.repeatToggleText}>
                       {repeatWeekly
                         ? "Repeats every week"
                         : "Tap to repeat every week"}
@@ -573,12 +638,23 @@ export default function CalendarScreen() {
 
                   {repeatWeekly && (
                     <>
-                      <Text style={styles.label}>How many weeks?</Text>
+                      <Text {...modalTextProps} style={styles.label}>
+                        How many weeks?
+                      </Text>
                       <TextInput
-                        style={styles.input}
+                        style={[
+                          styles.input,
+                          {
+                            color: modalColors.text,
+                            backgroundColor: modalColors.inputBg,
+                            borderColor: modalColors.border,
+                          },
+                        ]}
                         value={repeatWeeks}
                         onChangeText={setRepeatWeeks}
                         placeholder="e.g., 4"
+                        placeholderTextColor={modalColors.placeholder}
+                        keyboardAppearance={isDark ? "dark" : "light"}
                         keyboardType="numeric"
                       />
                     </>
@@ -586,58 +662,122 @@ export default function CalendarScreen() {
                 </>
               )}
 
-              <Text style={styles.sectionHeader}>Exercises</Text>
+              <Text {...modalTextProps} style={styles.sectionHeader}>
+                Exercises
+              </Text>
 
               {!!extraExercises.length && (
                 <View style={styles.savedExercisesWrap}>
                   {extraExercises.map((exercise) => (
-                    <View key={exercise.id} style={styles.savedExerciseCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.exerciseName}>{exercise.name}</Text>
-                        <Text style={styles.exerciseMeta}>
+                    <View
+                      key={exercise.id}
+                      style={[
+                        styles.savedExerciseCard,
+                        { backgroundColor: modalColors.soft },
+                      ]}
+                    >
+                      <View style={{ flex: 1, backgroundColor: "transparent" }}>
+                        <Text {...modalTextProps} style={styles.exerciseName}>
+                          {exercise.name}
+                        </Text>
+                        <Text
+                          {...modalMutedTextProps}
+                          style={styles.exerciseMeta}
+                        >
                           {exercise.sets} sets × {exercise.reps} reps
                         </Text>
                       </View>
 
                       <Pressable
-                        style={styles.removeExerciseBtn}
+                        style={[
+                          styles.removeExerciseBtn,
+                          { backgroundColor: modalColors.softStrong },
+                        ]}
                         onPress={() => removeExerciseField(exercise.id)}
                       >
-                        <Text style={styles.removeExerciseText}>Remove</Text>
+                        <Text
+                          {...modalTextProps}
+                          style={styles.removeExerciseText}
+                        >
+                          Remove
+                        </Text>
                       </Pressable>
                     </View>
                   ))}
                 </View>
               )}
 
-              <Text style={styles.label}>Exercise name</Text>
+              <Text {...modalTextProps} style={styles.label}>
+                Exercise name
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    color: modalColors.text,
+                    backgroundColor: modalColors.inputBg,
+                    borderColor: modalColors.border,
+                  },
+                ]}
                 value={exerciseName}
                 onChangeText={setExerciseName}
                 placeholder="e.g., Bench Press"
+                placeholderTextColor={modalColors.placeholder}
+                keyboardAppearance={isDark ? "dark" : "light"}
                 autoCapitalize="words"
               />
 
               <View style={styles.exerciseInputRow}>
-                <View style={styles.exerciseInputCol}>
-                  <Text style={styles.label}>Sets</Text>
+                <View
+                  style={[
+                    styles.exerciseInputCol,
+                    { backgroundColor: "transparent" },
+                  ]}
+                >
+                  <Text {...modalTextProps} style={styles.label}>
+                    Sets
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        color: modalColors.text,
+                        backgroundColor: modalColors.inputBg,
+                        borderColor: modalColors.border,
+                      },
+                    ]}
                     value={exerciseSets}
                     onChangeText={setExerciseSets}
                     placeholder="3"
+                    placeholderTextColor={modalColors.placeholder}
+                    keyboardAppearance={isDark ? "dark" : "light"}
                     keyboardType="numeric"
                   />
                 </View>
 
-                <View style={styles.exerciseInputCol}>
-                  <Text style={styles.label}>Reps</Text>
+                <View
+                  style={[
+                    styles.exerciseInputCol,
+                    { backgroundColor: "transparent" },
+                  ]}
+                >
+                  <Text {...modalTextProps} style={styles.label}>
+                    Reps
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        color: modalColors.text,
+                        backgroundColor: modalColors.inputBg,
+                        borderColor: modalColors.border,
+                      },
+                    ]}
                     value={exerciseReps}
                     onChangeText={setExerciseReps}
                     placeholder="10"
+                    placeholderTextColor={modalColors.placeholder}
+                    keyboardAppearance={isDark ? "dark" : "light"}
                     keyboardType="numeric"
                   />
                 </View>
@@ -652,10 +792,16 @@ export default function CalendarScreen() {
 
               <View style={styles.modalActions}>
                 <Pressable
-                  style={[styles.actionBtn, styles.cancelBtn]}
+                  style={[
+                    styles.actionBtn,
+                    styles.cancelBtn,
+                    { backgroundColor: modalColors.softStrong },
+                  ]}
                   onPress={closeAdd}
                 >
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text {...modalTextProps} style={styles.cancelText}>
+                    Cancel
+                  </Text>
                 </Pressable>
 
                 <Pressable
@@ -674,15 +820,17 @@ export default function CalendarScreen() {
 
       <Modal visible={isReportOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Reports</Text>
+          <View style={[styles.modalCard, { backgroundColor: modalColors.bg }]}>
+            <Text {...modalTextProps} style={styles.modalTitle}>
+              Reports
+            </Text>
             <ScrollView>
-              <Text>Number of Lifts: </Text>
-              <Text>Average Lift Duration: </Text>
-              <Text>Max Weight Lifted: </Text>
-              <Text>Hardest Hit Muscle Group: </Text>
-              <Text>Least Hit Muscle Group: </Text>
-              <Text>Weekly Workout Streak: </Text>
+              <Text {...modalTextProps}>Number of Lifts: </Text>
+              <Text {...modalTextProps}>Average Lift Duration: </Text>
+              <Text {...modalTextProps}>Max Weight Lifted: </Text>
+              <Text {...modalTextProps}>Hardest Hit Muscle Group: </Text>
+              <Text {...modalTextProps}>Least Hit Muscle Group: </Text>
+              <Text {...modalTextProps}>Weekly Workout Streak: </Text>
             </ScrollView>
             <Pressable
               style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
@@ -818,7 +966,6 @@ const styles = StyleSheet.create({
     maxHeight: "90%",
     borderRadius: 14,
     padding: 16,
-    backgroundColor: "white",
   },
 
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
@@ -839,7 +986,6 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.2)",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -857,19 +1003,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "rgba(0,0,0,0.03)",
   },
 
-  suggestionText: { fontSize: 12, fontWeight: "600" },
+  suggestionText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
 
   timeToggle: {
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.2)",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: "white",
   },
 
   timeToggleActive: {
@@ -885,7 +1030,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#f7f7f7",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -893,11 +1037,9 @@ const styles = StyleSheet.create({
   repeatToggle: {
     marginTop: 4,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.2)",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: "white",
   },
 
   repeatToggleActive: {
@@ -920,14 +1062,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.04)",
   },
 
   removeExerciseBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.08)",
   },
 
   removeExerciseText: {
@@ -967,7 +1107,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  cancelBtn: { backgroundColor: "rgba(0,0,0,0.08)" },
+  cancelBtn: {},
   saveBtn: { backgroundColor: "#2f80ed" },
   cancelText: { fontWeight: "700" },
   saveText: { color: "white", fontWeight: "700" },
