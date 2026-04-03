@@ -825,12 +825,12 @@ export default function CalendarScreen() {
               Reports
             </Text>
             <ScrollView>
-              <Text {...modalTextProps}>Number of Lifts: </Text>
-              <Text {...modalTextProps}>Average Lift Duration: </Text>
-              <Text {...modalTextProps}>Max Weight Lifted: </Text>
-              <Text {...modalTextProps}>Hardest Hit Muscle Group: </Text>
-              <Text {...modalTextProps}>Least Hit Muscle Group: </Text>
-              <Text {...modalTextProps}>Weekly Workout Streak: </Text>
+              <Text {...modalTextProps}>Number of Lifts: 0</Text>
+              <Text {...modalTextProps}>Average Lift Duration: 0</Text>
+              <Text {...modalTextProps}>Max Weight Lifted: 0</Text>
+              <Text {...modalTextProps}>Hardest Hit Muscle Group: N/A</Text>
+              <Text {...modalTextProps}>Least Hit Muscle Group: N/A</Text>
+              <Text {...modalTextProps}>Weekly Workout Streak: 0</Text>
             </ScrollView>
             <Pressable
               style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}

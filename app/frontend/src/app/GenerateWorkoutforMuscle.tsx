@@ -50,10 +50,14 @@ export default function GenerateWorkoutforMuscle() {
         
     } */
         async function handleGenerateWorkoutForMuscle() {
+            const selectedMuscle = workouts.find(w => w.workout_id === selectedWorkoutId)?.name.toLowerCase(); 
+            if (!selectedMuscle) {
+                setError('Please select a muscle group');
+            }
             setLoading(true);
             setError(null);
             try {
-                const workout = await api.quickMuscleWorkout({ muscle: 'back' }); // Replace 'back' with the selected muscle
+                const workout = await api.quickMuscleWorkout({ muscle: selectedMuscle }); 
                 alert(JSON.stringify(workout));
                 router.push({ pathname: '/LogGeneratedWorkout', 
                     params: { workout_name: workout.workout, 
