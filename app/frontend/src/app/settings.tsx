@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
-  View,
   Pressable,
   TextInput,
   ScrollView,
@@ -10,7 +9,7 @@ import {
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Text } from "@/components/Themed";
+import { View, Text } from "@/components/Themed";
 import { useAccessibility, useAppColorScheme } from "@/core/accessibility";
 import { Schemes } from "@/constants/Colors";
 import { api, setToken, User } from "@/core/api";

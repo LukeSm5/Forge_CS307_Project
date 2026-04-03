@@ -35,7 +35,7 @@ dotenv.load_dotenv()
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
-# llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
     logger.warning("GOOGLE_API_KEY not set in environment variables. Google API calls will fail.")
@@ -1449,7 +1449,6 @@ def tailor_exercise(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    """
     prompt = tailor_exercise_prompt_text(db, me.UserID, payload)
 
     response = llm.responses.create(
@@ -1477,9 +1476,6 @@ def tailor_exercise(
     parsed = json.loads(response.output_text)
 
     return TailorExerciseResponse(weight=int(parsed["weight"]), sets=int(parsed["sets"]), reps=int(parsed["reps"]))
-    """
-
-    return TailorExerciseResponse(weight=45, sets=4, reps=8) 
 
 
 @app.post("/recalibrate-calories", response_model=RecalibrateCaloriesResponse)
@@ -1488,7 +1484,6 @@ def recalibrate_calories(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    """
     prompt = calorie_goal_prompt_text(db, me.UserID, payload)
 
     response = llm.responses.create(
@@ -1512,10 +1507,14 @@ def recalibrate_calories(
     )
 
     parsed = json.loads(response.output_text)
+    new_goal = float(parsed["calorie_goal"])
+    
+    profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
+    profile.calorie_goal = new_goal
+    db.commit()
+    db.refresh(profile)
 
-    return RecalibrateCaloriesResponse(calorie_goal=float(parsed["calorie_goal"]))
-    """
-    return RecalibrateCaloriesResponse(calorie_goal=2500.0)
+    return RecalibrateCaloriesResponse(calorie_goal=new_goal)
 
 if __name__ == "__main__":
     import uvicorn

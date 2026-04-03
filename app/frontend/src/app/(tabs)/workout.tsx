@@ -113,7 +113,7 @@ export default function WorkoutTabScreen() {
   }
 
   function handleGenerateWorkout() {
-    router.push({ pathname: "/GenerateWorkoutScreen" });
+    router.push("/GenerateWorkoutScreen");
   }
 
   function handleStartWorkout(logId: string) {

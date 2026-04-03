@@ -928,6 +928,96 @@ export default function Diet() {
         )}
       </SectionCard>
 
+      <SectionCard title="Menu Meal Search">
+        <View style={styles.rowGap}>
+          <View style={styles.flex1}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter restaurant"
+              placeholderTextColor="#6b7280"
+              value={restaurant}
+              onChangeText={setRestaurant}
+              returnKeyType="search"
+              onSubmitEditing={searchMeals}
+            />
+          </View>
+          <View style={styles.flex1}>
+            <TextInput
+              style={styles.input}
+              placeholder="Min protein (g)"
+              placeholderTextColor="#6b7280"
+              value={minProtein}
+              onChangeText={setMinProtein}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+        </View>
+
+        <View style={styles.pillWrap}>
+          <Pill
+            label="chicken"
+            active={proteinFilter === 'chicken'}
+            color={C?.amber ?? '#f5c56b'}
+            onPress={() => handleProteinPress('chicken')}
+          />
+          <Pill
+            label="beef"
+            active={proteinFilter === 'beef'}
+            color={C?.amber ?? '#f5c56b'}
+            onPress={() => handleProteinPress('beef')}
+          />
+        </View>
+
+        <View style={styles.rowGap}>
+          <View style={styles.flex1}>
+            <ForgeButton onPress={searchMeals} text={'Search'} />
+          </View>
+          <View style={styles.flex1}>
+            <ForgeButton
+              onPress={() => {
+                setRestaurant('');
+                setRestaurantMeals([]);
+                setProteinFilter(null);
+                setProteinFetched(false);
+                setMinProtein('');
+                setRestaurantError('');
+              }}
+              text={'Clear'}
+            />
+          </View>
+        </View>
+
+        {restaurantLoading ? <ActivityIndicator style={styles.loader} /> : null}
+        {restaurantError ? <Text style={styles.errorText}>{restaurantError}</Text> : null}
+
+        <View style={filteredRestaurantMeals.length ? styles.restaurantList : undefined}>
+          {filteredRestaurantMeals.map((item, index) => (
+            <View
+              key={item.id != null ? String(item.id) : String(index)}
+              style={styles.restaurantMealRow}
+            >
+              <View style={styles.restaurantMealInfo}>
+                <Text style={styles.restaurantMealName}>{item.product}</Text>
+                <Text style={styles.restaurantMealProtein}>
+                  {item.restaurant} · {item.category}
+                </Text>
+              </View>
+              <View style={styles.restaurantMealStats}>
+                <Text style={styles.restaurantMealCalories}>
+                  {item.protein_g ?? 0}g protein
+                </Text>
+                <Text style={styles.restaurantMealCalories}>
+                  {item.energy_kcal ?? 0} cal
+                </Text>
+              </View>
+              <ForgeButton onPress={() => openMealTypeModal(item)} text="+" />
+              <Text style={styles.addButtonText}>+</Text>
+            </View>
+          ))}
+        </View>
+      </SectionCard>
+
 
       <SectionCard title={editing ? 'Meal Tagging · Edit Meal' : 'Meal Tagging · Add Meal'}>
         <Text style={styles.sectionLabel}>Meal Name</Text>
@@ -1127,96 +1217,6 @@ export default function Diet() {
             ))}
           </View>
         )}
-      </SectionCard>
-
-      <SectionCard title="Menu Meal Search">
-        <View style={styles.rowGap}>
-          <View style={styles.flex1}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter restaurant"
-              placeholderTextColor="#6b7280"
-              value={restaurant}
-              onChangeText={setRestaurant}
-              returnKeyType="search"
-              onSubmitEditing={searchMeals}
-            />
-          </View>
-          <View style={styles.flex1}>
-            <TextInput
-              style={styles.input}
-              placeholder="Min protein (g)"
-              placeholderTextColor="#6b7280"
-              value={minProtein}
-              onChangeText={setMinProtein}
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
-          </View>
-        </View>
-
-        <View style={styles.pillWrap}>
-          <Pill
-            label="chicken"
-            active={proteinFilter === 'chicken'}
-            color={C?.amber ?? '#f5c56b'}
-            onPress={() => handleProteinPress('chicken')}
-          />
-          <Pill
-            label="beef"
-            active={proteinFilter === 'beef'}
-            color={C?.amber ?? '#f5c56b'}
-            onPress={() => handleProteinPress('beef')}
-          />
-        </View>
-
-        <View style={styles.rowGap}>
-          <View style={styles.flex1}>
-            <ForgeButton onPress={searchMeals} text={'Search'} />
-          </View>
-          <View style={styles.flex1}>
-            <ForgeButton
-              onPress={() => {
-                setRestaurant('');
-                setRestaurantMeals([]);
-                setProteinFilter(null);
-                setProteinFetched(false);
-                setMinProtein('');
-                setRestaurantError('');
-              }}
-              text={'Clear'}
-            />
-          </View>
-        </View>
-
-        {restaurantLoading ? <ActivityIndicator style={styles.loader} /> : null}
-        {restaurantError ? <Text style={styles.errorText}>{restaurantError}</Text> : null}
-
-        <View style={filteredRestaurantMeals.length ? styles.restaurantList : undefined}>
-          {filteredRestaurantMeals.map((item, index) => (
-            <View
-              key={item.id != null ? String(item.id) : String(index)}
-              style={styles.restaurantMealRow}
-            >
-              <View style={styles.restaurantMealInfo}>
-                <Text style={styles.restaurantMealName}>{item.product}</Text>
-                <Text style={styles.restaurantMealProtein}>
-                  {item.restaurant} · {item.category}
-                </Text>
-              </View>
-              <View style={styles.restaurantMealStats}>
-                <Text style={styles.restaurantMealCalories}>
-                  {item.protein_g ?? 0}g protein
-                </Text>
-                <Text style={styles.restaurantMealCalories}>
-                  {item.energy_kcal ?? 0} cal
-                </Text>
-              </View>
-              <ForgeButton onPress={() => openMealTypeModal(item)} text="+" />
-              <Text style={styles.addButtonText}>+</Text>
-            </View>
-          ))}
-        </View>
       </SectionCard>
       </>
       )}
