@@ -4,6 +4,7 @@ import ForgeButton from '@/components/ForgeButton';
 import { StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { QuickWorkoutResponse } from '@/core/api';
+import AltMachButton from '@/components/machineAlternatives/AltMachButton';
 
 export default function LogGeneratedWorkout() {
     const router = useRouter();
@@ -22,7 +23,10 @@ export default function LogGeneratedWorkout() {
             <ScrollView>
                 {exercises.map((ex, i) => (
                     <View key={i} style={styles.exercise}>
-                        <Text style={styles.exerciseName}>{ex.exercise}</Text>
+                        <View style={styles.exerciseRow}>
+                            <Text style={styles.exerciseName}>{ex.exercise}</Text>
+                            <AltMachButton exercise={ex.exercise} />
+                        </View>
                         <Text>{ex.sets} sets x {ex.reps} reps @ {ex.weight} lbs</Text>
                     </View>
                 ))}
@@ -49,5 +53,10 @@ const styles = StyleSheet.create({
     exerciseName: {
         fontSize: 18,
         fontWeight: '600',
+    },
+    exerciseRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
 });

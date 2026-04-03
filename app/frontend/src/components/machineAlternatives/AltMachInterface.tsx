@@ -8,9 +8,6 @@ import ForgeButton from '../ForgeButton';
 import { Modal } from 'react-native';
 
 export default function AltMachInterface({ visible, setVisible, exercise }: { visible: boolean, setVisible: (visible: boolean) => void, exercise: string }) {
-    if (!visible)
-        return (<></>);
-
     const [ results, setResults ] = useState<AltMachResponse[]>([]);
 
     let searchComponent: React.JSX.Element;
@@ -27,6 +24,9 @@ export default function AltMachInterface({ visible, setVisible, exercise }: { vi
     useEffect(() => {
         api.machineAlternative({ exercise }).then(setResults).catch(alert);
     }, [exercise]);
+
+    if (!visible)
+        return (<></>);
 
     return (<Modal>
         <View style={styles.container} lightColor="#0007" darkColor="#fff7">
