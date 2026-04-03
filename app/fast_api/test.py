@@ -5,7 +5,7 @@ import pytest
 from app.core.session import engine, Base, SessionLocal
 from datetime import date
 
-from app.fast_api.api import LogMenuMealRequest, CreateAccountRequest, CreateSessionRequest, CreateProfileRequest, LogMenuMealRequest, TailorExerciseRequest, RecalibrateCaloriesRequest
+from app.fast_api.api import LogMenuMealRequest, CreateAccountRequest, CreateSessionRequest, CreateProfileRequest, LogMenuMealRequest, TailorExerciseRequest, RecalibrateCaloriesRequest, LoginRequest
 from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn
 
 
@@ -233,14 +233,15 @@ def test_log_session_menu_meal(me):
 
 def test_userstory_30(me, db):
     """
-    tailor an exercise with weight, reps, sets\n
+    tailor an exercise with weight, reps, sets
     """
+    print('testing: user story 30')
     payload = TailorExerciseRequest(split_name='pull day', date='2026-04-01', workout_name='bicep', exercise_name='bicep_curl', machine_name='dumbbell')
     response = api.tailor_exercise(payload, me, db)
     if response:
         print(f"""
-            for the current session\n
-            {payload.split_name} {payload.date}, {payload.workout_name} workout, {payload.exercise_name} exercise, {payload.machine_name}\n
+            for the current session
+            {payload.split_name} {payload.date}, {payload.workout_name} workout, {payload.exercise_name} exercise, {payload.machine_name}
             recommendations: {response.weight} lbs, {response.sets} sets x {response.reps} reps
             """)
     
@@ -249,8 +250,9 @@ def test_userstory_27(me, db):
     """
     recalibrate calorie goals based on workout & diet history
     """
+    print('testing: user story 27')
     goal = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first().calorie_goal
-    print(f"current calorie goal: {goal}")
+    print(f"\tcurrent calorie goal: {goal}")
     meals = db.query(session_menu_meals).filter((session_menu_meals.ProfileID == me.UserID) & (session_menu_meals.date == '2026-04-01')).all()
 
     consumed = 0
@@ -263,16 +265,47 @@ def test_userstory_27(me, db):
     payload = RecalibrateCaloriesRequest(current_calorie_goal=goal, consumed_calories=consumed, remaining_calories=remaining)
     response = api.recalibrate_calories(payload, me, db)
     if response:
-        print(f"new calorie goal: {response.calorie_goal}")
+        print(f"\tnew calorie goal: {response.calorie_goal}\n")
+
+
+def test_userstory_19(me, db):
+    """
+    remember me login authentication
+    """
+    payload = LoginRequest(email=me.email, password=me.password)
+
+
+def test_userstory_18(db):
+    """
+    display and filter restaurant menu meals
+    """
+    # call seed_menu_meals
+    #   needs a repos query to get row count of menu meals
+    #   check if table empty before writing
+    #   filter for acceptance criteria?
+
+    data = api.get_all_menumeals(db)
+    [print(m.restaurant, m.product) for m in data[820:830]] if data else print('error')
+            
+
+
+def test_userstories(db):
+    me = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
+    print('')
+    test_userstory_27(me, db)
+    test_userstory_30(me, db)
+    
+        
+
 
 
 if __name__ == '__main__':
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # run this once seed_test_user(db)
-        me = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
-        test_userstory_27(me, db)
+        # seed_test_user(db, '\n')  # run this once
+        test_userstories(db)
+        #test_userstory_18(db)
 
         # test_reset_password_simple()
         # test_reset_password_multiple_times()
