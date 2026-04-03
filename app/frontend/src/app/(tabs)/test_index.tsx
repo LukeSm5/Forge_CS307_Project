@@ -5,6 +5,7 @@ import { Text, View } from '@/components/Themed';
 import CardioButton from '@/components/cardioSearch/CardioButton';
 import ProgressionButton from '@/components/workoutProgression/ProgressButton';
 import GymMapButton from '@/components/gymMap/GymMapButton';
+import AltMachButton from '@/components/machineAlternatives/AltMachButton';
 
 export default function TabOneScreen() {
   return (
@@ -15,6 +16,7 @@ export default function TabOneScreen() {
       <CardioButton/>
       <GymMapButton/>
       <ProgressionButton exerciseId="bicep curl"/>
+      <AltMachButton exercise="barbell bench press"/>
     </View>
   );
 }
