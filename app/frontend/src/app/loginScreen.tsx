@@ -13,13 +13,15 @@ import { useAppColorScheme } from '@/core/accessibility';
 import { Schemes } from '@/constants/Colors';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const platformBaseUrl =
+  Platform.OS === 'ios'
+    ? 'http://127.0.0.1:8000'
+    : Platform.OS === 'android'
+      ? 'http://10.0.2.2:8000'
+      : null;
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  (Platform.OS === 'web'
-    ? 'http://localhost:8000'
-    : expoHost
-      ? `http://${expoHost}:8000`
-      : 'http://localhost:8000');
+  (platformBaseUrl ?? (expoHost ? `http://${expoHost}:8000` : 'http://localhost:8000'));
 
 const LoginScreen = () => {
   const router = useRouter();

@@ -1,8 +1,14 @@
-
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
-const fallbackBaseUrl = expoHost ? `http://${expoHost}:8000` : 'http://localhost:8000';
+const platformBaseUrl =
+  Platform.OS === 'ios'
+    ? 'http://127.0.0.1:8000'
+    : Platform.OS === 'android'
+      ? 'http://10.0.2.2:8000'
+      : null;
+const fallbackBaseUrl = platformBaseUrl ?? (expoHost ? `http://${expoHost}:8000` : 'http://localhost:8000');
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? fallbackBaseUrl;
 
