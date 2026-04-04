@@ -1277,10 +1277,6 @@ def get_menumeals_protein(protein: str, db: Session = Depends(get_db)):
 def get_all_menumeals(db: Session = Depends(get_db)):
     return repos.lookup_all_menumeals(db)
 
-@app.get("/meals", response_model=list[MenuMealOut])
-def get_menumeals(db: Session = Depends(get_db)):
-    return repos.lookup_all_menumeals(db)
-
 @app.get("/auth/llm-context")
 async def get_llm_context(request: Request, db: Session = Depends(get_db)):
     user = db.query(Accounts).filter(Accounts.email == request.user_email).first()
