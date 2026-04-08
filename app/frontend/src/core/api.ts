@@ -113,7 +113,7 @@ export const api = {
       access_token: result.access_token,
     };
   },
-  updateMe: async (e: { username?: string; bio?: string }): Promise<User | undefined> => {
+  updateMe: async (e: { username?: string; bio?: string; gym_location?: string }): Promise<User | undefined> => {
     const me = await api.me();
     if (!me) throw new Error("User not signed in.");
 
@@ -127,6 +127,7 @@ export const api = {
       email: updated.email,
       username: updated.username,
       bio: e.bio ?? me.bio ?? "",
+      gym_location: e.gym_location ?? me.gym_location ?? "Unknown Location"
     };
   },
   changePassword: async (e: { current_password: string; new_password: string }): Promise<User | undefined> => {
@@ -491,6 +492,10 @@ look pleasing on a graph.
   recalibrateCalories: async (payload: RecalibrateCaloriesRequest): Promise<RecalibrateCaloriesResponse> => {
     return post<RecalibrateCaloriesResponse>('/recalibrate-calories', payload);
   },
+
+  getGymLocations: async (): Promise<string[]> => {
+    return get<string[]>('/gym-locations');
+  },
 };
 
 export type User = {
@@ -498,6 +503,7 @@ export type User = {
   email: string,
   username: string,
   bio: string,
+  gym_location?: string,
   age?: number,
   height?: number,
   weight?: number,

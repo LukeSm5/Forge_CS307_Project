@@ -145,6 +145,7 @@ def authenticate_user(db: Session, User, *, email: str, password: str):
 class UpdateProfileInput:
     username: Optional[str] = None
     bio: Optional[str] = None
+    gym_location: Optional[str] = None
 
 
 def update_profile(db: Session, User, *, user_id: int, payload: UpdateProfileInput):

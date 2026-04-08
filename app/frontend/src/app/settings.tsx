@@ -28,7 +28,7 @@ import {
   timeStringFromDate,
 } from "@/core/notifications";
 import { useUnits } from "@/core/conversions";
-
+import { Dropdown } from "react-native-element-dropdown";
 type Status = { type: "ok" | "err"; msg: string } | null;
 type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
 
@@ -172,6 +172,8 @@ export default function SettingsScreen() {
   const [activeMealPicker, setActiveMealPicker] = useState<MealTimeField | null>(null);
   const [pUsername, setPUsername] = useState("");
   const [pBio, setPBio] = useState("");
+  const [pGymLocation, setPGymLocation] = useState("Unknown Location");
+  const [gymLocations, setGymLocations] = useState<string[]>([]);
   const [cCurrent, setCCurrent] = useState("");
   const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
@@ -183,6 +185,15 @@ export default function SettingsScreen() {
     return dateFromStoredTime(notificationPrefs[activeMealPicker]);
   }, [activeMealPicker, notificationPrefs]);
 
+  const gymLocationOptions = useMemo(
+    () =>
+      gymLocations.map((location) => ({
+        label: location,
+        value: location,
+      })),
+    [gymLocations]
+  );
+
   async function refreshMe() {
     setLoading(true);
     setStatus(null);
@@ -192,6 +203,8 @@ export default function SettingsScreen() {
       setUser(me);
       setPUsername(me.username ?? "");
       setPBio(me.bio ?? "");
+      setPBio(me.bio ?? "");
+      setPGymLocation(me.gym_location ?? "Unknown Location");
     } catch {
       setUser(null);
     } finally {
@@ -209,9 +222,22 @@ export default function SettingsScreen() {
     }
   }
 
+  async function refreshGymLocations() {
+    try {
+      const locations = await api.getGymLocations();
+      const withDefault = locations.includes("Unknown Location")
+        ? locations
+        : ["Unknown Location", ...locations];
+      setGymLocations(withDefault);
+    } catch {
+      setGymLocations(["Unknown Location"]);
+    }
+  }
+
   useEffect(() => {
     refreshMe();
     refreshNotificationPrefs();
+    refreshGymLocations();
   }, []);
 
   async function persistNotificationPrefs(
@@ -285,8 +311,11 @@ export default function SettingsScreen() {
     setLoading(true);
     setStatus(null);
     try {
-      const updated = await api.updateMe({ username: pUsername || undefined, bio: pBio ?? "" });
-      if (typeof updated === "undefined") throw new Error("User not signed in");
+      const updated = await api.updateMe({
+        username: pUsername || undefined,
+        bio: pBio ?? "",
+        gym_location: pGymLocation || "Unknown Location",
+      });      if (typeof updated === "undefined") throw new Error("User not signed in");
       setUser(updated);
       setStatus({ type: "ok", msg: "Profile updated." });
     } catch (e: any) {
@@ -499,70 +528,85 @@ export default function SettingsScreen() {
           />
         </View>
         <SectionHeader title="Account" />
-        {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
-        <Text style={[styles.helper, { marginBottom: 12 }]}>
-          {currentUser
-            ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
-            : user
-              ? `Signed in as ${user.username} (${user.email})`
-              : ""}
-        </Text>
+          <View style={styles.accountNested}>
+          {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
+          <Text style={[styles.helper, { marginBottom: 12 }]}>
+            {currentUser
+              ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
+              : user
+                ? `Signed in as ${user.username} (${user.email})`
+                : ""}
+          </Text>
 
-        <Text style={styles.sectionTitle}>Profile</Text>
-        <Field
-          label="Username"
-          value={pUsername}
-          onChangeText={setPUsername}
-          placeholder="New username"
-        />
-        <Field
-          label="Bio"
-          value={pBio}
-          onChangeText={setPBio}
-          placeholder="Bio (≤280 chars)"
-          multiline
-        />
+          <View style={styles.accountSubsection}>
+            <Text style={styles.accountSubsectionTitle}>Profile</Text>
+            <Field
+              label="Username"
+              value={pUsername}
+              onChangeText={setPUsername}
+              placeholder="New username"
+            />
+            <Field
+              label="Bio"
+              value={pBio}
+              onChangeText={setPBio}
+              placeholder="Bio (≤280 chars)"
+              multiline
+            />
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Gym Location</Text>
+              <Dropdown
+                style={styles.dropdown}
+                data={gymLocationOptions}
+                labelField="label"
+                valueField="value"
+                value={pGymLocation}
+                placeholder="Unknown Location"
+                onChange={(item) => setPGymLocation(item.value)}
+              />
+            </View>
+            <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading} />
+          </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Change Password</Text>
-        <Field
-          label="Current password"
-          value={cCurrent}
-          onChangeText={setCCurrent}
-          secureTextEntry
-        />
-        <Field
-          label="New password"
-          value={cNew}
-          onChangeText={setCNew}
-          secureTextEntry
-        />
-
-        <View style={styles.rowBtns}>
-          <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading} />
-          <ActionButton
-            label="Change Password"
-            onPress={doChangePassword}
-            disabled={loading || !cCurrent || !cNew}
-            variant="secondary"
-          />
-        </View>
-
-        {user && (
-          <View style={{ marginTop: 20 }}>
-            <Text style={styles.sectionTitle}>Danger Zone</Text>
-            <DeleteAccountButton
-              userId={user.profile_id}
-              onDeleted={() => {
-                setToken(null);
-                setUser(null);
-                setCurrentUser(null);
-                setLoggedIn(false);
-                setAccountDeleted(true);
-                setStatus({ type: "ok", msg: "Account deleted." });
-              }}
+          <View style={styles.accountSubsection}>
+            <Text style={styles.accountSubsectionTitle}>Change Password</Text>
+            <Field
+              label="Current password"
+              value={cCurrent}
+              onChangeText={setCCurrent}
+              secureTextEntry
+            />
+            <Field
+              label="New password"
+              value={cNew}
+              onChangeText={setCNew}
+              secureTextEntry
+            />
+            <ActionButton
+              label="Change Password"
+              onPress={doChangePassword}
+              disabled={loading || !cCurrent || !cNew}
+              variant="secondary"
             />
           </View>
-        )}
+
+          {user && (
+            <View style={styles.accountSubsection}>
+              <Text style={styles.accountSubsectionTitle}>Danger Zone</Text>
+              <DeleteAccountButton
+                userId={user.profile_id}
+                onDeleted={() => {
+                  setToken(null);
+                  setUser(null);
+                  setCurrentUser(null);
+                  setLoggedIn(false);
+                  setAccountDeleted(true);
+                  setStatus({ type: "ok", msg: "Account deleted." });
+                }}
+              />
+            </View>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -585,6 +629,13 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 14, marginBottom: 6 },
+    accountSubsectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    marginTop: 18,
+    marginBottom: 8,
+    opacity: 0.9,
+  },
   helper: { opacity: 0.65, fontSize: 13, marginBottom: 4 },
   modeRow: { flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" },
   modeBtn: {
@@ -623,7 +674,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   inputMultiline: { minHeight: 72, textAlignVertical: "top" },
-  rowBtns: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 4 },
   btn: {
     paddingHorizontal: 16,
     paddingVertical: 11,
@@ -677,5 +727,25 @@ const styles = StyleSheet.create({
   pickerCard: {
     marginTop: 8,
     paddingTop: 4,
+  },
+
+  accountNested: {
+    marginLeft: 12,
+    paddingLeft: 14,
+    borderLeftWidth: 2,
+    borderLeftColor: "rgba(0,0,0,0.12)",
+  },
+
+  accountSubsection: {
+    marginTop: 18,
+  },
+
+  dropdown: {
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#ffffff",
   },
 });

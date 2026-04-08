@@ -25,6 +25,7 @@ class Profiles(Base):
     health_goals = Column(Text)
     calorie_goal = Column(Float)
     metricOrImperial = Column(Boolean)  # "metric" or "imperial"
+    gym_location = Column(Text)
 
 # --- STATIC ---
 

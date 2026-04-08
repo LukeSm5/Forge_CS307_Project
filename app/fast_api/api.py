@@ -73,6 +73,8 @@ def ensure_dev_schema() -> None:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN chicken BOOLEAN'))
         if "beef" not in menu_meal_columns:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
+        if "gym_location" not in profile_columns:
+            connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
 
 
 ensure_dev_schema()
@@ -204,6 +206,7 @@ class TokenResponse(BaseModel):
 class UpdateAccountProfileRequest(BaseModel):
     username: Optional[str] = None
     bio: Optional[str] = None
+    gym_location: Optional[str] = None
 
 
 class ChangeAccountPasswordRequest(BaseModel):
@@ -222,6 +225,7 @@ class AccountMeResponse(BaseModel):
     email: str
     username: str
     bio: Optional[str] = None
+    gym_location: Optional[str] = None
     age: Optional[float] = None
     height: Optional[float] = None
     weight: Optional[float] = None
@@ -695,7 +699,7 @@ def update_account_profile(
     db: Session = Depends(get_db),
     notifier: NotificationService = Depends(get_notification_service),
 ):
-    if payload.username is None and payload.bio is None:
+    if payload.username is None and payload.bio is None and payload.gym_location is None:
         raise HTTPException(status_code=400, detail="Provide at least one field to update")
 
     try:
@@ -703,8 +707,18 @@ def update_account_profile(
             db,
             Accounts,
             user_id=user_id,
-            payload=am.UpdateProfileInput(username=payload.username, bio=payload.bio),
+            payload=am.UpdateProfileInput(username=payload.username, bio=payload.bio, gym_location=payload.gym_location),
         )
+        
+        profile = db.query(Profiles).filter(Profiles.ProfileID == user_id).first()
+        if payload.gym_location is not None:
+            if profile is None:
+                raise HTTPException(status_code=404, detail="Profile not found")
+
+            profile.gym_location = payload.gym_location
+            db.add(profile)
+            db.commit()
+
     except am.NotFound:
         raise HTTPException(status_code=404, detail="Account not found")
     except am.UsernameAlreadyInUse:
@@ -801,6 +815,7 @@ def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(g
         email=me.email,
         username=me.username,
         bio=me.bio,
+        gym_location=profile.gym_location if profile else None,
         age=profile.age if profile else None,
         height=profile.height_in if profile else None,
         weight=profile.weight if profile else None,
@@ -1938,3 +1953,11 @@ async def nearby_gyms(lat: float = Query(...), lng: float = Query(...), radius: 
     ]
 
     return {"results": results}
+
+
+@app.get("/gym-locations", response_model=list[str])
+def get_gym_locations():
+    return [
+        "CoRec",
+        "Planet Fitness"
+    ]
