@@ -1,11 +1,11 @@
-import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Modal, Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
 import Constants from 'expo-constants';
-import { Modal } from 'react-native';
 
 import * as Location from "expo-location";
+import "leaflet/dist/leaflet.css";
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
@@ -143,10 +143,12 @@ const styles = StyleSheet.create({
         flex: 1
     },
     container: {
-        ...StyleSheet.absoluteFill,
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100,
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
     },
     popup: {
         flex: 1,
@@ -157,8 +159,7 @@ const styles = StyleSheet.create({
         borderRadius: '15px',
         overflowX: 'hidden',
         overflowY: 'scroll',
-        padding: '2%',
-        zIndex: 100,
+        padding: '2%'
     },
     title: {
         fontSize: 20,
