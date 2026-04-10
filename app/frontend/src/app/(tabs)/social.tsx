@@ -6,12 +6,12 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  useColorScheme,
   View
 } from 'react-native';
 
 import ForgeButton from '@/components/ForgeButton';
 import { Text } from '@/components/Themed';
+import { useAppColorScheme } from '@/core/accessibility';
 // import { api } from '../../core/api'; // wire up later
 
 type ProfileSearchResult = {
@@ -31,7 +31,7 @@ type FriendModalState = {
 };
 
 export default function ProfilesTab() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useAppColorScheme();
   const isDark = colorScheme === 'dark';
 
   const colors = {

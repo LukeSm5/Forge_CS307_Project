@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
-import { Text, View } from '@/components/Themed';
+import { scheme, Text, View } from '@/components/Themed';
 import { api, MachineLookupRow, WorkoutLookup, SessionLog, TailoredExercise } from '@/core/api';
 import { useUnits } from '@/core/conversions';
 
@@ -340,6 +340,9 @@ export default function AddWorkoutScreen() {
     setDurationSeconds(String(remainingSecs));
   }
 
+  const s = scheme();
+  const styles = stylesProvider();
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -353,7 +356,7 @@ export default function AddWorkoutScreen() {
                 value={sessionDate}
                 onChangeText={(value) => setSessionDate(formatDateInput(value))}
                 placeholder="MM/DD/YYYY"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={s.secondaryText}
                 keyboardType="number-pad"
               />
             </View>
@@ -368,7 +371,7 @@ export default function AddWorkoutScreen() {
                 }}
                 onFocus={() => setShowSplitSuggestions(true)}
                 placeholder="e.g. Pull Day"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={s.secondaryText}
               />
             </View>
           </View>
@@ -403,7 +406,7 @@ export default function AddWorkoutScreen() {
               key={w.workout_id}
               text={w.name}
               compact
-              theme={selectedWorkoutId === w.workout_id ? 'primary' : 'neutral'}
+              color={selectedWorkoutId === w.workout_id ? s.buttonBg : s.neutralColor }
               onPress={() => setSelectedWorkoutId(w.workout_id)}
               style={styles.muscleBtn}
             />
@@ -414,13 +417,39 @@ export default function AddWorkoutScreen() {
 
         <Text style={styles.label}>Exercise</Text>
         <Dropdown
-          style={styles.dropdown}
+          style={{ ...styles.dropdown}}
           data={exerciseOptions}
+          selectedTextStyle={{ backgroundColor: s.background, color: s.text }}
+          itemContainerStyle={{ backgroundColor: s.background }}
+          containerStyle={{ backgroundColor: s.background, borderColor: s.neutralColor }}
+          itemTextStyle={{ backgroundColor: s.background, color: s.text }}
+          inputSearchStyle={{ backgroundColor: s.background, color: s.text }}
           labelField="label"
           valueField="value"
           value={selectedExerciseName}
           placeholder="Select exercise"
           onChange={(item) => setSelectedExerciseName(item.value)}
+          renderItem={(item) => {
+            const isSelected = item.value === selectedExerciseName;
+
+            return (
+              <View
+                style={{
+                  padding: 12,
+                  backgroundColor: isSelected ? s.buttonBg : s.background,
+                }}
+              >
+                <Text
+                  style={{
+                    color: isSelected ? '#fff' : s.text,
+                    fontWeight: isSelected ? '600' : '400',
+                  }}
+                >
+                  {item.label}
+                </Text>
+              </View>
+            );
+          }}
         />
 
         <Text style={styles.label}>Machine</Text>
@@ -430,7 +459,7 @@ export default function AddWorkoutScreen() {
               key={machine.machine_id}
               text={machine.name}
               compact
-              theme={selectedMachineId === machine.machine_id ? 'primary' : 'neutral'}
+              color={selectedMachineId === machine.machine_id ? s.buttonBg : s.neutralColor }
               onPress={() => setSelectedMachineId(machine.machine_id)}
               style={styles.machineBtn}
             />
@@ -449,7 +478,7 @@ export default function AddWorkoutScreen() {
                   onChangeText={setWeight}
                   keyboardType="numeric"
                   placeholder="25"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={s.secondaryText}
                 />
               </View>
               <View style={styles.half}>
@@ -460,7 +489,7 @@ export default function AddWorkoutScreen() {
                   onChangeText={setSets}
                   keyboardType="numeric"
                   placeholder="3"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={s.secondaryText}
                 />
               </View>
             </View>
@@ -472,7 +501,7 @@ export default function AddWorkoutScreen() {
                 onChangeText={setReps}
                 keyboardType="numeric"
                 placeholder="10"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={s.secondaryText}
               />
             </View>
           </View>
@@ -480,14 +509,14 @@ export default function AddWorkoutScreen() {
           <View style={styles.tailorCol}>
             <ForgeButton
               text="Tailor"
-              theme="primary"
+              color={s.buttonBg}
               onPress={() => { void handleTailor(); }}
               style={styles.tailorBtn}
             />
           </View>
         </View>
 
-        <ForgeButton text="Add Exercise" onPress={addExercise} theme="teal" />
+        <ForgeButton text="Add Exercise" onPress={addExercise} color={s.buttonSecondaryBg} />
 
         <Text style={styles.sectionTitle}>Current exercises</Text>
         {exerciseList.length === 0 ? (
@@ -508,14 +537,14 @@ export default function AddWorkoutScreen() {
             <View style={styles.timerButtonRow}>
               <ForgeButton
                 text={timerRunning ? 'Stop Timer' : (elapsedSeconds > 0 ? 'Resume Timer' : 'Start Timer')}
-                theme={timerRunning ? 'danger' : 'primary'}
+                color={timerRunning ? s.dangerColor : s.buttonBg}
                 compact
                 style={styles.timerToggleBtn}
                 onPress={handleToggleTimer}
               />
               <ForgeButton
                 text="Save to Duration"
-                theme="success"
+                color={s.buttonSecondaryBg}
                 compact
                 style={styles.timerToggleBtn}
                 onPress={handleSaveTimerToDuration}
@@ -534,7 +563,7 @@ export default function AddWorkoutScreen() {
                   onChangeText={setDurationMinutes}
                   keyboardType="number-pad"
                   placeholder="45"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={s.secondaryText}
                 />
               </View>
               <View style={styles.half}>
@@ -545,7 +574,7 @@ export default function AddWorkoutScreen() {
                   onChangeText={setDurationSeconds}
                   keyboardType="number-pad"
                   placeholder="0"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={s.secondaryText}
                 />
               </View>
             </View>
@@ -553,10 +582,10 @@ export default function AddWorkoutScreen() {
         <ForgeButton
           text={saving ? 'Saving...' : 'Log Workout'}
           onPress={() => { void handleSave(); }}
-          theme="success"
+          color={s.buttonBg}
           disabled={saving}
         />
-        <ForgeButton text="Back" onPress={() => router.back()} theme="neutral" />
+        <ForgeButton text="Back" onPress={() => router.back()} color={s.neutralColor} />
         
         <Modal
           visible={tailorModalVisible}
@@ -565,7 +594,7 @@ export default function AddWorkoutScreen() {
         >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+              <ActivityIndicator size="large" color={s.buttonBg} />
               <Text style={styles.modalTitle}>Tailoring your workout</Text>
               <Text style={styles.modalSubtitle}>
                 Finding the ideal weight, sets & reps for{'\n'}
@@ -579,222 +608,225 @@ export default function AddWorkoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    gap: 10,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 10,
-  },
-  label: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#0f172a',
-    backgroundColor: '#ffffff',
-  },
-  dropdown: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  half: {
-    flex: 1,
-  },
-  rowWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  muscleBtn: {
-    minWidth: 92,
-  },
-  machineBtn: {
-    minWidth: 92,
-  },
-  empty: {
-    color: '#64748b',
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontWeight: '600',
-    marginBottom: 2,
-  },
+const stylesProvider = () => {
+  const s = scheme();
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: 16,
+      gap: 10,
+      paddingBottom: 40,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 10,
+    },
+    label: {
+      fontSize: 13,
+      color: s.secondaryText
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 16,
+      color: s.text,
+      backgroundColor: s.background,
+    },
+    dropdown: {
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: s.background,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    half: {
+      flex: 1,
+    },
+    rowWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    muscleBtn: {
+      minWidth: 92,
+    },
+    machineBtn: {
+      minWidth: 92,
+    },
+    empty: {
+      color: s.secondaryText,
+    },
+    card: {
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 8,
+    },
+    cardTitle: {
+      fontWeight: '600',
+      marginBottom: 2,
+    },
 
-  dateBox: {
-    flex: 1,
-  },
-  splitBox: {
-    flex: 1.4,
-  },
-  suggestionCard: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
-  },
-  suggestionItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  suggestionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  suggestionSubtitle: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
-  },
+    dateBox: {
+      flex: 1,
+    },
+    splitBox: {
+      flex: 1.4,
+    },
+    suggestionCard: {
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      borderRadius: 10,
+      backgroundColor: s.background,
+      overflow: 'hidden',
+    },
+    suggestionItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: s.neutralColor,
+    },
+    suggestionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: s.text,
+    },
+    suggestionSubtitle: {
+      fontSize: 12,
+      color: s.secondaryText,
+      marginTop: 2,
+    },
 
-  timerCard: {
-    borderWidth: 1,
-    borderColor: '#dbe3f0',
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    gap: 12,
-  },
-  timerDisplay: {
-    fontSize: 44,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: 2,
-  },
-  timerButtonRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  timerToggleBtn: {
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
+    timerCard: {
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      borderRadius: 14,
+      padding: 16,
+      alignItems: 'center',
+      backgroundColor: s.background,
+      gap: 12,
+    },
+    timerDisplay: {
+      fontSize: 44,
+      fontWeight: '700',
+      color: s.text,
+      letterSpacing: 2,
+    },
+    timerButtonRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    timerToggleBtn: {
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+    },
 
 
-  exerciseInputCol: {
-    flex: 1,
-    gap: 10,
-  },
-  tailorCol: {
-    justifyContent: 'center',
-    paddingTop: 6,
-  },
-  tailorBtn: {
-    minWidth: 64,
-    alignSelf: 'stretch',
-    flex: 1,
-  },
-  modalLoadingText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  tailorResultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  tailorResultItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  tailorResultValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  tailorResultLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  tailorResultDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#e2e8f0',
-  },
-  modalButtonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButtonHalf: {
-    flex: 1,
-  },
+    exerciseInputCol: {
+      flex: 1,
+      gap: 10,
+    },
+    tailorCol: {
+      justifyContent: 'center',
+      paddingTop: 6,
+    },
+    tailorBtn: {
+      minWidth: 64,
+      alignSelf: 'stretch',
+      flex: 1,
+    },
+    modalLoadingText: {
+      fontSize: 14,
+      color: s.secondaryText,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    tailorResultRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      paddingVertical: 16,
+      backgroundColor: s.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+    },
+    tailorResultItem: {
+      alignItems: 'center',
+      flex: 1,
+    },
+    tailorResultValue: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: s.text,
+    },
+    tailorResultLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: s.secondaryText,
+      marginTop: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    tailorResultDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: s.neutralColor,
+    },
+    modalButtonRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 8,
+    },
+    modalButtonHalf: {
+      flex: 1,
+    },
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    padding: 28,
-    alignItems: 'center',
-    gap: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 340,
+      borderRadius: 16,
+      backgroundColor: s.background,
+      padding: 28,
+      alignItems: 'center',
+      gap: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: s.text,
+      textAlign: 'center',
+    },
+    modalSubtitle: {
+      fontSize: 14,
+      color: s.secondaryText,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+  });
+}

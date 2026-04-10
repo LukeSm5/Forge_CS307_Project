@@ -8,8 +8,7 @@ import {
 } from "react-native";
 
 import { Schemes } from "@/constants/Colors";
-import { useColorScheme } from "./useColorScheme";
-import { useAccessibility } from "@/core/accessibility";
+import { useAccessibility, useAppColorScheme } from "@/core/accessibility";
 
 type ThemeProps = {
   lightColor?: string;
@@ -23,11 +22,18 @@ export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Schemes.light & keyof typeof Schemes.dark
 ) {
-  const theme = useColorScheme() ?? "light";
+  const theme = useAppColorScheme() ?? "light";
   const colorFromProps = props[theme];
 
+
+  console.log(Schemes[theme][colorName]);
   if (colorFromProps) return colorFromProps;
   return Schemes[theme][colorName];
+}
+
+export function scheme() {
+  const theme = useAppColorScheme() ?? "light";
+  return Schemes[theme];
 }
 
 function scaleTextStyle(style: TextStyle | TextStyle[] | undefined, scale: number): TextStyle[] {

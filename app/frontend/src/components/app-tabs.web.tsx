@@ -13,9 +13,9 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-import { useColorScheme } from './useColorScheme';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAppColorScheme } from '@/core/accessibility';
 
 export default function AppTabs() {
   return (
@@ -50,7 +50,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 }
 
 export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
+  const scheme = useAppColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
   return (

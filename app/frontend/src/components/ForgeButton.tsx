@@ -1,10 +1,9 @@
 import { GestureResponderEvent, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
-import { ForgeButtonThemeName, forgeButtonThemes } from '@/constants/themes';
+import { scheme } from './Themed';
 
 type ForgeButtonProps = {
   text: string;
   onPress?: (event: GestureResponderEvent) => void;
-  theme?: ForgeButtonThemeName;
   disabled?: boolean;
   compact?: boolean;
   style?: ViewStyle;
@@ -15,18 +14,17 @@ type ForgeButtonProps = {
 export default function ForgeButton({
   text,
   onPress,
-  theme = 'primary',
   disabled = false,
   compact = false,
   style,
   color,
   textColor,
 }: ForgeButtonProps) {
-  const selectedTheme = forgeButtonThemes[theme];
+  const s = scheme();
   if (!color)
-        color = selectedTheme.backgroundColor;
-    if (!textColor)
-        textColor = selectedTheme.textColor;
+        color = s.buttonBg;
+  if (!textColor)
+      textColor = s.buttonText;
 
   return (
     <TouchableOpacity
