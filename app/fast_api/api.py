@@ -32,17 +32,21 @@ from app.core.auth_tokens import (
     utcnow,
 )
 
+logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
-app = FastAPI()
-logger = logging.getLogger(__name__)
-llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logger.warning("OPENAI_API_KEY not set in environment variables. OpenAI API calls will fail.")
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
     logger.warning("GOOGLE_API_KEY not set in environment variables. Google API calls will fail.")
+
+app = FastAPI()
+
 if not os.getenv("OPENAI_API_KEY"):
     logger.warning("GOOGLE_API_KEY not set in environment variables. Google API calls will fail.")
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,31 +80,8 @@ def ensure_dev_schema() -> None:
         if "gym_location" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
 
-
 ensure_dev_schema()
 
-
-@app.get("/health")
-def health_check(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        return {"status": "ok", "db": "connected"}
-    except Exception:
-        return {"status": "ok", "db": "disconnected"}
-
-
-def get_current_account(
-    authorization: str = Header(None),
-    db: Session = Depends(get_db),
-) -> Accounts:
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=401, detail="Invalid Authorization header")
-
-    return repos.lookup_account_by_token(db, authorization)
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -428,12 +409,35 @@ class GenerateRecipeRequest(BaseModel):
 class FriendAddresseePayload(BaseModel):
     addressee_id: int
 
+class FriendAcceptPayload(BaseModel):
+    requester_id: int
+
 
 def _get_openai_client() -> OpenAI | None:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=OPENAI_API_KEY)
+
+
+def get_current_account(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db),
+) -> Accounts:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    return repos.lookup_account_by_token(db, authorization)
+
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "connected"}
+    except Exception:
+        return {"status": "ok", "db": "disconnected"}
 
 
 def _fallback_recipe_response(
@@ -1855,8 +1859,9 @@ def tailor_exercise(
     db: Session = Depends(get_db),
 ):
     prompt = tailor_exercise_prompt_text(db, me.UserID, payload)
+    client = _get_openai_client()
 
-    response = llm.responses.create(
+    response = client.responses.create(
         model="gpt-5",
         input=prompt,
         text={
@@ -1890,8 +1895,9 @@ def recalibrate_calories(
     db: Session = Depends(get_db),
 ):
     prompt = calorie_goal_prompt_text(db, me.UserID, payload)
+    client = _get_openai_client()
 
-    response = llm.responses.create(
+    response = client.responses.create(
         model="gpt-5",
         input=prompt,
         text={
@@ -2025,7 +2031,7 @@ def send_friend_request(
 
 @app.post("/friends/accept")
 def accept_friend_request(
-    payload: FriendAddresseePayload, 
+    payload: FriendAcceptPayload, 
     me: Accounts = Depends(get_current_account), 
     db: Session = Depends(get_db)
 ):

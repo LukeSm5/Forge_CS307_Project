@@ -1,12 +1,13 @@
 
 from app.fast_api import api
-from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals
+from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals, Friendships
 import pytest
 from app.core.session import engine, Base, SessionLocal
 from datetime import date
+from app.core import repos
 
 from app.fast_api.api import LogMenuMealRequest, CreateAccountRequest, CreateSessionRequest, CreateProfileRequest, LogMenuMealRequest, TailorExerciseRequest, RecalibrateCaloriesRequest, LoginRequest
-from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn
+from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn, FriendAddresseePayload, FriendAcceptPayload
 
 
 def seed_test_user(db):
@@ -99,6 +100,40 @@ def seed_test_user(db):
         print(menu_meal2_session_resp.product) if menu_meal2_session_resp.product else print('error')
         print(menu_meal2_session_resp.meal_type) if menu_meal2_session_resp.meal_type else print('error')
         print(menu_meal2_session_resp.date) if menu_meal2_session_resp.date else print('error')
+
+    except Exception as e: 
+        print(f"Seed failed: {e}")
+        raise
+
+def seed_friend_test_user(db):
+    """
+    seed another test dummy user. 
+    blank with no history. 
+    run this once
+    """
+    try: 
+        email = "friend@test.com"
+        username = "friend_test_user"
+        password = "friend_test_user"
+
+        existing = db.query(Accounts).filter((Accounts.email == email) | (Accounts.username == username)).first()
+        if existing:
+            print(f"Friend test user already exists: UserID={existing.UserID}, username={existing.username}")
+            return existing
+
+        account_request = CreateAccountRequest(email=email, username=username, password=password, bio="Friend test account")
+        account_response = api.create_account(account_request, db)
+        print('friend test account created') if (account_response.access_token or account_response.refresh_token) else print('error')
+
+        friend = db.query(Accounts).filter(Accounts.username == username).first()
+        profile_request = CreateProfileRequest(
+            age=23, gender='Male', height_in=72, weight=180,
+            health_goals='stay fit', health_status='2 years experience', calorie_goal=2200.0, accepted_terms=True
+        )
+        profile_response = api.create_profile(friend.UserID, profile_request, db)
+        print('friend test profile created') if (profile_response['ok'] or profile_response['calorie_goal']) else print('error')
+
+        return friend
 
     except Exception as e: 
         print(f"Seed failed: {e}")
@@ -231,7 +266,7 @@ def test_log_session_menu_meal(me):
         Exception
 
 
-def test_userstory_30(me, db):
+def test_userstory_30(db, me):
     """
     tailor an exercise with weight, reps, sets
     """
@@ -244,9 +279,10 @@ def test_userstory_30(me, db):
             {payload.split_name} {payload.date}, {payload.workout_name} workout, {payload.exercise_name} exercise, {payload.machine_name}
             recommendations: {response.weight} lbs, {response.sets} sets x {response.reps} reps
             """)
+        print('passed: user story 30\n')
     
 
-def test_userstory_27(me, db):
+def test_userstory_27(db, me):
     """
     recalibrate calorie goals based on workout & diet history
     """
@@ -266,46 +302,93 @@ def test_userstory_27(me, db):
     response = api.recalibrate_calories(payload, me, db)
     if response:
         print(f"\tnew calorie goal: {response.calorie_goal}\n")
+        print('passed: user story 27\n')
 
 
-def test_userstory_19(me, db):
+def test_userstory_42(db, me, them):
     """
-    remember me login authentication
+    add and remove friends from a social network
     """
-    payload = LoginRequest(email=me.email, password=me.password)
+    print('testing: user story 42')
 
+    # clean up any existing friendship row before testing
+    existing = repos.lookup_friendship(db, me.UserID, them.UserID)
+    if existing:
+        db.delete(existing)
+        db.commit()
+        print('\tcleaned up any existing records')
 
-def test_userstory_18(db):
-    """
-    display and filter restaurant menu meals
-    """
-    # call seed_menu_meals
-    #   needs a repos query to get row count of menu meals
-    #   check if table empty before writing
-    #   filter for acceptance criteria?
+    # 1. check status — should be none
+    payload_check = FriendAddresseePayload(addressee_id=them.UserID)
+    row = repos.lookup_friendship(db, me.UserID, them.UserID)
+    status = "none" if not row else row.status
+    print(f'\tinitial status: {status}')
+    assert status == "none", "Expected no friendship before request"
 
-    data = api.get_all_menumeals(db)
-    [print(m.restaurant, m.product) for m in data[820:830]] if data else print('error')
+    # 2. send friend requests
+    payload_add = FriendAddresseePayload(addressee_id=them.UserID)
+    response = api.send_friend_request(payload_add, me, db)
+    print(f'\tsend request: {response}')
+    assert response["status"] == "pending"
+
+    # 3. check status from requester side — should be pending_sent
+    row = repos.lookup_friendship(db, me.UserID, them.UserID)
+    status = "pending_sent" if row and row.status == "pending" and row.RequesterID == me.UserID else "other"
+    print(f'\tstatus after request (requester view): {status}')
+    assert status == "pending_sent"
+
+    # 4. accept from friend side
+    payload_accept = FriendAcceptPayload(requester_id=me.UserID)
+    response = api.accept_friend_request(payload_accept, them, db)
+    print(f'\taccept request: {response}')
+    assert response["status"] == "accepted"
+
+    # 5. check status — should be accepted
+    row = repos.lookup_friendship(db, me.UserID, them.UserID)
+    print(f'\tstatus after accept: {row.status}')
+    assert row.status == "accepted"
+
+    # 6. delete friendship
+    payload_delete = FriendAddresseePayload(addressee_id=them.UserID)
+    response = api.delete_friendship(payload_delete, me, db)
+    print(f'\tdelete friendship: {response}')
+    assert response["ok"] == True
+
+    # 7. confirm deleted
+    row = repos.lookup_friendship(db, me.UserID, them.UserID)
+    print(f'\tstatus after delete: {"none" if not row else row.status}')
+    assert row is None
+
+    # if we never assert then we pass all checks
+    print('passed: user story 42\n')
             
 
 
 def test_userstories(db):
     me = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
+    them = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
     print('')
-    test_userstory_27(me, db)
-    test_userstory_30(me, db)
+    test_userstory_27(db, me)
+    test_userstory_30(db, me)
+    test_userstory_42(db, me, them)
     
         
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 
 
 if __name__ == '__main__':
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # seed_test_user(db, '\n')  # run this once
-        test_userstories(db)
-        #test_userstory_18(db)
+        # seed_test_user(db)  # run this once
+        # seed_friend_test_user(db) # run this once
+
+        # test_userstories(db)
+        m = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
+        t = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
+        test_userstory_42(db, m, t)
+
+
 
         # test_reset_password_simple()
         # test_reset_password_multiple_times()
