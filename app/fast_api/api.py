@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 import re
 from datetime import timezone, datetime
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, or_, and_
 from openai import OpenAI
 import os
 import json
@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients
+from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -423,6 +423,10 @@ class GenerateRecipeRequest(BaseModel):
     goal: Optional[str] = None
     cravings: Optional[str] = None
     constraints: Optional[str] = None
+
+
+class FriendAddresseePayload(BaseModel):
+    addressee_id: int
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -1961,3 +1965,112 @@ def get_gym_locations():
         "CoRec",
         "Planet Fitness"
     ]
+
+
+@app.get("/profiles/search")
+def search_profiles(
+    username: str,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if not username.strip():
+        raise HTTPException(status_code=400, detail="Username query cannot be empty")
+
+    rows = (
+        db.query(Accounts, Profiles)
+        .outerjoin(Profiles, Profiles.ProfileID == Accounts.UserID)
+        .filter(Accounts.username.ilike(f"%{username.strip()}%"))
+        .filter(Accounts.UserID != me.UserID)
+        .limit(20)
+        .all()
+    )
+
+    return [
+        {
+            "id": account.UserID,
+            "username": account.username,
+            "bio": account.bio,
+            "gym_location": profile.gym_location if profile else None,
+        }
+        for account, profile in rows
+    ]
+
+
+@app.post("/friends/request")
+def send_friend_request(
+    payload: FriendAddresseePayload, 
+    me: Accounts = Depends(get_current_account), 
+    db: Session = Depends(get_db)
+):
+    if me.UserID == payload.addressee_id:
+        raise HTTPException(status_code=400, detail="Cannot friend yourself")
+
+    for uid in (me.UserID, payload.addressee_id):
+        if not db.query(Accounts).filter(Accounts.UserID == uid).first():
+            raise HTTPException(status_code=404, detail=f"User {uid} not found")
+
+    existing = repos.lookup_friendship(db, me.UserID, payload.addressee_id)
+    if existing:
+        if existing.status == "accepted":
+            raise HTTPException(status_code=409, detail="Already friends")
+        raise HTTPException(status_code=409, detail="Friend request already pending")
+
+    db.add(Friendships(
+        RequesterID=me.UserID, AddresseeID=payload.addressee_id,
+        status="pending",
+    ))
+    db.commit()
+    return {"ok": True, "status": "pending"}
+
+
+@app.post("/friends/accept")
+def accept_friend_request(
+    payload: FriendAddresseePayload, 
+    me: Accounts = Depends(get_current_account), 
+    db: Session = Depends(get_db)
+):
+    row = db.query(Friendships).filter(
+        Friendships.RequesterID == payload.requester_id, Friendships.AddresseeID == me.UserID,
+        Friendships.status == "pending"
+    ).first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="No pending request found")
+
+    row.status = "accepted"
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True, "status": "accepted"}
+
+
+@app.delete("/friends")
+def delete_friendship(
+    payload: FriendAddresseePayload, 
+    me: Accounts = Depends(get_current_account), 
+    db: Session = Depends(get_db)
+):
+    row = repos.lookup_friendship(db, me.UserID, payload.addressee_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Friendship not found")
+
+    db.delete(row)
+    db.commit()
+    return {"ok": True, "detail": "Friendship removed"}
+
+
+@app.get("/friends/status")
+def get_friendship_status(
+    addressee_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    row = repos.lookup_friendship(db, me.UserID, addressee_id)
+    if not row:
+        return {"status": "none"}
+    if row.status == "accepted":
+        return {"status": "accepted"}
+    if row.RequesterID == me.UserID:
+        return {"status": "pending_sent"}
+    return {"status": "pending_received"}
+
+

@@ -496,6 +496,35 @@ look pleasing on a graph.
   getGymLocations: async (): Promise<string[]> => {
     return get<string[]>('/gym-locations');
   },
+  
+  searchProfiles: async (username: string): Promise<ProfileSearchResult[]> => {
+    return get<ProfileSearchResult[]>(
+      `/profiles/search?username=${encodeURIComponent(username)}`
+    )
+  },
+
+  checkFriendship: async (addresseeId: number): Promise<FriendshipStatus> => {
+    const res = await get<FriendshipStatusResponse>(
+      `/friends/status?addressee_id=${addresseeId}`
+    );
+    return res.status;
+  },
+
+  sendFriendRequest: async (addresseeId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/friends/request', { addressee_id: addresseeId });
+  },
+
+  removeFriend: async (otherUserId: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/friends`, {
+      method: 'DELETE',
+      headers: headers(),
+      body: JSON.stringify({ addressee_id: otherUserId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+    }
+  },
 };
 
 export type User = {
@@ -828,3 +857,16 @@ export type QuickWorkoutResponse = {
 export type quickMuscleEvent = {
   muscle: string;
 }
+
+export type FriendshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted';
+
+export type FriendshipStatusResponse = {
+  status: FriendshipStatus;
+};
+
+export type ProfileSearchResult = {
+  id: number;
+  username: string;
+  bio: string | null;
+  gym_location: string | null;
+};

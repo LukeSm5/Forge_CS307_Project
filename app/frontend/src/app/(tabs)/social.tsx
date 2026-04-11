@@ -1,3 +1,4 @@
+import { api } from '../../core/api';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +13,6 @@ import {
 import ForgeButton from '@/components/ForgeButton';
 import { Text } from '@/components/Themed';
 import { useAppColorScheme } from '@/core/accessibility';
-// import { api } from '../../core/api'; // wire up later
 
 type ProfileSearchResult = {
   id: number | string;
@@ -21,7 +21,7 @@ type ProfileSearchResult = {
   bio?: string | null;
 };
 
-type FriendshipAction = 'send' | 'remove';
+type FriendshipAction = 'send' | 'remove' | 'cancel' | 'accept';
 
 type FriendModalState = {
   visible: boolean;
@@ -80,28 +80,16 @@ export default function ProfilesTab() {
       setLoading(true);
       setError('');
 
-      const mockResults: ProfileSearchResult[] = [
-        {
-          id: 1,
-          username: `${trimmedQuery}_lifts`,
-          gymLocation: 'Forge Downtown',
-          bio: 'Powerlifting, early morning sessions, always chasing a bigger total.',
-        },
-        {
-          id: 2,
-          username: `${trimmedQuery}_fit`,
-          gymLocation: 'Northside Barbell',
-          bio: 'Hybrid training, nutrition-focused, down for training partners.',
-        },
-        {
-          id: 3,
-          username: `${trimmedQuery}_strong`,
-          gymLocation: 'West End Fitness',
-          bio: 'Bodybuilding split, likes high-volume sessions and consistency.',
-        },
-      ];
+      const data = await api.searchProfiles(trimmedQuery);
 
-      setResults(mockResults);
+      setResults(
+        data.map((p) => ({
+          id: p.id,
+          username: p.username,
+          bio: p.bio,
+          gymLocation: p.gym_location,
+        }))
+      );
     } catch (e) {
       console.error(e);
       setError('Unable to search profiles right now.');
@@ -126,32 +114,18 @@ export default function ProfilesTab() {
     });
   };
 
-  const mockCheckFriendship = async (profile: ProfileSearchResult): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 350));
-
-    const numericId =
-      typeof profile.id === 'number' ? profile.id : Number(String(profile.id).replace(/\D/g, '') || '0');
-
-    return numericId % 2 === 0;
-  };
-
   const handleFriendPress = async (profile: ProfileSearchResult) => {
     try {
-      setFriendModal({
-        visible: true,
-        loading: true,
-        profile,
-        action: null,
-      });
+      setFriendModal({ visible: true, loading: true, profile, action: null });
 
-      const isFriend = await mockCheckFriendship(profile);
+      const status = await api.checkFriendship(profile.id as number);
 
-      setFriendModal({
-        visible: true,
-        loading: false,
-        profile,
-        action: isFriend ? 'remove' : 'send',
-      });
+      const action: FriendshipAction =
+        status === 'accepted'        ? 'remove'  :
+        status === 'pending_sent'    ? 'cancel'  :
+        status === 'pending_received'? 'accept'  : 'send';
+
+      setFriendModal({ visible: true, loading: false, profile, action });
     } catch (e) {
       console.error(e);
       closeFriendModal();
@@ -163,20 +137,27 @@ export default function ProfilesTab() {
     if (!friendModal.profile || !friendModal.action) return;
 
     try {
-      setFriendModal((prev) => ({
-        ...prev,
-        loading: true,
-      }));
+      setFriendModal((prev) => ({ ...prev, loading: true }));
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const targetId = friendModal.profile!.id as number;
+
+      switch (friendModal.action) {
+        case 'send':
+          await api.sendFriendRequest(targetId);
+          break;
+        case 'remove':
+        case 'cancel':
+          await api.removeFriend(targetId);
+          break;
+        case 'accept':
+          // wire up later when you build the accept flow
+          break;
+      }
 
       closeFriendModal();
     } catch (e) {
       console.error(e);
-      setFriendModal((prev) => ({
-        ...prev,
-        loading: false,
-      }));
+      setFriendModal((prev) => ({ ...prev, loading: false }));
       setError('Unable to complete that action right now.');
     }
   };
@@ -186,18 +167,21 @@ export default function ProfilesTab() {
   };
 
   const modalTitle =
-  friendModal.action === 'remove'
-    ? 'Remove Friend?'
-    : friendModal.action === 'send'
-      ? 'Send Friend Request?'
-      : '';
+    friendModal.action === 'remove'  ? 'Remove Friend?'         :
+    friendModal.action === 'send'    ? 'Send Friend Request?'   :
+    friendModal.action === 'cancel'  ? 'Cancel Request?'        :
+    friendModal.action === 'accept'  ? 'Accept Friend Request?' : '';
 
   const modalBody =
-  friendModal.profile && friendModal.action === 'remove'
-    ? `Do you want to remove @${friendModal.profile.username} from your friends list?`
+    friendModal.profile && friendModal.action === 'remove'
+      ? `Remove @${friendModal.profile.username} from your friends list?`
     : friendModal.profile && friendModal.action === 'send'
-      ? `Do you want to send a friend request to @${friendModal.profile.username}?`
-      : '';
+      ? `Send a friend request to @${friendModal.profile.username}?`
+    : friendModal.profile && friendModal.action === 'cancel'
+      ? `Cancel your pending request to @${friendModal.profile.username}?`
+    : friendModal.profile && friendModal.action === 'accept'
+      ? `Accept @${friendModal.profile.username}'s friend request?`
+    : '';
 
   return (
     <>

@@ -27,6 +27,7 @@ from app.core.db import (
     meal_ingredients,
     session_meals,
     daily_tracker_logs,
+    Friendships
 )
 from fastapi import HTTPException, Header
 from app.core.auth_tokens import decode_access_token
@@ -34,6 +35,7 @@ from app.core.ingest_menu_meals import ingest_menu_meals
 from app.core.macro_tracker import DailyLog, Tracker
 from datetime import date as date_type
 import json
+from sqlalchemy import or_, and_
 
 
 # fill all these lists out 
@@ -959,3 +961,16 @@ def get_daily_meal_log(
         })
 
     return results
+
+
+def lookup_friendship(sess: Session, me, them):
+    """
+    returns a friendship relationship
+    requestee friends with addressee, vice versa
+    """
+    friendship = sess.query(Friendships).filter(
+        or_(
+            and_(Friendships.RequesterID == me, Friendships.AddresseeID == them),
+            and_(Friendships.RequesterID == them, Friendships.AddresseeID == me)
+        )).first()
+    return friendship if friendship else None

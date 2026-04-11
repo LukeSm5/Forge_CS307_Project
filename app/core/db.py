@@ -1,7 +1,8 @@
 from sqlalchemy import (
-    Column, Integer, Text, ForeignKey, Float, DateTime, Boolean
+    Column, Integer, Text, ForeignKey, Float, DateTime, Boolean, CheckConstraint
 )
 from app.core.session import Base
+from datetime import datetime, timezone
 
 
 class Accounts(Base):
@@ -112,10 +113,14 @@ class Posts(Base):
     MachineID = Column(Integer, ForeignKey('Machines.MachineID'), nullable=False)
     caption = Column(Text)
     
-class Friends(Base):
-    __tablename__ = 'Friends'
-    ProfileID1 = Column(Integer, ForeignKey('Profiles.ProfileID'), primary_key=True, nullable=False)
-    ProfileID2 = Column(Integer, ForeignKey('Profiles.ProfileID'), primary_key=True, nullable=False)
+class Friendships(Base):
+    __tablename__ = "Friendships"
+    __table_args__ = (CheckConstraint("RequesterID <> AddresseeID", name="no_self_friend"),)
+    RequesterID = Column(Integer, ForeignKey("Accounts.UserID"), primary_key=True)
+    AddresseeID = Column(Integer, ForeignKey("Accounts.UserID"), primary_key=True)
+    status = Column(Text, nullable=False, default="pending")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 class Likes(Base):
     __tablename__ = 'Likes'
