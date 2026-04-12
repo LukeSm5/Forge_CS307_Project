@@ -1,5 +1,6 @@
-import { api } from '../../core/api';
-import React, { useEffect, useMemo, useState } from 'react';
+import { api } from "../../core/api";
+import React, { useEffect, useMemo, useState } from "react";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
   Modal,
@@ -7,17 +8,20 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View
-} from 'react-native';
+  View,
+} from "react-native";
 
-import ForgeButton from '@/components/ForgeButton';
-import { Text } from '@/components/Themed';
-import { useAppColorScheme } from '@/core/accessibility';
+import ForgeButton from "@/components/ForgeButton";
+import { Text, useScheme } from "@/components/Themed";
+import SocialActionButtons from "@/components/social/SocialActionButtons";
+import SocialChatButton from "@/components/social/SocialChatButton";
+import SocialPreviewCard from "@/components/social/SocialPreviewCard";
+import { SocialPanel } from "@/components/social/socialTypes";
 import {
   SharedMeal,
   subscribeToSharedMeals,
   removeSharedMeal,
-} from '@/core/sharedMealsStore';
+} from "@/core/sharedMealsStore";
 
 type ProfileSearchResult = {
   id: number | string;
@@ -26,7 +30,7 @@ type ProfileSearchResult = {
   bio?: string | null;
 };
 
-type FriendshipAction = 'send' | 'remove' | 'cancel' | 'accept';
+type FriendshipAction = "send" | "remove" | "cancel" | "accept";
 
 type FriendModalState = {
   visible: boolean;
@@ -36,34 +40,37 @@ type FriendModalState = {
 };
 
 export default function ProfilesTab() {
-  const colorScheme = useAppColorScheme();
-  const isDark = colorScheme === 'dark';
+  const scheme = useScheme();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const colors = {
-    screenBg: isDark ? '#101114' : '#f3f4f6',
-    cardBg: isDark ? '#161616' : '#fffdfb',
-    text: isDark ? '#ffffff' : '#111111',
-    muted: isDark ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.68)',
-    border: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)',
-    soft: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-    inputBg: isDark ? '#0f0f0f' : '#ffffff',
-    inputBorder: isDark ? 'rgba(255,255,255,0.16)' : '#d7d7d7',
-    placeholder: isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.35)',
-    orange: '#0a49e8ff',
-    orangeGlow: '#2f66d3ff',
-    red: '#C94040',
-    friendBg: isDark ? 'rgba(47,128,237,0.12)' : '#eef4ff',
-    friendBorder: isDark ? 'rgba(47,128,237,0.40)' : '#2f66d3ff',
-    flagBg: isDark ? 'rgba(201,64,64,0.12)' : '#fff1f1',
-    flagBorder: isDark ? 'rgba(201,64,64,0.38)' : '#ef9a9a',
-    modalBackdrop: 'rgba(0,0,0,0.35)',
-    modalCardBg: isDark ? '#161616' : '#ffffff',
-    modalSecondaryBg: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+    screenBg: scheme.secondaryBackground,
+    cardBg: scheme.background,
+    text: scheme.text,
+    muted: scheme.secondaryText,
+    border: scheme.neutralColor,
+    soft: scheme.secondaryBackground,
+    inputBg: scheme.background,
+    inputBorder: scheme.neutralColor,
+    placeholder: scheme.secondaryText,
+    orange: scheme.tint,
+    orangeGlow: scheme.buttonBg,
+    red: scheme.dangerColor,
+    friendBg: scheme.secondaryBackground,
+    friendBorder: scheme.tint,
+    flagBg: scheme.secondaryBackground,
+    flagBorder: scheme.dangerColor,
+    modalBackdrop: scheme.backdrop,
+    modalCardBg: scheme.background,
+    modalSecondaryBg: scheme.secondaryBackground,
+    buttonBg: scheme.buttonBg,
+    buttonSecondaryBg: scheme.buttonSecondaryBg,
+    buttonText: scheme.buttonText,
   };
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [results, setResults] = useState<ProfileSearchResult[]>([]);
   const [friendModal, setFriendModal] = useState<FriendModalState>({
     visible: false,
@@ -73,6 +80,8 @@ export default function ProfilesTab() {
   });
 
   const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
+  const [activeSocialPanel, setActiveSocialPanel] =
+    useState<SocialPanel>("friends");
 
   useEffect(() => {
     return subscribeToSharedMeals(setSharedMeals);
@@ -82,14 +91,14 @@ export default function ProfilesTab() {
 
   const handleSearch = async () => {
     if (!trimmedQuery) {
-      setError('Enter a username to search.');
+      setError("Enter a username to search.");
       setResults([]);
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       const data = await api.searchProfiles(trimmedQuery);
 
@@ -99,11 +108,11 @@ export default function ProfilesTab() {
           username: p.username,
           bio: p.bio,
           gymLocation: p.gym_location,
-        }))
+        })),
       );
     } catch (e) {
       console.error(e);
-      setError('Unable to search profiles right now.');
+      setError("Unable to search profiles right now.");
       setResults([]);
     } finally {
       setLoading(false);
@@ -111,8 +120,8 @@ export default function ProfilesTab() {
   };
 
   const handleClear = () => {
-    setQuery('');
-    setError('');
+    setQuery("");
+    setError("");
     setResults([]);
   };
 
@@ -132,15 +141,19 @@ export default function ProfilesTab() {
       const status = await api.checkFriendship(profile.id as number);
 
       const action: FriendshipAction =
-        status === 'accepted'        ? 'remove'  :
-        status === 'pending_sent'    ? 'cancel'  :
-        status === 'pending_received'? 'accept'  : 'send';
+        status === "accepted"
+          ? "remove"
+          : status === "pending_sent"
+            ? "cancel"
+            : status === "pending_received"
+              ? "accept"
+              : "send";
 
       setFriendModal({ visible: true, loading: false, profile, action });
     } catch (e) {
       console.error(e);
       closeFriendModal();
-      setError('Unable to check friendship status right now.');
+      setError("Unable to check friendship status right now.");
     }
   };
 
@@ -153,14 +166,14 @@ export default function ProfilesTab() {
       const targetId = friendModal.profile!.id as number;
 
       switch (friendModal.action) {
-        case 'send':
+        case "send":
           await api.sendFriendRequest(targetId);
           break;
-        case 'remove':
-        case 'cancel':
+        case "remove":
+        case "cancel":
           await api.removeFriend(targetId);
           break;
-        case 'accept':
+        case "accept":
           // wire up later when you build the accept flow
           break;
       }
@@ -169,38 +182,76 @@ export default function ProfilesTab() {
     } catch (e) {
       console.error(e);
       setFriendModal((prev) => ({ ...prev, loading: false }));
-      setError('Unable to complete that action right now.');
+      setError("Unable to complete that action right now.");
     }
   };
 
   const handleFlag = (profile: ProfileSearchResult) => {
-    console.log('flag pressed for', profile.username);
+    console.log("flag pressed for", profile.username);
   };
 
   const modalTitle =
-    friendModal.action === 'remove'  ? 'Remove Friend?'         :
-    friendModal.action === 'send'    ? 'Send Friend Request?'   :
-    friendModal.action === 'cancel'  ? 'Cancel Request?'        :
-    friendModal.action === 'accept'  ? 'Accept Friend Request?' : '';
+    friendModal.action === "remove"
+      ? "Remove Friend?"
+      : friendModal.action === "send"
+        ? "Send Friend Request?"
+        : friendModal.action === "cancel"
+          ? "Cancel Request?"
+          : friendModal.action === "accept"
+            ? "Accept Friend Request?"
+            : "";
 
   const modalBody =
-    friendModal.profile && friendModal.action === 'remove'
+    friendModal.profile && friendModal.action === "remove"
       ? `Remove @${friendModal.profile.username} from your friends list?`
-    : friendModal.profile && friendModal.action === 'send'
-      ? `Send a friend request to @${friendModal.profile.username}?`
-    : friendModal.profile && friendModal.action === 'cancel'
-      ? `Cancel your pending request to @${friendModal.profile.username}?`
-    : friendModal.profile && friendModal.action === 'accept'
-      ? `Accept @${friendModal.profile.username}'s friend request?`
-    : '';
+      : friendModal.profile && friendModal.action === "send"
+        ? `Send a friend request to @${friendModal.profile.username}?`
+        : friendModal.profile && friendModal.action === "cancel"
+          ? `Cancel your pending request to @${friendModal.profile.username}?`
+          : friendModal.profile && friendModal.action === "accept"
+            ? `Accept @${friendModal.profile.username}'s friend request?`
+            : "";
 
   return (
     <>
       <ScrollView
         style={[styles.screen, { backgroundColor: colors.screenBg }]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: tabBarHeight + 92 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
+        <SocialActionButtons
+          activePanel={activeSocialPanel}
+          colors={{
+            background: colors.cardBg,
+            secondaryBackground: colors.soft,
+            border: colors.border,
+            text: colors.text,
+            muted: colors.muted,
+            tint: colors.orange,
+            buttonBg: colors.buttonBg,
+            buttonSecondaryBg: colors.buttonSecondaryBg,
+            buttonText: colors.buttonText,
+          }}
+          onSelectPanel={setActiveSocialPanel}
+        />
+
+        <SocialPreviewCard
+          activePanel={activeSocialPanel}
+          colors={{
+            background: colors.cardBg,
+            secondaryBackground: colors.soft,
+            border: colors.border,
+            text: colors.text,
+            muted: colors.muted,
+            tint: colors.orange,
+            buttonBg: colors.buttonBg,
+            buttonSecondaryBg: colors.buttonSecondaryBg,
+            buttonText: colors.buttonText,
+          }}
+        />
         <View
           style={[
             styles.headerCard,
@@ -210,7 +261,9 @@ export default function ProfilesTab() {
             },
           ]}
         >
-          <Text style={[styles.eyebrow, { color: colors.orange }]}>PROFILE SEARCH</Text>
+          <Text style={[styles.eyebrow, { color: colors.orange }]}>
+            PROFILE SEARCH
+          </Text>
 
           <View style={styles.searchRow}>
             <TextInput
@@ -222,7 +275,7 @@ export default function ProfilesTab() {
               autoCorrect={false}
               returnKeyType="search"
               onSubmitEditing={handleSearch}
-              keyboardAppearance={isDark ? 'dark' : 'light'}
+              keyboardAppearance={scheme.keyboard}
               style={[
                 styles.searchInput,
                 {
@@ -243,7 +296,11 @@ export default function ProfilesTab() {
             </View>
           </View>
 
-          {error ? <Text style={[styles.errorText, { color: colors.red }]}>{error}</Text> : null}
+          {error ? (
+            <Text style={[styles.errorText, { color: colors.red }]}>
+              {error}
+            </Text>
+          ) : null}
 
           <View style={styles.inlineResults}>
             {loading ? (
@@ -257,7 +314,9 @@ export default function ProfilesTab() {
                 ]}
               >
                 <ActivityIndicator size="small" />
-                <Text style={[styles.stateText, { color: colors.muted }]}>Searching profiles...</Text>
+                <Text style={[styles.stateText, { color: colors.muted }]}>
+                  Searching profiles...
+                </Text>
               </View>
             ) : (
               <View style={styles.resultsList}>
@@ -273,16 +332,23 @@ export default function ProfilesTab() {
                     ]}
                   >
                     <View style={styles.profileMain}>
-                      <Text style={[styles.usernameText, { color: colors.text }]}>
+                      <Text
+                        style={[styles.usernameText, { color: colors.text }]}
+                      >
                         @{profile.username}
                       </Text>
 
-                      <Text style={[styles.locationText, { color: colors.orange }]}>
-                        {profile.gymLocation || 'No gym location provided'}
+                      <Text
+                        style={[styles.locationText, { color: colors.orange }]}
+                      >
+                        {profile.gymLocation || "No gym location provided"}
                       </Text>
 
-                      <Text style={[styles.bioText, { color: colors.muted }]} numberOfLines={2}>
-                        {profile.bio || 'No bio provided'}
+                      <Text
+                        style={[styles.bioText, { color: colors.muted }]}
+                        numberOfLines={2}
+                      >
+                        {profile.bio || "No bio provided"}
                       </Text>
                     </View>
 
@@ -298,7 +364,14 @@ export default function ProfilesTab() {
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[styles.friendButtonText, { color: colors.orange }]}>👤</Text>
+                        <Text
+                          style={[
+                            styles.friendButtonText,
+                            { color: colors.orange },
+                          ]}
+                        >
+                          👤
+                        </Text>
                       </Pressable>
 
                       <Pressable
@@ -312,7 +385,11 @@ export default function ProfilesTab() {
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[styles.flagButtonText, { color: colors.red }]}>⚑</Text>
+                        <Text
+                          style={[styles.flagButtonText, { color: colors.red }]}
+                        >
+                          ⚑
+                        </Text>
                       </Pressable>
                     </View>
                   </View>
@@ -333,7 +410,9 @@ export default function ProfilesTab() {
               },
             ]}
           >
-            <Text style={[styles.eyebrow, { color: colors.orange }]}>SHARED MEALS</Text>
+            <Text style={[styles.eyebrow, { color: colors.orange }]}>
+              SHARED MEALS
+            </Text>
 
             <View style={{ gap: 10, marginTop: 8 }}>
               {sharedMeals.map((meal) => (
@@ -341,7 +420,10 @@ export default function ProfilesTab() {
                   key={meal.shareId}
                   style={[
                     styles.profileRow,
-                    { backgroundColor: colors.soft, borderColor: colors.border },
+                    {
+                      backgroundColor: colors.soft,
+                      borderColor: colors.border,
+                    },
                   ]}
                 >
                   <View style={styles.profileMain}>
@@ -349,56 +431,120 @@ export default function ProfilesTab() {
                       {meal.name}
                     </Text>
 
-                    {meal.source === 'restaurant' && meal.restaurant ? (
-                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                    {meal.source === "restaurant" && meal.restaurant ? (
+                      <Text
+                        style={[styles.locationText, { color: colors.orange }]}
+                      >
                         {meal.restaurant}
-                        {meal.category ? ` · ${meal.category}` : ''}
-                        {meal.mealType ? ` · ${meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}` : ''}
+                        {meal.category ? ` · ${meal.category}` : ""}
+                        {meal.mealType
+                          ? ` · ${meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}`
+                          : ""}
                       </Text>
                     ) : null}
 
-                    {meal.source === 'tagged' && (meal.cuisine || meal.goal) ? (
-                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                    {meal.source === "tagged" && (meal.cuisine || meal.goal) ? (
+                      <Text
+                        style={[styles.locationText, { color: colors.orange }]}
+                      >
                         {[meal.cuisine, meal.goal, meal.complexity]
                           .filter(Boolean)
-                          .join(' · ')}
+                          .join(" · ")}
                       </Text>
                     ) : null}
 
                     {/* Macro chips */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginTop: 6,
+                      }}
+                    >
                       {meal.calories != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: colors.orange }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.macroPillText,
+                              { color: colors.orange },
+                            ]}
+                          >
                             {meal.calories} kcal
                           </Text>
                         </View>
                       ) : null}
                       {meal.protein != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: '#60a5fa' }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#60a5fa" }]}
+                          >
                             {meal.protein}g protein
                           </Text>
                         </View>
                       ) : null}
                       {meal.carbs != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: '#a78bfa' }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#a78bfa" }]}
+                          >
                             {meal.carbs}g carbs
                           </Text>
                         </View>
                       ) : null}
                       {meal.fat != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: '#fbbf24' }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#fbbf24" }]}
+                          >
                             {meal.fat}g fat
                           </Text>
                         </View>
                       ) : null}
                     </View>
 
-                    <Text style={[styles.bioText, { color: colors.muted, marginTop: 6 }]}>
-                      {new Date(meal.sharedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <Text
+                      style={[
+                        styles.bioText,
+                        { color: colors.muted, marginTop: 6 },
+                      ]}
+                    >
+                      {new Date(meal.sharedAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </Text>
                   </View>
 
@@ -414,7 +560,11 @@ export default function ProfilesTab() {
                         pressed && styles.pressed,
                       ]}
                     >
-                      <Text style={[styles.flagButtonText, { color: colors.red }]}>✕</Text>
+                      <Text
+                        style={[styles.flagButtonText, { color: colors.red }]}
+                      >
+                        ✕
+                      </Text>
                     </Pressable>
                   </View>
                 </View>
@@ -424,13 +574,35 @@ export default function ProfilesTab() {
         )}
       </ScrollView>
 
+      <SocialChatButton
+        activePanel={activeSocialPanel}
+        bottomOffset={tabBarHeight}
+        colors={{
+          background: colors.cardBg,
+          secondaryBackground: colors.soft,
+          border: colors.border,
+          text: colors.text,
+          muted: colors.muted,
+          tint: colors.orange,
+          buttonBg: colors.buttonBg,
+          buttonSecondaryBg: colors.buttonSecondaryBg,
+          buttonText: colors.buttonText,
+        }}
+        onPress={() => setActiveSocialPanel("chats")}
+      />
+
       <Modal
         visible={friendModal.visible}
         transparent
         animationType="fade"
         onRequestClose={closeFriendModal}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.modalBackdrop }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: colors.modalBackdrop },
+          ]}
+        >
           <View
             style={[
               styles.modalCard,
@@ -449,8 +621,12 @@ export default function ProfilesTab() {
               </View>
             ) : (
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>{modalTitle}</Text>
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>{modalBody}</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {modalTitle}
+                </Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  {modalBody}
+                </Text>
 
                 <View style={styles.modalButtonRow}>
                   <Pressable
@@ -464,7 +640,14 @@ export default function ProfilesTab() {
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>No</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      No
+                    </Text>
                   </Pressable>
 
                   <Pressable
@@ -473,16 +656,20 @@ export default function ProfilesTab() {
                       styles.modalButton,
                       {
                         backgroundColor:
-                          friendModal.action === 'remove' ? colors.red : colors.orange,
+                          friendModal.action === "remove"
+                            ? colors.red
+                            : colors.orange,
                         borderColor:
-                          friendModal.action === 'remove' ? colors.red : colors.orange,
+                          friendModal.action === "remove"
+                            ? colors.red
+                            : colors.orange,
                       },
                       pressed && styles.pressed,
                     ]}
                   >
                     <Text
                       style={
-                        friendModal.action === 'remove'
+                        friendModal.action === "remove"
                           ? styles.modalDangerButtonText
                           : styles.modalPrimaryButtonText
                       }
@@ -517,7 +704,7 @@ const styles = StyleSheet.create({
 
   eyebrow: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 1.2,
     marginBottom: 8,
   },
@@ -535,7 +722,7 @@ const styles = StyleSheet.create({
   },
 
   buttonRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 12,
   },
@@ -546,7 +733,7 @@ const styles = StyleSheet.create({
 
   errorText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 10,
   },
 
@@ -557,8 +744,8 @@ const styles = StyleSheet.create({
   centerState: {
     paddingVertical: 28,
     paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     borderRadius: 12,
     borderWidth: 1,
@@ -566,7 +753,7 @@ const styles = StyleSheet.create({
 
   stateText: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   resultsList: {
@@ -574,8 +761,8 @@ const styles = StyleSheet.create({
   },
 
   profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -588,12 +775,12 @@ const styles = StyleSheet.create({
 
   usernameText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   locationText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 4,
   },
 
@@ -604,8 +791,8 @@ const styles = StyleSheet.create({
   },
 
   actionsCol: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
   },
 
@@ -613,19 +800,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
   },
 
   friendButtonText: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   flagButtonText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   pressed: {
@@ -634,13 +821,13 @@ const styles = StyleSheet.create({
 
   modalBackdrop: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
   },
 
   modalCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     borderRadius: 14,
     padding: 16,
@@ -649,14 +836,14 @@ const styles = StyleSheet.create({
 
   modalLoadingWrap: {
     paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 12,
   },
 
   modalTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 10,
   },
 
@@ -666,7 +853,7 @@ const styles = StyleSheet.create({
   },
 
   modalButtonRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 18,
   },
@@ -676,26 +863,26 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
   },
 
   modalSecondaryButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   modalPrimaryButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: 'white',
+    fontWeight: "700",
+    color: "white",
   },
 
   modalDangerButtonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: 'white',
+    fontWeight: "700",
+    color: "white",
   },
 
   macroPill: {
@@ -707,6 +894,6 @@ const styles = StyleSheet.create({
 
   macroPillText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
