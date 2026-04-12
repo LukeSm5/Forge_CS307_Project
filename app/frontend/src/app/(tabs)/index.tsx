@@ -92,6 +92,7 @@ export default function CalendarScreen() {
 
   // uses useContext
   const s = useScheme();
+  const styles = useStyles();
 
   const modalColors = {
     bg: s.background,
@@ -180,7 +181,7 @@ export default function CalendarScreen() {
     marks[selectedDate] = {
       ...(marks[selectedDate] ?? {}),
       selected: true,
-      selectedColor: "#2f80ed",
+      selectedColor: s.buttonBg,
     };
 
     return marks;
@@ -408,11 +409,26 @@ export default function CalendarScreen() {
     });
   }
 
+
+  const calendarTheme = useMemo(() => ({
+    calendarBackground: s.background,
+    monthTextColor: s.text,
+    dayTextColor: s.text,
+    textDisabledColor: s.secondaryText,
+    selectedDayBackgroundColor: s.buttonBg,
+    selectedDayTextColor: s.background,
+    dotColor: s.buttonBg,
+    selectedDotColor: s.background,
+    todayTextColor: s.buttonBg,
+  }), [s]);
+  
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Calendar</Text>
 
       <Calendar
+        key={s.keyboard}
+        theme={calendarTheme}
         onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
         markedDates={markedDates}
         enableSwipeMonths
@@ -429,7 +445,7 @@ export default function CalendarScreen() {
               styles.addButton,
               styles.actionButton,
               isSmallScreen && styles.actionButtonSmall,
-              { backgroundColor: "#8e44ad" },
+              { backgroundColor: s.buttonBg },
             ]}
             onPress={() => setIsReportOpen(true)}
           >
@@ -441,7 +457,7 @@ export default function CalendarScreen() {
               styles.addButton,
               styles.actionButton,
               isSmallScreen && styles.actionButtonSmall,
-              { backgroundColor: "#81ab33" },
+              { backgroundColor: s.buttonBg },
             ]}
             onPress={() => setIsReportOpen(true)}
           >
@@ -453,6 +469,7 @@ export default function CalendarScreen() {
               styles.addButton,
               styles.actionButton,
               isSmallScreen && styles.actionButtonSmall,
+              { backgroundColor: s.buttonBg },
             ]}
             onPress={openAdd}
           >
@@ -845,270 +862,269 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  header: { fontSize: 22, fontWeight: "700", marginBottom: 12 },
+const useStyles = () => { 
+  const s = useScheme();
 
-  actionsSection: {
-    marginTop: 12,
-    marginBottom: 8,
-  },
+  return StyleSheet.create({
+    container: { flex: 1, padding: 16 },
+    header: { fontSize: 22, fontWeight: "700", marginBottom: 12 },
 
-  listHeaderText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
+    actionsSection: {
+      marginTop: 12,
+      marginBottom: 8,
+    },
 
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
+    listHeaderText: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 10,
+    },
 
-  actionsRowSmall: {
-    flexDirection: "column",
-  },
+    actionsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+    },
 
-  addButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#2f80ed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    actionsRowSmall: {
+      flexDirection: "column",
+    },
 
-  actionButton: {
-    minWidth: 160,
-  },
+    addButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  actionButtonSmall: {
-    width: "100%",
-  },
+    actionButton: {
+      minWidth: 160,
+    },
 
-  addButtonText: {
-    color: "white",
-    fontWeight: "700",
-    textAlign: "center",
-  },
+    actionButtonSmall: {
+      width: "100%",
+    },
 
-  emptyText: { marginTop: 10, opacity: 0.7 },
+    addButtonText: {
+      color: "white",
+      fontWeight: "700",
+      textAlign: "center",
+    },
 
-  card: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.15)",
-    marginBottom: 10,
-  },
+    emptyText: { marginTop: 10, opacity: 0.7 },
 
-  cardTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
+    card: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: s.backdrop,
+      marginBottom: 10,
+    },
 
-  cardTitleWrap: {
-    flex: 1,
-  },
+    cardTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 12,
+    },
 
-  editButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "rgba(47,128,237,0.10)",
-  },
+    cardTitleWrap: {
+      flex: 1,
+    },
 
-  editButtonText: {
-    fontSize: 16,
-  },
+    editButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: s.neutralColor,
+    },
 
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-  cardTime: { marginTop: 4, opacity: 0.7 },
+    editButtonText: {
+      fontSize: 16,
+    },
 
-  exerciseList: {
-    marginTop: 10,
-  },
+    cardTitle: { fontSize: 16, fontWeight: "600" },
+    cardTime: { marginTop: 4, opacity: 0.7 },
 
-  exerciseRow: {
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.04)",
-  },
+    exerciseList: {
+      marginTop: 10,
+    },
 
-  exerciseName: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
+    exerciseRow: {
+      marginTop: 8,
+      padding: 8,
+    },
 
-  exerciseMeta: {
-    marginTop: 2,
-    fontSize: 12,
-    opacity: 0.7,
-  },
+    exerciseName: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
 
-  hint: { marginTop: 10, opacity: 0.5, fontSize: 12 },
+    exerciseMeta: {
+      marginTop: 2,
+      fontSize: 12,
+      opacity: 0.7,
+    },
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
+    hint: { marginTop: 10, opacity: 0.5, fontSize: 12 },
 
-  modalCard: {
-    width: "100%",
-    maxWidth: 480,
-    maxHeight: "90%",
-    borderRadius: 14,
-    padding: 16,
-  },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: s.backdrop,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    },
 
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+    modalCard: {
+      width: "100%",
+      maxWidth: 480,
+      maxHeight: "90%",
+      borderRadius: 14,
+      padding: 16,
+    },
 
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 6,
-  },
+    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
 
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 18,
-    marginBottom: 8,
-  },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: 8,
+      marginBottom: 6,
+    },
 
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
+    sectionHeader: {
+      fontSize: 16,
+      fontWeight: "700",
+      marginTop: 18,
+      marginBottom: 8,
+    },
 
-  suggestionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 10,
-  },
+    input: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
 
-  suggestionChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
+    suggestionsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 10,
+    },
 
-  suggestionText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
+    suggestionChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
 
-  timeToggle: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
+    suggestionText: {
+      fontSize: 12,
+      fontWeight: "600",
+    },
 
-  timeToggleActive: {
-    borderColor: "#2f80ed",
-    backgroundColor: "rgba(47,128,237,0.06)",
-  },
+    timeToggle: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
 
-  timeToggleText: {
-    fontSize: 14,
-  },
+    timeToggleActive: {
+      borderColor: s.buttonBg,
+    },
 
-  pickerWrapper: {
-    marginTop: 10,
-    borderRadius: 12,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    timeToggleText: {
+      fontSize: 14,
+    },
 
-  repeatToggle: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
+    pickerWrapper: {
+      marginTop: 10,
+      borderRadius: 12,
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  repeatToggleActive: {
-    borderColor: "#2f80ed",
-    backgroundColor: "rgba(47,128,237,0.06)",
-  },
+    repeatToggle: {
+      marginTop: 4,
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
 
-  repeatToggleText: {
-    fontSize: 14,
-  },
+    repeatToggleActive: {
+      borderColor: s.buttonBg,
+    },
 
-  savedExercisesWrap: {
-    marginBottom: 8,
-  },
+    repeatToggleText: {
+      fontSize: 14,
+    },
 
-  savedExerciseCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 10,
-  },
+    savedExercisesWrap: {
+      marginBottom: 8,
+    },
 
-  removeExerciseBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
+    savedExerciseCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 8,
+      padding: 10,
+      borderRadius: 10,
+    },
 
-  removeExerciseText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
+    removeExerciseBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
 
-  exerciseInputRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+    removeExerciseText: {
+      fontSize: 12,
+      fontWeight: "600",
+    },
 
-  exerciseInputCol: {
-    flex: 1,
-  },
+    exerciseInputRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
 
-  addExerciseInlineButton: {
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#27ae60",
-    alignItems: "center",
-  },
+    exerciseInputCol: {
+      flex: 1,
+    },
 
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 18,
-    marginBottom: 4,
-  },
+    addExerciseInlineButton: {
+      marginTop: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: s.buttonBg,
+      alignItems: "center",
+    },
 
-  actionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 10,
+      marginTop: 18,
+      marginBottom: 4,
+    },
 
-  cancelBtn: {},
-  saveBtn: { backgroundColor: "#2f80ed" },
-  cancelText: { fontWeight: "700" },
-  saveText: { color: "white", fontWeight: "700" },
-});
+    actionBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+
+    cancelBtn: {},
+    saveBtn: { backgroundColor: s.buttonBg },
+    cancelText: { fontWeight: "700" },
+    saveText: { color: "white", fontWeight: "700" },
+  });
+}
