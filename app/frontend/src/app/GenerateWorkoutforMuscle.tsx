@@ -9,7 +9,7 @@ import { api, WorkoutLookup } from '@/core/api';
 export default function GenerateWorkoutforMuscle() {
     const router = useRouter();
     const [workouts, setWorkouts] = useState<WorkoutLookup[]>([]);
-    const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(null);
+    const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<number[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const s = scheme();
@@ -25,11 +25,12 @@ export default function GenerateWorkoutforMuscle() {
         }
         loadWorkouts();
     }, []);
-    /* function handleSelect(workoutId: number) {
+
+    function handleSelect(workoutId: number) {
         const selectedWorkout = workouts.find(w => w.workout_id === workoutId);
         const isFullBody = selectedWorkout?.name.toLowerCase().includes('full body');
 
-        setSelectedWorkoutId(prev => {
+        setSelectedWorkoutIds(prev => {
         const alreadySelected = prev.includes(workoutId);
         if (alreadySelected) {
             return prev.filter(id => id !== workoutId);
@@ -43,23 +44,24 @@ export default function GenerateWorkoutforMuscle() {
             return [workoutId];
         }
         if (prev.length >= 4) {
+            setError('You can only select up to 4 muscle groups');
             return prev;
         }
         return [...prev, workoutId];
 
     });
         
-    } */
+    } 
         async function handleGenerateWorkoutForMuscle() {
-            const selectedMuscle = workouts.find(w => w.workout_id === selectedWorkoutId)?.name.toLowerCase(); 
-            if (!selectedMuscle) {
+            if (selectedWorkoutIds.length === 0) {
                 setError('Please select a muscle group');
                 return;
             }
+            const selectedMuscles = workouts.filter(w => selectedWorkoutIds.includes(w.workout_id)).map(w => w.name.toLowerCase());
             setLoading(true);
             setError(null);
             try {
-                const workout = await api.quickMuscleWorkout({ muscle: selectedMuscle }); 
+                const workout = await api.quickMuscleWorkout({ muscle: selectedMuscles[0] }); 
                 router.push({ pathname: '/LogGeneratedWorkout', 
                     params: { workout_name: workout.workout, 
                         exercises: JSON.stringify(workout.exercises) 
@@ -80,8 +82,8 @@ export default function GenerateWorkoutforMuscle() {
                           key={w.workout_id}
                           text={w.name}
                           compact
-                          color={selectedWorkoutId === w.workout_id ? s.buttonBg : s.neutralColor}
-                          onPress={() => setSelectedWorkoutId(w.workout_id)}
+                          color={selectedWorkoutIds.includes(w.workout_id) ? s.buttonBg : s.neutralColor}
+                          onPress={() => handleSelect(w.workout_id)}
                           style={styles.muscleBtn}
                         />
                       ))}
@@ -116,7 +118,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   error: {
-        color: 'red',
-        marginBottom: 10,
+    color: 'red',
+    marginBottom: 10,
   },
 });
