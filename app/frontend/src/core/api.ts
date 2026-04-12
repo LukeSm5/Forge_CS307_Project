@@ -321,9 +321,15 @@ sled pull, box jump, cardio
     const usr = await api.me();
     if (typeof usr === "undefined")
       throw new Error("User not signed in.");
-    
+    let muscle = "";
+    for (let i = 0; i < e.muscles.length; i++) {
+      muscle += e.muscles[i].trim().toLowerCase();
+      if (i !== e.muscles.length - 1) {
+        muscle += ", ";
+      }
+    }
     const res = await api.mePrompt({ prompt: `
-The user is requesting a quick workout that they can do for ${e.muscle}. It should be tailored to a user's goals and profile, so use the user's information to cater the workout to them. The workout should be formatted as a JSON object as follows:
+The user is requesting a quick workout that they can do for ${muscle}. It should be tailored to a user's goals and profile, so use the user's information to cater the workout to them. The workout should be formatted as a JSON object as follows:
 {
   workout: string, // The name of the workout
   exercises: { exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
@@ -855,7 +861,7 @@ export type QuickWorkoutResponse = {
 };
 
 export type quickMuscleEvent = {
-  muscle: string;
+  muscles: string[];
 }
 
 export type FriendshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted';

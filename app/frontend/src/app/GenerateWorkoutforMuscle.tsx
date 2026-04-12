@@ -61,7 +61,7 @@ export default function GenerateWorkoutforMuscle() {
             setLoading(true);
             setError(null);
             try {
-                const workout = await api.quickMuscleWorkout({ muscle: selectedMuscles[0] }); 
+                const workout = await api.quickMuscleWorkout({ muscles: selectedMuscles }); 
                 router.push({ pathname: '/LogGeneratedWorkout', 
                     params: { workout_name: workout.workout, 
                         exercises: JSON.stringify(workout.exercises) 
