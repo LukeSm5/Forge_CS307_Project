@@ -1,5 +1,5 @@
 import { api } from '../../core/api';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -13,6 +13,11 @@ import {
 import ForgeButton from '@/components/ForgeButton';
 import { Text } from '@/components/Themed';
 import { useAppColorScheme } from '@/core/accessibility';
+import {
+  SharedMeal,
+  subscribeToSharedMeals,
+  removeSharedMeal,
+} from '../../core/sharedMealsStore';
 
 type ProfileSearchResult = {
   id: number | string;
@@ -66,6 +71,12 @@ export default function ProfilesTab() {
     profile: null,
     action: null,
   });
+
+  const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
+
+  useEffect(() => {
+    return subscribeToSharedMeals(setSharedMeals);
+  }, []);
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -310,6 +321,107 @@ export default function ProfilesTab() {
             )}
           </View>
         </View>
+        {/* ─── SHARED MEALS FROM DIET TAB ─── */}
+        {sharedMeals.length > 0 && (
+          <View
+            style={[
+              styles.headerCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
+                marginTop: 16,
+              },
+            ]}
+          >
+            <Text style={[styles.eyebrow, { color: colors.orange }]}>SHARED MEALS</Text>
+
+            <View style={{ gap: 10, marginTop: 8 }}>
+              {sharedMeals.map((meal) => (
+                <View
+                  key={meal.shareId}
+                  style={[
+                    styles.profileRow,
+                    { backgroundColor: colors.soft, borderColor: colors.border },
+                  ]}
+                >
+                  <View style={styles.profileMain}>
+                    <Text style={[styles.usernameText, { color: colors.text }]}>
+                      {meal.name}
+                    </Text>
+
+                    {meal.source === 'restaurant' && meal.restaurant ? (
+                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                        {meal.restaurant}
+                        {meal.category ? ` · ${meal.category}` : ''}
+                        {meal.mealType ? ` · ${meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}` : ''}
+                      </Text>
+                    ) : null}
+
+                    {meal.source === 'tagged' && (meal.cuisine || meal.goal) ? (
+                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                        {[meal.cuisine, meal.goal, meal.complexity]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    ) : null}
+
+                    {/* Macro chips */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      {meal.calories != null ? (
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: colors.orange }]}>
+                            {meal.calories} kcal
+                          </Text>
+                        </View>
+                      ) : null}
+                      {meal.protein != null ? (
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: '#60a5fa' }]}>
+                            {meal.protein}g protein
+                          </Text>
+                        </View>
+                      ) : null}
+                      {meal.carbs != null ? (
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: '#a78bfa' }]}>
+                            {meal.carbs}g carbs
+                          </Text>
+                        </View>
+                      ) : null}
+                      {meal.fat != null ? (
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: '#fbbf24' }]}>
+                            {meal.fat}g fat
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <Text style={[styles.bioText, { color: colors.muted, marginTop: 6 }]}>
+                      {new Date(meal.sharedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+
+                  <View style={styles.actionsCol}>
+                    <Pressable
+                      onPress={() => removeSharedMeal(meal.shareId)}
+                      style={({ pressed }) => [
+                        styles.iconButton,
+                        {
+                          backgroundColor: colors.flagBg,
+                          borderColor: colors.flagBorder,
+                        },
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={[styles.flagButtonText, { color: colors.red }]}>✕</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -584,5 +696,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: 'white',
+  },
+
+  macroPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  macroPillText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
