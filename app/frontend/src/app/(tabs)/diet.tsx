@@ -48,6 +48,7 @@ import {
 } from '../mealTypes';
 
 import { api } from '../../core/api';
+import { shareMeal } from '../../core/sharedMealsStore';
 
 /* ─────────────────── types ─────────────────── */
 
@@ -478,12 +479,14 @@ function BrowseMealCard({
   meal,
   onEdit,
   onDelete,
+  onShare,
   expanded,
   onToggle,
 }: {
   meal: TaggedMeal;
   onEdit: (meal: TaggedMeal) => void;
   onDelete: (id: number) => void;
+  onShare: (meal: TaggedMeal) => void;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -670,6 +673,9 @@ function BrowseMealCard({
       <View style={styles.rowGap}>
         <View style={styles.flex1}>
           <ForgeButton onPress={() => onEdit(meal)} text={'Edit Meal'} />
+        </View>
+        <View style={styles.flex1}>
+          <ForgeButton onPress={() => onShare(meal)} text={'Share 📤'} />
         </View>
         <View style={styles.flex1}>
           <ForgeButton onPress={() => onDelete(meal.id)} text={'Delete Meal'} />
@@ -1204,6 +1210,26 @@ export default function Diet() {
     setTaggedMealToDelete(id);
   };
 
+  const handleShareTaggedMeal = (meal: TaggedMeal) => {
+    shareMeal({
+      source: 'tagged',
+      name: meal.name,
+      calories: meal.macros?.calories,
+      protein: meal.macros?.protein,
+      carbs: meal.macros?.carbs,
+      fat: meal.macros?.fat,
+      sugar: meal.macros?.sugar,
+      fiber: meal.macros?.fiber,
+      sodium: meal.macros?.sodium,
+      cuisine: meal.tags.cuisine,
+      goal: meal.tags.goal,
+      complexity: meal.tags.complexity,
+      spiceLevel: meal.tags.spiceLevel,
+      dietary: meal.tags.dietary,
+    });
+    Alert.alert('Shared!', `"${meal.name}" has been shared to the Social tab.`);
+  };
+
   const confirmDeleteTaggedMeal = () => {
     if (taggedMealToDelete === null) return;
     setSavedMeals((current) => current.filter((meal) => meal.id !== taggedMealToDelete));
@@ -1416,6 +1442,24 @@ export default function Diet() {
     }
   };
 
+  const handleShareLoggedMeal = (item: LoggedMenuMeal) => {
+    shareMeal({
+      source: 'restaurant',
+      name: item.product,
+      calories: item.energy_kcal,
+      protein: item.protein_g,
+      carbs: item.carbohydrates_g,
+      fat: item.total_fat_g,
+      sugar: item.sugar_g,
+      fiber: item.fiber_g,
+      sodium: item.sodium_mg,
+      restaurant: item.restaurant,
+      category: item.category,
+      mealType: item.meal_type,
+    });
+    Alert.alert('Shared!', `"${item.product}" has been shared to the Social tab.`);
+  };
+
   const handleConfirmMealType = async () => {
     if (!selectedMenuMeal || !selectedMealType) {
       Alert.alert('Select meal type', 'Please choose breakfast, lunch, dinner, or snack.');
@@ -1568,7 +1612,10 @@ export default function Diet() {
                     <View style={styles.myMealMeta}>
                       <Text style={styles.myMealDate}>{new Date(`${item.date}Z`).toLocaleDateString()}</Text>
                       <Text style={styles.myMealType}>{item.meal_type.charAt(0).toUpperCase() + item.meal_type.slice(1)}</Text>
-                      <ForgeButton onPress={() => openDeleteMealModal(item)} text="-" />
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <ForgeButton onPress={() => handleShareLoggedMeal(item)} text="📤" />
+                        <ForgeButton onPress={() => openDeleteMealModal(item)} text="-" />
+                      </View>
                     </View>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.nutritionScroll} contentContainerStyle={styles.nutritionScrollContent}>
@@ -1844,7 +1891,7 @@ export default function Diet() {
         ) : (
           <View style={styles.cardList}>
             {filteredMeals.map((meal) => (
-              <BrowseMealCard key={meal.id} meal={meal} onEdit={setEditing} onDelete={handleDeleteMeal} expanded={expandedMealId === meal.id} onToggle={() => setExpandedMealId(expandedMealId === meal.id ? null : meal.id)} />
+              <BrowseMealCard key={meal.id} meal={meal} onEdit={setEditing} onDelete={handleDeleteMeal} onShare={handleShareTaggedMeal} expanded={expandedMealId === meal.id} onToggle={() => setExpandedMealId(expandedMealId === meal.id ? null : meal.id)} />
             ))}
           </View>
         )}
