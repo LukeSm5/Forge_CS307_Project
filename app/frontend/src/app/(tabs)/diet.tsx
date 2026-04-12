@@ -48,7 +48,7 @@ import {
 } from '../mealTypes';
 
 import { api } from '../../core/api';
-import { shareMeal } from '../../core/sharedMealsStore';
+import { shareMeal } from '@/core/sharedMealsStore';
 
 /* ─────────────────── types ─────────────────── */
 

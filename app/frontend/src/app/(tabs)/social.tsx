@@ -17,7 +17,7 @@ import {
   SharedMeal,
   subscribeToSharedMeals,
   removeSharedMeal,
-} from '../../core/sharedMealsStore';
+} from '@/core/sharedMealsStore';
 
 type ProfileSearchResult = {
   id: number | string;
