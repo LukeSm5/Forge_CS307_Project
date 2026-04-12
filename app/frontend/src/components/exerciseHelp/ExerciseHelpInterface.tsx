@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, StyleSheet } from "react-native";
 
 import ForgeButton from "@/components/ForgeButton";
-import { Text, useScheme, View } from "@/components/Themed";
+import { Separator, Text, useScheme, View } from "@/components/Themed";
 import { api, ExerciseHelp } from "@/core/api";
 
 type ExerciseHelpInterfaceProps = {
@@ -59,6 +59,7 @@ export default function ExerciseHelpInterface({
   if (!visible) return null;
   
   const s = useScheme();
+  const styles = useStyles();
   return (
     <Modal
       visible={visible}
@@ -70,11 +71,7 @@ export default function ExerciseHelpInterface({
         <Text style={styles.title}>{exerciseName}</Text>
         <Text style={styles.subtitle}>Step-by-step exercise help</Text>
 
-        <View
-          style={styles.separator}
-          lightColor="#eee"
-          darkColor="rgba(255,255,255,0.1)"
-        />
+        <Separator />
 
         {loading ? (
           <View style={styles.centerContent}>
@@ -116,75 +113,78 @@ export default function ExerciseHelpInterface({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    textAlign: "center",
-    opacity: 0.8,
-  },
-  separator: {
-    marginVertical: 20,
-    height: 1,
-    width: "100%",
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statusText: {
-    marginTop: 12,
-    fontSize: 16,
-    textAlign: "center",
-  },
-  scrollContent: {
-    paddingBottom: 12,
-  },
-  stepCard: {
-    borderWidth: 1,
-    borderColor: "rgba(128,128,128,0.25)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  stepNumber: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 6,
-  },
-  stepText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  fullAdviceCard: {
-    borderWidth: 1,
-    borderColor: "rgba(128,128,128,0.25)",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 6,
-  },
-  fullAdviceTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  fullAdviceText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  closeButton: {
-    marginTop: 12,
-  },
-});
+const useStyles = () => {
+  const s = useScheme();
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 28,
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      textAlign: "center",
+    },
+    subtitle: {
+      marginTop: 6,
+      fontSize: 14,
+      textAlign: "center",
+      opacity: 0.8,
+    },
+    separator: {
+      marginVertical: 20,
+      height: 1,
+      width: "100%",
+    },
+    centerContent: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    statusText: {
+      marginTop: 12,
+      fontSize: 16,
+      textAlign: "center",
+    },
+    scrollContent: {
+      paddingBottom: 12,
+    },
+    stepCard: {
+      borderWidth: 1,
+      borderColor: s.backdrop,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 12,
+    },
+    stepNumber: {
+      fontSize: 14,
+      fontWeight: "bold",
+      marginBottom: 6,
+    },
+    stepText: {
+      fontSize: 16,
+      lineHeight: 22,
+    },
+    fullAdviceCard: {
+      borderWidth: 1,
+      borderColor: s.backdrop,
+      borderRadius: 12,
+      padding: 14,
+      marginTop: 6,
+    },
+    fullAdviceTitle: {
+      fontSize: 14,
+      fontWeight: "bold",
+      marginBottom: 8,
+    },
+    fullAdviceText: {
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    closeButton: {
+      marginTop: 12,
+    },
+  });
+}

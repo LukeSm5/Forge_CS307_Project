@@ -2,6 +2,7 @@ import React from 'react';
 import { TextInput, StyleSheet, Text, View } from 'react-native';
 import { Schemes } from '@/constants/Colors';
 import { useAppColorScheme } from '@/core/accessibility';
+import { useScheme } from './Themed';
 
 // Attributes of reset password text boxes
 interface PasswordInputProps {
@@ -23,8 +24,7 @@ const ForgeTextBox = ({
   maxLength,
   isVisible,
 }: PasswordInputProps) => {
-  const scheme = useAppColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const s = useScheme();
 
   return (
     <View style={styles.container}>
@@ -32,7 +32,7 @@ const ForgeTextBox = ({
         <Text
           style={[
             styles.label,
-            { color: Schemes[scheme].text },
+            { color: s.text },
           ]}
         >
           {label}
@@ -43,18 +43,18 @@ const ForgeTextBox = ({
         style={[
           styles.input,
           {
-            color: Schemes[scheme].text,
-            borderColor: isDark ? '#6b7280' : '#ccc',
-            backgroundColor: isDark ? '#111827' : '#ffffff',
+            color: s.text,
+            borderColor: s.neutralColor,
+            backgroundColor: s.background,
           },
         ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? label}
-        placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+        placeholderTextColor={s.secondaryText}
         maxLength={maxLength}
         secureTextEntry={label === 'Password' ? !isVisible : false}
-        selectionColor="#2f80ed"
+        selectionColor={s.buttonBg}
       />
     </View>
   );

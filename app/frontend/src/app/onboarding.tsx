@@ -10,7 +10,7 @@ import {
 import QuizText from "@/components/onboarding/QuizText";
 import ForgeButton from "@/components/ForgeButton";
 import QuizQuestion, { Question } from "@/components/onboarding/QuizQuestion";
-import { Text, View } from "@/components/Themed";
+import { Separator, Text, View } from "@/components/Themed";
 import { api } from "@/core/api";
 import { useRouter } from "expo-router";
 import { useAppColorScheme } from "@/core/accessibility";
@@ -373,15 +373,7 @@ export default function OnboardingScreen() {
         Onboarding
       </Text>
 
-      <View
-        style={[
-          styles.separator,
-          {
-            backgroundColor:
-              scheme === "dark" ? "rgba(255,255,255,0.12)" : "#eee",
-          },
-        ]}
-      />
+      <Separator/>
 
       <View style={styles.contentArea}>{component}</View>
     </SafeAreaView>

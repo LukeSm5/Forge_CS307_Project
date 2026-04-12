@@ -1,6 +1,6 @@
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
-import { Text, useScheme, View } from '@/components/Themed';
+import { Separator, Text, useScheme, View } from '@/components/Themed';
 import AltMachResult from '@/components/cardioSearch/CardioMachineResult';
 import React, { useEffect, useState } from 'react';
 import { api, AltMachResponse } from '@/core/api';
@@ -10,13 +10,17 @@ import { Modal } from 'react-native';
 export default function AltMachInterface({ visible, setVisible, exercise }: { visible: boolean, setVisible: (visible: boolean) => void, exercise: string }) {
     const [ results, setResults ] = useState<AltMachResponse[]>([]);
 
+    const s = useScheme();
     let searchComponent: React.JSX.Element;
     if (results.length > 0) {
-        searchComponent = (<><View style={styles.searchResults}>
+        searchComponent = (<><View style={{ ...styles.searchResults, 
+        boxShadow: `inset 3px 3px 10px ${s.shadow}`,}}>
             {results.map((item: AltMachResponse, idx: number) => <AltMachResult key={idx} name={item.name} desc={item.desc} />)}
         </View></>);
     } else {
-        searchComponent = (<><View style={styles.searchResults}>
+        searchComponent = (<><View style={{ ...styles.searchResults, 
+        boxShadow: `inset 3px 3px 10px ${s.shadow}`,
+        }}>
                 <Text style={styles.title}>Loading results...</Text>
         </View></>);
     }
@@ -28,12 +32,11 @@ export default function AltMachInterface({ visible, setVisible, exercise }: { vi
     if (!visible)
         return (<></>);
 
-    const s = useScheme();
     return (<Modal style={{ backgroundColor: s.backdrop }}>
         <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Exercise Alternatives</Text>
-                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+                <Separator />
                 {searchComponent}
                 <ForgeButton text="Close Exercise Alternatives" onPress={() => setVisible(false)}/>
             </View>
@@ -69,35 +72,11 @@ const styles = StyleSheet.create({
         height: 1,
         width: '80%',
     },
-    button: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginVertical: 10,
-    },
-    searchButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        width: '30%',
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
     searchResults: {
         width: '80%',
         height: '45%',
         overflowX: 'hidden',
         overflowY: 'scroll',
-        boxShadow: 'inset 3px 3px 10px #0007',
         borderRadius: '10px',
         marginBottom: 10,
         padding: '2%'

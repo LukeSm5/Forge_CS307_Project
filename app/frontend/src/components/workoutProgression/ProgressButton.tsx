@@ -15,19 +15,3 @@ export default function ProgressionButton({ exerciseId }: { exerciseId: string }
         {progressionInterface}
     </>);
 }
-
-const styles = StyleSheet.create({
-    button: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginVertical: 10,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-});

@@ -2,6 +2,8 @@ const tintColorLight = '#2f95dc';
 const tintColorDark = '#fff';
 
 export type ColorScheme = {
+  separator: string;
+  shadow: string;
   text: string,
   background: string,
   secondaryBackground: string,
@@ -23,6 +25,7 @@ export type ColorSchemes = Record<string, ColorScheme>
 
 export const Schemes: ColorSchemes = {
   light: {
+    separator: '#eee',
     text: '#000',
     background: '#fff',
     secondaryBackground: '#eee',
@@ -38,8 +41,10 @@ export const Schemes: ColorSchemes = {
     secondaryText: '#6d6d6d',
     backdrop: 'rgba(0,0,0,0.5)',
     keyboard: 'light',
+    shadow: '#0007',
   },
   dark: {
+    separator: '#555',
     text: '#fff',
     background: '#000',
     secondaryBackground: '#111',
@@ -55,5 +60,6 @@ export const Schemes: ColorSchemes = {
     secondaryText: '#bcbcbc',
     backdrop: 'rgba(255,255,255,0.5)',
     keyboard: 'dark',
+    shadow: '#fff7',
   },
 };

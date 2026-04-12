@@ -69,3 +69,15 @@ export function View(props: ViewProps) {
 
   return <DefaultView style={[{ backgroundColor }, style as ViewStyle]} {...otherProps} />;
 }
+
+export function Separator(props: { style?: ViewStyle }) {
+  const { style } = props;
+  
+  const s = useScheme();
+  return <View style={[{
+    marginVertical: 30,
+    height: 1,
+    width: "80%",
+    backgroundColor: s.separator,
+   }, style as ViewStyle]} />;
+}

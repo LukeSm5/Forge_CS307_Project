@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { LineChart, lineDataItem } from "react-native-gifted-charts";
 
-import { Text, useScheme, View } from '@/components/Themed';
+import { Separator, Text, useScheme, View } from '@/components/Themed';
 import React, { useState, useEffect } from 'react';
 import { api, WeightProgression } from '@/core/api';
 import ForgeButton from '../ForgeButton';
@@ -44,7 +44,7 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
         <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Weight Progression Chart</Text>
-                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+                <Separator />
                 <View style={{width: '90%'}}>
                 {progression && (<View style={{
                     marginLeft: 'auto', marginRight: 'auto',
@@ -56,11 +56,11 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
                         endSpacing={10}
                         data={getLineData()}
                         lineSegments={[
-                            {startIndex: 0, endIndex: progression[0].time.length - 1, color: "#13e471ff"},
-                            {startIndex: progression[0].time.length - 1, endIndex: progression[0].time.length + progression[1].time.length - 1, color: "#df1c1cff"},
+                            {startIndex: 0, endIndex: progression[0].time.length - 1, color: s.buttonBg},
+                            {startIndex: progression[0].time.length - 1, endIndex: progression[0].time.length + progression[1].time.length - 1, color: s.buttonSecondaryBg},
                         ]}
                         dataPointsColor={'black'}
-                        textColor1="#555"
+                        textColor1={s.neutralColor}
                         textShiftY={16}
                         textShiftX={-10}
                         textFontSize={11}
@@ -68,11 +68,11 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
                         spacing={25}
                         thickness={3}
                         hideYAxisText
-                        yAxisColor="#838383ff"
+                        yAxisColor={s.neutralColor}
                         showVerticalLines
-                        verticalLinesColor="rgba(100, 100, 100, 0.5)"
-                        xAxisColor="#606060ff"
-                        color="#010101ff"
+                        verticalLinesColor={s.shadow}
+                        xAxisColor={s.neutralColor}
+                        color={s.text}
                     />
                 </View>)}
                 </View>
@@ -110,39 +110,6 @@ const styles = StyleSheet.create({
         marginVertical: 30,
         height: 1,
         width: '80%',
-    },
-    button: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginVertical: 10,
-    },
-    searchButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        width: '30%',
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    searchResults: {
-        width: '90%',
-        height: '45%',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
-        boxShadow: 'inset 3px 3px 10px #0007',
-        borderRadius: '10px',
-        marginBottom: 10,
-        padding: '2%'
     },
     questionContainer: {
         alignItems: 'center',

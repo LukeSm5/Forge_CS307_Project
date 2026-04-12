@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
-import { Text, useScheme, View } from '@/components/Themed';
+import { Separator, Text, useScheme, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
@@ -111,11 +111,11 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
         <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Nearby Gyms</Text>
-                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+                <Separator />
 
                 {mapComponent}
 
-                <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+                <Separator />
                 <ForgeButton text="Close Gym Search" onPress={() => setVisible(false)} />
             </View>
         </View>
@@ -151,39 +151,6 @@ const styles = StyleSheet.create({
         marginVertical: 30,
         height: 1,
         width: '80%',
-    },
-    button: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        marginVertical: 10,
-    },
-    searchButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        width: '30%',
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    searchResults: {
-        width: '80%',
-        height: '45%',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
-        boxShadow: 'inset 3px 3px 10px #0007',
-        borderRadius: '10px',
-        marginBottom: 10,
-        padding: '2%'
     },
     questionContainer: {
         alignItems: 'center',

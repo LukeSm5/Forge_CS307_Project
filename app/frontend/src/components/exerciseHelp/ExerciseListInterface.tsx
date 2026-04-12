@@ -9,7 +9,7 @@ import {
 } from "react-native";
 
 import ForgeButton from "@/components/ForgeButton";
-import { Text, View } from "@/components/Themed";
+import { Separator, Text, View } from "@/components/Themed";
 import { api, ExerciseHelp } from "@/core/api";
 
 type ExerciseListInterfaceProps = {
@@ -130,11 +130,7 @@ export default function ExerciseListInterface({
               </Text>
             </View>
 
-            <View
-              style={styles.separator}
-              lightColor="#eee"
-              darkColor="rgba(255,255,255,0.1)"
-            />
+            <Separator />
 
             {loading ? (
               <View style={styles.centerContent}>
@@ -183,11 +179,7 @@ export default function ExerciseListInterface({
             <Text style={styles.title}>{selectedExercise.name}</Text>
             <Text style={styles.subtitle}>Step-by-step exercise help</Text>
 
-            <View
-              style={styles.separator}
-              lightColor="#eee"
-              darkColor="rgba(255,255,255,0.1)"
-            />
+            <Separator />
 
             {helpLoading ? (
               <View style={styles.centerContent}>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import RadioGroup from 'react-native-radio-buttons-group';
 import { StyleSheet, TextInput } from 'react-native';
-import { Text, View } from '../Themed';
+import { Text, useScheme, View } from '../Themed';
 import QuizText from './QuizText';
 import Slider from '@react-native-community/slider';
 import { useAppColorScheme } from '@/core/accessibility';
@@ -25,8 +25,7 @@ export default function QuizQuestion({
   question: Question;
   onUpdate?: (val: number | string) => void;
 }) {
-  const scheme = useAppColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const s = useScheme();
 
   let inputComponent: React.JSX.Element;
 
@@ -44,9 +43,9 @@ export default function QuizQuestion({
             maximumValue={question.inputType.max}
             value={defaultValue}
             step={1}
-            minimumTrackTintColor="#2f80ed"
-            maximumTrackTintColor={isDark ? '#6b7280' : '#cbd5e1'}
-            thumbTintColor="#2f80ed"
+            minimumTrackTintColor={s.buttonBg}
+            maximumTrackTintColor={s.neutralColor}
+            thumbTintColor={s.buttonBg}
             onValueChange={(val) => onUpdate?.(val)}
           />
         </View>
@@ -61,16 +60,16 @@ export default function QuizQuestion({
             style={[
               styles.input,
               {
-                color: Schemes[scheme].text,
-                borderColor: isDark ? '#6b7280' : 'gray',
-                backgroundColor: isDark ? '#111827' : '#ffffff',
+                color: s.text,
+                borderColor: s.neutralColor,
+                backgroundColor: s.background,
               },
             ]}
             placeholder="Type here..."
-            placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+            placeholderTextColor={s.secondaryText}
             maxLength={question.inputType.maxlen}
             onChangeText={(val) => onUpdate?.(val)}
-            selectionColor="#2f80ed"
+            selectionColor={s.buttonBg}
           />
         </View>
       );
@@ -84,13 +83,13 @@ export default function QuizQuestion({
             style={[
               styles.input,
               {
-                color: Schemes[scheme].text,
-                borderColor: isDark ? '#6b7280' : 'gray',
-                backgroundColor: isDark ? '#111827' : '#ffffff',
+                color: s.text,
+                borderColor: s.neutralColor,
+                backgroundColor: s.background,
               },
             ]}
             placeholder="Type here..."
-            placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+            placeholderTextColor={s.secondaryText}
             keyboardType='decimal-pad'
             inputMode='decimal'
             onChangeText={(val) => {
@@ -113,7 +112,7 @@ export default function QuizQuestion({
                 setClampedVal(`${question.inputType.max}`);
               }
             }}
-            selectionColor="#2f80ed"
+            selectionColor={s.buttonBg}
             value={clampedVal}
           />
         </View>
@@ -128,9 +127,9 @@ export default function QuizQuestion({
           id: String(i),
           label: option,
           value: option,
-          color: '#2f80ed',
+          color: s.buttonBg,
           labelStyle: {
-            color: Schemes[scheme].text,
+            color: s.text,
           },
         });
       }

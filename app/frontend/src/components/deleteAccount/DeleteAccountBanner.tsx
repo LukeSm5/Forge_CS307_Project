@@ -5,7 +5,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Text } from '@/components/Themed';
+import { Text, useScheme } from '@/components/Themed';
 
 type Props = {
   visible: boolean;
@@ -15,6 +15,7 @@ type Props = {
 export default function AccountDeletedBanner({ visible, onFinished }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(40)).current;
+  const styles = useStyles();
 
   useEffect(() => {
     if (!visible) return;
@@ -73,70 +74,73 @@ export default function AccountDeletedBanner({ visible, onFinished }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    padding: 24,
-  },
-  banner: {
-    width: '100%',
-    backgroundColor: '#0f131a',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#232834',
-    padding: 28,
-    alignItems: 'center',
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#14291f',
-    borderWidth: 1,
-    borderColor: '#22543d',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  icon: {
-    color: '#86efac',
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  title: {
-    color: '#f9fafb',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    color: '#9ca3af',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  btn: {
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#1a2236',
-    borderWidth: 1,
-    borderColor: '#2d3748',
-  },
-  btnText: {
-    color: '#f9fafb',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-});
+const useStyles = () => {
+  const s = useScheme();
+  return StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: s.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 999,
+      padding: 24,
+    },
+    banner: {
+      width: '100%',
+      backgroundColor: s.background,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: s.separator,
+      padding: 28,
+      alignItems: 'center',
+      gap: 14,
+      shadowColor: s.shadow,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      elevation: 20,
+    },
+    iconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: s.buttonBg,
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    icon: {
+      color: s.buttonText,
+      fontSize: 26,
+      fontWeight: '700',
+    },
+    title: {
+      color: s.text,
+      fontSize: 22,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+    },
+    subtitle: {
+      color: s.secondaryText,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 21,
+    },
+    btn: {
+      marginTop: 8,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: s.buttonBg,
+      borderWidth: 1,
+      borderColor: s.neutralColor,
+    },
+    btnText: {
+      color: s.buttonText,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+  });
+}
