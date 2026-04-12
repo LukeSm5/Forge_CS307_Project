@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { LineChart, lineDataItem } from "react-native-gifted-charts";
 
-import { Text, View } from '@/components/Themed';
+import { Text, useScheme, View } from '@/components/Themed';
 import React, { useState, useEffect } from 'react';
 import { api, WeightProgression } from '@/core/api';
 import ForgeButton from '../ForgeButton';
@@ -39,8 +39,9 @@ export default function ProgressionInterface({ exerciseId, visible, setVisible }
     if (!visible || !progression)
         return (<></>);
 
-    return (<Modal>
-        <View style={styles.container} lightColor="#0007" darkColor="#fff7">
+    const s = useScheme();
+    return (<Modal style={{ backgroundColor: s.backdrop }}>
+        <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Weight Progression Chart</Text>
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />

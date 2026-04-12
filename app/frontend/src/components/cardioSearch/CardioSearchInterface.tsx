@@ -1,6 +1,6 @@
 import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
-import { Text, View } from '@/components/Themed';
+import { Text, useScheme, View } from '@/components/Themed';
 import CardioMachineResult from '@/components/cardioSearch/CardioMachineResult';
 import React, { useState } from 'react';
 import { api, SearchCardioMachineResponse } from '@/core/api';
@@ -31,8 +31,9 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
         setResults(res);
     }
 
-    return (<Modal>
-        <View style={styles.container} lightColor="#0007" darkColor="#fff7">
+    const s = useScheme();
+    return (<Modal style={{ backgroundColor: s.backdrop }}>
+        <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Cardio Machine Search</Text>
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
@@ -48,9 +49,7 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
                         maxLength={150}
                         onChangeText={setSearchTerm}
                     />
-                    <TouchableOpacity style={styles.searchButton} onPress={searchPrompt}>
-                        <Text style={styles.buttonText}>{"Search"}</Text>
-                    </TouchableOpacity>
+                    <ForgeButton text="Search" onPress={searchPrompt} />
                 </View>
 
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />

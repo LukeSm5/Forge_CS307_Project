@@ -1,11 +1,12 @@
 import { Modal, Platform, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
-import { Text, View } from '@/components/Themed';
+import { Text, useScheme, View } from '@/components/Themed';
 import React, { useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 
 import * as Location from "expo-location";
 import "leaflet/dist/leaflet.css";
+import ForgeButton from '../ForgeButton';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const BASE_URL =
@@ -121,8 +122,9 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
         );
     }
 
-    return (<Modal>
-        <View style={styles.container} lightColor="#0007" darkColor="#fff7">
+    const s = useScheme();
+    return (<Modal style={{ ...styles.container, backgroundColor: s.backdrop }}>
+        <View style={styles.container}>
             <View style={styles.popup}>
                 <Text style={styles.title}>Nearby Gyms</Text>
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
@@ -130,9 +132,7 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
                 {mapComponent}
 
                 <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-                <TouchableOpacity style={styles.button} onPress={() => setVisible(false)}>
-                    <Text style={styles.buttonText}>{"Close Gym Search"}</Text>
-                </TouchableOpacity>
+                <ForgeButton text="Close Gym Search" onPress={() => setVisible(false)} />
             </View>
         </View>
     </Modal>);

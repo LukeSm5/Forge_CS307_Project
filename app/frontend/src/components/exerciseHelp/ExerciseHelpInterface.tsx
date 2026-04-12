@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, StyleSheet } from "react-native";
 
 import ForgeButton from "@/components/ForgeButton";
-import { Text, View } from "@/components/Themed";
+import { Text, useScheme, View } from "@/components/Themed";
 import { api, ExerciseHelp } from "@/core/api";
 
 type ExerciseHelpInterfaceProps = {
@@ -57,10 +57,12 @@ export default function ExerciseHelpInterface({
   }, [visible, exerciseId]);
 
   if (!visible) return null;
-
+  
+  const s = useScheme();
   return (
     <Modal
       visible={visible}
+      style={{ backgroundColor: s.backdrop }}
       animationType="slide"
       onRequestClose={() => setVisible(false)}
     >
