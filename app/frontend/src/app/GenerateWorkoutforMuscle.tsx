@@ -105,10 +105,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 10,
     },
-    label: {
-    fontSize: 13,
-    color: '#475569',
-    },
     muscleBtn: {
     minWidth: 92,
     },
