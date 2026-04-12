@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, } from '@/components/Themed';
+import { View, Text, scheme, } from '@/components/Themed';
 import ForgeButton from '@/components/ForgeButton';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ export default function GenerateWorkoutforMuscle() {
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const s = scheme();
 
     useEffect(() => {
         async function loadWorkouts() {
@@ -53,6 +54,7 @@ export default function GenerateWorkoutforMuscle() {
             const selectedMuscle = workouts.find(w => w.workout_id === selectedWorkoutId)?.name.toLowerCase(); 
             if (!selectedMuscle) {
                 setError('Please select a muscle group');
+                return;
             }
             setLoading(true);
             setError(null);
@@ -78,7 +80,7 @@ export default function GenerateWorkoutforMuscle() {
                           key={w.workout_id}
                           text={w.name}
                           compact
-                          theme={selectedWorkoutId === w.workout_id ? 'primary' : 'neutral'}
+                          color={selectedWorkoutId === w.workout_id ? s.buttonBg : s.neutralColor}
                           onPress={() => setSelectedWorkoutId(w.workout_id)}
                           style={styles.muscleBtn}
                         />

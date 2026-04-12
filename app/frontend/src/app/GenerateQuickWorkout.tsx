@@ -22,7 +22,7 @@ export default function GenerateQuickWorkout() {
                 
             });
         } catch (e) {
-            setError(e.message ?? 'Something went wrong');
+            setError((e instanceof Error) ? e.message : 'Something went wrong');
         } finally {
             setLoading(false);
         }
