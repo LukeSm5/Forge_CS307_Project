@@ -31,7 +31,7 @@ export function useThemeColor(
   return Schemes[theme][colorName];
 }
 
-export function scheme() {
+export function useScheme() {
   const theme = useAppColorScheme() ?? "light";
   return Schemes[theme];
 }

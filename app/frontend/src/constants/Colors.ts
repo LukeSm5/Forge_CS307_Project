@@ -15,6 +15,8 @@ export type ColorScheme = {
   hyperlink: string,
   buttonText: string,
   secondaryText: string,
+  backdrop: string,
+  keyboard: 'light' | 'dark',
 }
 
 export type ColorSchemes = Record<string, ColorScheme>
@@ -34,6 +36,8 @@ export const Schemes: ColorSchemes = {
     dangerColor: '#dc2626',
     hyperlink: '#ad6206',
     secondaryText: '#6d6d6d',
+    backdrop: 'rgba(0,0,0,0.5)',
+    keyboard: 'light',
   },
   dark: {
     text: '#fff',
@@ -49,5 +53,7 @@ export const Schemes: ColorSchemes = {
     dangerColor: '#dc2626',
     hyperlink: '#d3a605',
     secondaryText: '#bcbcbc',
+    backdrop: 'rgba(255,255,255,0.5)',
+    keyboard: 'dark',
   },
 };

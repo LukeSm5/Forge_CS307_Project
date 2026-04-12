@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Dropdown } from 'react-native-element-dropdown';
 
 import ForgeButton from '@/components/ForgeButton';
-import { scheme, Text, View } from '@/components/Themed';
+import { useScheme, Text, View } from '@/components/Themed';
 import { api, MachineLookupRow, WorkoutLookup, SessionLog, TailoredExercise } from '@/core/api';
 import { useUnits } from '@/core/conversions';
 
@@ -340,7 +340,7 @@ export default function AddWorkoutScreen() {
     setDurationSeconds(String(remainingSecs));
   }
 
-  const s = scheme();
+  const s = useScheme();
   const styles = stylesProvider();
 
   return (
@@ -609,7 +609,7 @@ export default function AddWorkoutScreen() {
 }
 
 const stylesProvider = () => {
-  const s = scheme();
+  const s = useScheme();
   return StyleSheet.create({
     container: {
       flex: 1,

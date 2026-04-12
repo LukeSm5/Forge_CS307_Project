@@ -1,5 +1,5 @@
 import { GestureResponderEvent, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
-import { scheme } from './Themed';
+import { useScheme } from './Themed';
 
 type ForgeButtonProps = {
   text: string;
@@ -20,7 +20,7 @@ export default function ForgeButton({
   color,
   textColor,
 }: ForgeButtonProps) {
-  const s = scheme();
+  const s = useScheme();
   if (!color)
         color = s.buttonBg;
   if (!textColor)

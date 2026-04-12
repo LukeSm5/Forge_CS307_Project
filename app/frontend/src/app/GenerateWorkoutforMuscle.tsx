@@ -12,7 +12,7 @@ export default function GenerateWorkoutforMuscle() {
     const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<number[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const s = scheme();
+    const s = useScheme();
 
     useEffect(() => {
         async function loadWorkouts() {

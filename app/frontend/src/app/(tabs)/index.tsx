@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Text } from "@/components/Themed";
+import { useScheme, Text } from "@/components/Themed";
 import { useAppColorScheme } from "@/core/accessibility";
 import {
   CalendarItem,
@@ -90,18 +90,18 @@ export default function CalendarScreen() {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 430;
 
-  const scheme = useAppColorScheme() ?? "light";
-  const isDark = scheme === "dark";
+  // uses useContext
+  const s = useScheme();
 
   const modalColors = {
-    bg: isDark ? "#161616" : "#ffffff",
-    inputBg: isDark ? "#0f0f0f" : "#ffffff",
-    text: isDark ? "#ffffff" : "#111111",
-    muted: isDark ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.72)",
-    border: isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.20)",
-    soft: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-    softStrong: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
-    placeholder: isDark ? "rgba(255,255,255,0.40)" : "rgba(0,0,0,0.35)",
+    bg: s.background,
+    inputBg: s.background,
+    text: s.text,
+    muted: s.backdrop,
+    border: s.backdrop,
+    soft: s.secondaryBackground,
+    softStrong: s.secondaryBackground,
+    placeholder: s.secondaryText,
   };
 
   const modalTextProps = {
@@ -544,7 +544,7 @@ export default function CalendarScreen() {
                 onChangeText={setNewTitle}
                 placeholder="e.g., Push workout"
                 placeholderTextColor={modalColors.placeholder}
-                keyboardAppearance={isDark ? "dark" : "light"}
+                keyboardAppearance={s.keyboard}
                 autoCapitalize="sentences"
               />
 
@@ -596,14 +596,14 @@ export default function CalendarScreen() {
                 <View
                   style={[
                     styles.pickerWrapper,
-                    { backgroundColor: isDark ? "#1d1d1d" : "#f7f7f7" },
+                    { backgroundColor: s.background },
                   ]}
                 >
                   <DateTimePicker
                     value={selectedTime}
                     mode="time"
                     display={Platform.OS === "ios" ? "spinner" : "default"}
-                    themeVariant={isDark ? "dark" : "light"}
+                    themeVariant={s.keyboard}
                     onChange={(_, pickedTime) => {
                       if (pickedTime) {
                         setSelectedTime(pickedTime);
@@ -654,7 +654,7 @@ export default function CalendarScreen() {
                         onChangeText={setRepeatWeeks}
                         placeholder="e.g., 4"
                         placeholderTextColor={modalColors.placeholder}
-                        keyboardAppearance={isDark ? "dark" : "light"}
+                        keyboardAppearance={s.keyboard}
                         keyboardType="numeric"
                       />
                     </>
@@ -723,7 +723,7 @@ export default function CalendarScreen() {
                 onChangeText={setExerciseName}
                 placeholder="e.g., Bench Press"
                 placeholderTextColor={modalColors.placeholder}
-                keyboardAppearance={isDark ? "dark" : "light"}
+                keyboardAppearance={s.keyboard}
                 autoCapitalize="words"
               />
 
@@ -750,7 +750,7 @@ export default function CalendarScreen() {
                     onChangeText={setExerciseSets}
                     placeholder="3"
                     placeholderTextColor={modalColors.placeholder}
-                    keyboardAppearance={isDark ? "dark" : "light"}
+                    keyboardAppearance={s.keyboard}
                     keyboardType="numeric"
                   />
                 </View>
@@ -777,7 +777,7 @@ export default function CalendarScreen() {
                     onChangeText={setExerciseReps}
                     placeholder="10"
                     placeholderTextColor={modalColors.placeholder}
-                    keyboardAppearance={isDark ? "dark" : "light"}
+                    keyboardAppearance={s.keyboard}
                     keyboardType="numeric"
                   />
                 </View>
