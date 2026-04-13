@@ -1,93 +1,158 @@
-import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View as RNView,
+} from "react-native";
 
-import { Separator, Text, useScheme, View } from '@/components/Themed';
-import AltMachResult from '@/components/cardioSearch/CardioMachineResult';
-import React, { useEffect, useState } from 'react';
-import { api, AltMachResponse } from '@/core/api';
-import ForgeButton from '../ForgeButton';
-import { Modal } from 'react-native';
+import { Text, useScheme, View } from "@/components/Themed";
+import AltMachResult from "@/components/machineAlternatives/AltMachResult";
+import { api, AltMachResponse } from "@/core/api";
+import ForgeButton from "@/components/ForgeButton";
 
-export default function AltMachInterface({ visible, setVisible, exercise }: { visible: boolean, setVisible: (visible: boolean) => void, exercise: string }) {
-    const [ results, setResults ] = useState<AltMachResponse[]>([]);
+export default function AltMachInterface({
+  visible,
+  setVisible,
+  exercise,
+}: {
+  visible: boolean;
+  setVisible: (visible: boolean) => void;
+  exercise: string;
+}) {
+  const [results, setResults] = useState<AltMachResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const s = useScheme();
 
-    const s = useScheme();
-    let searchComponent: React.JSX.Element;
-    if (results.length > 0) {
-        searchComponent = (<><View style={{ ...styles.searchResults, 
-        boxShadow: `inset 3px 3px 10px ${s.shadow}`,}}>
-            {results.map((item: AltMachResponse, idx: number) => <AltMachResult key={idx} name={item.name} desc={item.desc} />)}
-        </View></>);
-    } else {
-        searchComponent = (<><View style={{ ...styles.searchResults, 
-        boxShadow: `inset 3px 3px 10px ${s.shadow}`,
-        }}>
-                <Text style={styles.title}>Loading results...</Text>
-        </View></>);
-    }
+  useEffect(() => {
+    if (!visible) return;
 
-    useEffect(() => {
-        api.machineAlternative({ exercise }).then(setResults).catch(alert);
-    }, [exercise]);
+    let mounted = true;
+    setLoading(true);
 
-    if (!visible)
-        return (<></>);
+    api
+      .machineAlternative({ exercise })
+      .then((data) => {
+        if (mounted) {
+          setResults(data ?? []);
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          alert(err);
+          setResults([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
 
-    return (<Modal style={{ backgroundColor: s.backdrop }}>
-        <View style={styles.container}>
-            <View style={styles.popup}>
-                <Text style={styles.title}>Exercise Alternatives</Text>
-                <Separator />
-                {searchComponent}
-                <ForgeButton text="Close Exercise Alternatives" onPress={() => setVisible(false)}/>
-            </View>
+    return () => {
+      mounted = false;
+    };
+  }, [exercise, visible]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setVisible(false)}
+    >
+      <RNView style={[styles.overlay, { backgroundColor: s.backdrop }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setVisible(false)}
+        />
+
+        <View style={styles.modalCard}>
+          <Text style={styles.title}>Exercise Alternatives</Text>
+          <View
+            style={styles.separator}
+            lightColor="#eee"
+            darkColor="rgba(255,255,255,0.1)"
+          />
+
+          <ScrollView
+            style={styles.resultsScroll}
+            contentContainerStyle={styles.resultsContent}
+            showsVerticalScrollIndicator
+          >
+            {loading ? (
+              <Text style={styles.statusText}>Loading results...</Text>
+            ) : results.length > 0 ? (
+              results.map((item: AltMachResponse, idx: number) => (
+                <AltMachResult
+                  key={`${item.name}-${idx}`}
+                  name={item.name}
+                  desc={item.desc}
+                />
+              ))
+            ) : (
+              <Text style={styles.statusText}>No alternatives found.</Text>
+            )}
+          </ScrollView>
+
+          <ForgeButton
+            text="Close Exercise Alternatives"
+            onPress={() => setVisible(false)}
+            style={styles.closeButton}
+          />
         </View>
-    </Modal>);
+      </RNView>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        ...StyleSheet.absoluteFill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-    },
-    popup: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '75%',
-        marginVertical: '3%',
-        borderRadius: '15px',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
-        padding: '2%',
-        zIndex: 100,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    separator: {
-        marginVertical: 30,
-        height: 1,
-        width: '80%',
-    },
-    searchResults: {
-        width: '80%',
-        height: '45%',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
-        borderRadius: '10px',
-        marginBottom: 10,
-        padding: '2%'
-    },
-    questionContainer: {
-        alignItems: 'center',
-        marginHorizontal: 50,
-    },
-    questionText: {
-        fontSize: 17,
-        lineHeight: 24,
-        textAlign: 'center',
-    },
+  overlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "82%",
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 14,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  separator: {
+    marginTop: 14,
+    marginBottom: 12,
+    height: 1,
+    width: "100%",
+  },
+  resultsScroll: {
+    flexGrow: 0,
+    maxHeight: "100%",
+  },
+  resultsContent: {
+    paddingBottom: 8,
+  },
+  statusText: {
+    fontSize: 16,
+    textAlign: "center",
+    paddingVertical: 16,
+  },
+  closeButton: {
+    marginTop: 10,
+  },
 });
