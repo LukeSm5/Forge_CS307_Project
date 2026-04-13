@@ -71,6 +71,9 @@ export default function LogGeneratedWorkout() {
     };
   }, []);
 
+  const isDarkMode = s.background === "#000";
+  const helpButtonBackground = isDarkMode ? "#2f95dc" : s.tint;
+
   const normalizedExerciseMap = useMemo(() => {
     const map: Record<string, number> = {};
 
@@ -114,7 +117,13 @@ export default function LogGeneratedWorkout() {
                 <TouchableOpacity
                   style={[
                     styles.helpButton,
-                    { backgroundColor: s.tint },
+                    {
+                      backgroundColor: helpButtonBackground,
+                      borderWidth: isDarkMode ? 1 : 0,
+                      borderColor: isDarkMode
+                        ? "rgba(255,255,255,0.18)"
+                        : "transparent",
+                    },
                     exerciseMapLoading && styles.helpButtonDisabled,
                   ]}
                   onPress={() => openExerciseHelp(ex.exercise)}
