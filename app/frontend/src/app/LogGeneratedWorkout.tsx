@@ -73,6 +73,10 @@ export default function LogGeneratedWorkout() {
 
   const isDarkMode = s.background === "#000";
   const helpButtonBackground = isDarkMode ? "#2f95dc" : s.tint;
+  const cardBorderColor = isDarkMode
+    ? "rgba(255,255,255,0.12)"
+    : "rgba(0,0,0,0.10)";
+  const cardBackgroundColor = isDarkMode ? s.secondaryBackground : "#f8f8f8";
 
   const normalizedExerciseMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -106,55 +110,72 @@ export default function LogGeneratedWorkout() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{workout_name}</Text>
+      <Text style={[styles.subtitle, { color: s.secondaryText }]}>
+        Generated exercises
+      </Text>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {exercises.map((ex, i) => (
-          <View key={`${ex.exercise}-${i}`} style={styles.exercise}>
-            <View style={styles.exerciseRow}>
-              <Text style={styles.exerciseName}>{ex.exercise}</Text>
+          <View
+            key={`${ex.exercise}-${i}`}
+            style={[
+              styles.exerciseCard,
+              {
+                backgroundColor: cardBackgroundColor,
+                borderColor: cardBorderColor,
+              },
+            ]}
+          >
+            <Text style={styles.exerciseName}>{ex.exercise}</Text>
 
-              <RNView style={styles.exerciseActions}>
-                <TouchableOpacity
-                  style={[
-                    styles.helpButton,
-                    {
-                      backgroundColor: helpButtonBackground,
-                      borderWidth: isDarkMode ? 1 : 0,
-                      borderColor: isDarkMode
-                        ? "rgba(255,255,255,0.18)"
-                        : "transparent",
-                    },
-                    exerciseMapLoading && styles.helpButtonDisabled,
-                  ]}
-                  onPress={() => openExerciseHelp(ex.exercise)}
-                  disabled={exerciseMapLoading}
-                >
-                  {exerciseMapLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.helpButtonText}>?</Text>
-                  )}
-                </TouchableOpacity>
-
-                <AltMachButton exercise={ex.exercise} />
-              </RNView>
-            </View>
-
-            <Text style={styles.exerciseStats}>
+            <Text style={[styles.exerciseStats, { color: s.secondaryText }]}>
               {ex.sets} sets x {ex.reps} reps @ {ex.weight} lbs
             </Text>
+
+            <RNView style={styles.exerciseActions}>
+              <TouchableOpacity
+                style={[
+                  styles.helpButton,
+                  {
+                    backgroundColor: helpButtonBackground,
+                    borderWidth: isDarkMode ? 1 : 0,
+                    borderColor: isDarkMode
+                      ? "rgba(255,255,255,0.18)"
+                      : "transparent",
+                  },
+                  exerciseMapLoading && styles.helpButtonDisabled,
+                ]}
+                onPress={() => openExerciseHelp(ex.exercise)}
+                disabled={exerciseMapLoading}
+              >
+                {exerciseMapLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.helpButtonText}>?</Text>
+                )}
+              </TouchableOpacity>
+
+              <RNView style={styles.alternativesWrapper}>
+                <AltMachButton exercise={ex.exercise} />
+              </RNView>
+            </RNView>
           </View>
         ))}
       </ScrollView>
 
-      <ForgeButton
-        text="Log Generated Workout"
-        onPress={() => router.push("/(tabs)/workout")}
-      />
-      <ForgeButton
-        text="Cancel"
-        onPress={() => router.push("/(tabs)/workout")}
-      />
+      <RNView style={styles.footerButtons}>
+        <ForgeButton
+          text="Log Generated Workout"
+          onPress={() => router.push("/(tabs)/workout")}
+        />
+        <ForgeButton
+          text="Cancel"
+          onPress={() => router.push("/(tabs)/workout")}
+        />
+      </RNView>
 
       <ExerciseHelpInterface
         visible={helpVisible}
@@ -169,41 +190,51 @@ export default function LogGeneratedWorkout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 16,
+    marginBottom: 6,
   },
-  scrollContent: {
-    paddingBottom: 12,
-  },
-  exercise: {
+  subtitle: {
+    fontSize: 15,
     marginBottom: 18,
   },
-  exerciseRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
+  scrollContent: {
+    paddingBottom: 20,
+    gap: 14,
+  },
+  exerciseCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
   },
   exerciseName: {
-    flex: 1,
     fontSize: 18,
-    fontWeight: "600",
-    paddingTop: 6,
+    fontWeight: "700",
+    lineHeight: 26,
+    marginBottom: 10,
+  },
+  exerciseStats: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   exerciseActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 16,
     backgroundColor: "transparent",
   },
   helpButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -212,12 +243,15 @@ const styles = StyleSheet.create({
   },
   helpButtonText: {
     color: "#fff",
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "bold",
-    lineHeight: 24,
+    lineHeight: 26,
   },
-  exerciseStats: {
-    fontSize: 16,
-    marginTop: 8,
+  alternativesWrapper: {
+    backgroundColor: "transparent",
+  },
+  footerButtons: {
+    marginTop: 4,
+    backgroundColor: "transparent",
   },
 });
