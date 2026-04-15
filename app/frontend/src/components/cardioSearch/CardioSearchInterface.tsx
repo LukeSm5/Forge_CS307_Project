@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 import { Separator, Text, useScheme, View } from '@/components/Themed';
 import CardioMachineResult from '@/components/cardioSearch/CardioMachineResult';
@@ -19,15 +19,15 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
 
     let searchComponent: React.JSX.Element;
     if (results.length > 0) {
-        searchComponent = (<><View style={{ ...styles.searchResults, 
+        searchComponent = (<><ScrollView style={{ ...styles.searchResults, 
         boxShadow: `inset 3px 3px 10px ${s.shadow}`, }}>
             {results.map((item: SearchCardioMachineResponse, idx: number) => <CardioMachineResult key={idx} name={item.name} desc={item.desc} />)}
-        </View></>);
+        </ScrollView></>);
     } else {
-        searchComponent = (<><View style={{ ...styles.searchResults, 
+        searchComponent = (<><ScrollView style={{ ...styles.searchResults, 
         boxShadow: `inset 3px 3px 10px ${s.shadow}`, }}>
                 <Text style={styles.title}>No search results.</Text>
-        </View></>);
+        </ScrollView></>);
     }
 
     async function searchPrompt() {
@@ -81,8 +81,6 @@ const styles = StyleSheet.create({
         width: '75%',
         marginVertical: '3%',
         borderRadius: '15px',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
         padding: '2%',
         zIndex: 100,
     },
@@ -98,11 +96,9 @@ const styles = StyleSheet.create({
     searchResults: {
         width: '80%',
         height: '45%',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
-        borderRadius: '10px',
+        borderRadius: 10,
         marginBottom: 10,
-        padding: '2%'
+        padding: 10
     },
     questionContainer: {
         alignItems: 'center',

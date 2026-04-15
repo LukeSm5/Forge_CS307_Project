@@ -122,8 +122,6 @@ const styles = StyleSheet.create({
         width: '90%',
         marginVertical: '3%',
         borderRadius: '15px',
-        overflowX: 'hidden',
-        overflowY: 'scroll',
         padding: '2%',
         zIndex: 100,
     },
