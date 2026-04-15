@@ -531,6 +531,32 @@ look pleasing on a graph.
       throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
     }
   },
+
+  // TODO: hookup with api 🤙
+  // not a vibe coded comment just thought the emoji was fun here
+  getNotifications: async (): Promise<Notification[]> => {
+    return [
+      {
+        id: 1,
+        type: 'friend_request',
+        message: 'JohnDoe has sent you a friend request.',
+        timestamp: new Date().getTime(),
+        data: { requesterId: 123, requesterUsername: 'JohnDoe' },
+      },
+      {
+        id: 2,
+        type: 'generic',
+        message: 'Your workout summary is ready to view.',
+        timestamp: new Date().getTime() + 100,
+      },
+      {
+        id: 3,
+        type: 'generic',
+        message: 'Your meal summary is ready to view.',
+        timestamp: new Date().getTime() - 100_000,
+      }
+    ];
+  },
 };
 
 export type User = {
@@ -875,4 +901,29 @@ export type ProfileSearchResult = {
   username: string;
   bio: string | null;
   gym_location: string | null;
+};
+
+export type Notification = {
+  id: number;
+  type: NotificationType;
+  message: string;
+  timestamp: number;
+  data?: Record<string, unknown>;
+};
+
+export type NotificationType = 
+  'generic'           // just a message
+  | 'friend_request'  // accept/deny friend request
+  | 'view_post'       // links to a post, like someone liked your post, friend posted, etc.
+
+export type FriendRequestNotificationData = {
+  requesterId: number;
+  requesterUsername: string;
+};
+
+export type ViewPostNotificationData = {
+  postId: number;
+  postType: 'workout' | 'meal';
+  actorId: number;
+  actorUsername: string;
 };
