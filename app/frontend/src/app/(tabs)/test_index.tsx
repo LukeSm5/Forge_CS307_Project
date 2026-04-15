@@ -7,18 +7,27 @@ import ProgressionButton from "@/components/workoutProgression/ProgressButton";
 import GymMapButton from "@/components/gymMap/GymMapButton";
 import AltMachButton from "@/components/machineAlternatives/AltMachButton";
 import ExerciseButton from "@/components/exerciseHelp/ExerciseButton";
+import NotificationList from "@/components/notifications/NotificationList";
+import { api } from "@/core/api";
+import { useEffect, useState } from "react";
 
 export default function TabOneScreen() {
+  const [notifs, setNotifs] = useState([]);
+
+  useEffect(() => {
+    api.getNotifications().then((notifications) => {
+      setNotifs(notifications);
+    }
+    ).catch(alert);
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tab One</Text>
       <Separator />
       <EditScreenInfo path="app/(tabs)/index.tsx" />
-      <CardioButton />
       <GymMapButton />
-      <ProgressionButton exerciseId="bicep curl" />
-      <AltMachButton exercise="barbell bench press" />
-      <ExerciseButton />
+      <NotificationList notifications={notifs} style={{ height: 200 }} />
     </View>
   );
 }
