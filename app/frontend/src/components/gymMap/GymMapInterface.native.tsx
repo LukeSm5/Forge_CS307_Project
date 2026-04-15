@@ -18,9 +18,6 @@ const BASE_URL =
       : 'http://localhost:8000');
 
 export default function GymMapInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
-    if (!visible)
-        return (<></>);
-
     const [location, setLocation] = useState<Location.LocationObjectCoords | undefined>(undefined);
     const [gyms, setGyms] = useState([]);
 
@@ -107,6 +104,10 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
     }
 
     const s = useScheme();
+    
+    if (!visible)
+        return (<></>);
+
     return (<Modal style={{ backgroundColor: s.backdrop }}>
         <View style={styles.container}>
             <View style={styles.popup}>

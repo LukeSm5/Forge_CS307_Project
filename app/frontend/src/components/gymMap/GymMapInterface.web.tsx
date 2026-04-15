@@ -80,9 +80,6 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
             setVisible(false);
     }, [visible]);
 
-    if (!visible)
-        return (<></>);
-
     let mapComponent: React.JSX.Element;
     if (!location || !leafletLoaded || !leaflet) {
         mapComponent = (<Text style={styles.title}>Location disabled.</Text>);
@@ -123,6 +120,10 @@ export default function GymMapInterface({ visible, setVisible }: { visible: bool
     }
 
     const s = useScheme();
+
+    if (!visible)
+        return (<></>);
+    
     return (<Modal style={{ ...styles.container, backgroundColor: s.backdrop }}>
         <View style={styles.container}>
             <View style={styles.popup}>

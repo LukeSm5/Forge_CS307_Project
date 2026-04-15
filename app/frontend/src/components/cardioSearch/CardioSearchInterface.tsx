@@ -8,9 +8,6 @@ import ForgeButton from '../ForgeButton';
 import { Modal } from 'react-native';
 
 export default function CardioSearchInterface({ visible, setVisible }: { visible: boolean, setVisible: (visible: boolean) => void }) {
-    if (!visible)
-        return (<></>);
-
     const [ results, setResults ] = useState<SearchCardioMachineResponse[]>([]);
 
     const [ searchTerm, setSearchTerm ] = useState("");
@@ -34,6 +31,9 @@ export default function CardioSearchInterface({ visible, setVisible }: { visible
         const res = await api.searchCardioMachine({ desc: searchTerm });
         setResults(res);
     }
+
+    if (!visible)
+        return (<></>);
 
     return (<Modal style={{ backgroundColor: s.backdrop }}>
         <View style={styles.container}>

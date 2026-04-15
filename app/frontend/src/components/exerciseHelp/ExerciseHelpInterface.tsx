@@ -55,11 +55,11 @@ export default function ExerciseHelpInterface({
       isMounted = false;
     };
   }, [visible, exerciseId]);
-
-  if (!visible) return null;
   
   const s = useScheme();
   const styles = useStyles();
+
+  if (!visible) return null;
   return (
     <Modal
       visible={visible}
