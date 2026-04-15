@@ -554,6 +554,13 @@ look pleasing on a graph.
         type: 'generic',
         message: 'Your meal summary is ready to view.',
         timestamp: new Date().getTime() - 100_000,
+      },
+      {
+        id: 4,
+        type: 'view_post',
+        message: 'JaneSmith has made a new post in the community forum.',
+        timestamp: new Date().getTime() - 50_000,
+        data: { postId: 456, posterUsername: 'JaneSmith' },
       }
     ];
   },
