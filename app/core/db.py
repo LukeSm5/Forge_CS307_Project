@@ -122,6 +122,22 @@ class Friendships(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+class Blocks(Base):
+    __tablename__ = "Blocks"
+    __table_args__ = (CheckConstraint("BlockerID <> BlockedID", name="no_self_block"),)
+    BlockerID  = Column(Integer, ForeignKey("Accounts.UserID"), primary_key=True)
+    BlockedID  = Column(Integer, ForeignKey("Accounts.UserID"), primary_key=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class Reports(Base):
+    __tablename__ = "Reports"
+    __table_args__ = (CheckConstraint("ReporterID <> ReportedID", name="no_self_report"),)
+    ReportID    = Column(Integer, primary_key=True, autoincrement=True)
+    ReporterID  = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False)
+    ReportedID  = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False)
+    description = Column(Text, nullable=False)
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 class Likes(Base):
     __tablename__ = 'Likes'
     PostID = Column(Integer, primary_key=True, nullable=False)

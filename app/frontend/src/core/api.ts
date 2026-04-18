@@ -564,6 +564,34 @@ look pleasing on a graph.
       }
     ];
   },
+
+
+  checkBlock: async (otherId: number): Promise<BlockStatus> => {
+    return get<BlockStatus>(`/blocks/status?other_id=${otherId}`);
+  },
+
+  blockUser: async (blockedId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/blocks', { blocked_id: blockedId });
+  },
+
+  unblockUser: async (blockedId: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/blocks`, {
+      method: 'DELETE',
+      headers: headers(),
+      body: JSON.stringify({ blocked_id: blockedId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+    }
+  },
+
+  reportUser: async (reportedId: number, description: string): Promise<void> => {
+    await post<{ ok: boolean }>('/reports', {
+      reported_id: reportedId,
+      description,
+    });
+  },
 };
 
 export type User = {
@@ -934,3 +962,9 @@ export type ViewPostNotificationData = {
   actorId: number;
   actorUsername: string;
 };
+
+export type BlockStatus = {
+  i_blocked_them: boolean;
+  they_blocked_me: boolean;
+};
+

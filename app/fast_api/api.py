@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships
+from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -411,6 +411,13 @@ class FriendAddresseePayload(BaseModel):
 
 class FriendAcceptPayload(BaseModel):
     requester_id: int
+
+class BlockPayload(BaseModel):
+    blocked_id: int
+
+class ReportPayload(BaseModel):
+    reported_id: int
+    description: str
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -2014,6 +2021,14 @@ def send_friend_request(
     for uid in (me.UserID, payload.addressee_id):
         if not db.query(Accounts).filter(Accounts.UserID == uid).first():
             raise HTTPException(status_code=404, detail=f"User {uid} not found")
+        
+    block = db.query(Blocks).filter(
+        or_(
+            and_(Blocks.BlockerID == me.UserID, Blocks.BlockedID == payload.addressee_id),
+            and_(Blocks.BlockerID == payload.addressee_id, Blocks.BlockedID == me.UserID),
+        )).first()
+    if block:
+        raise HTTPException(status_code=403, detail="Cannot send friend request")
 
     existing = repos.lookup_friendship(db, me.UserID, payload.addressee_id)
     if existing:
@@ -2079,4 +2094,97 @@ def get_friendship_status(
         return {"status": "pending_sent"}
     return {"status": "pending_received"}
 
+
+@app.post("/blocks")
+def block_user(
+    payload: BlockPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if me.UserID == payload.blocked_id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+
+    if not db.query(Accounts).filter(Accounts.UserID == payload.blocked_id).first():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    existing_block = db.query(Blocks).filter(
+        Blocks.BlockerID == me.UserID,
+        Blocks.BlockedID == payload.blocked_id,
+    ).first()
+    if existing_block:
+        raise HTTPException(status_code=409, detail="Already blocked")
+
+    # auto-remove friendship in either direction
+    friendship = repos.lookup_friendship(db, me.UserID, payload.blocked_id)
+    if friendship:
+        db.delete(friendship)
+
+    db.add(Blocks(BlockerID=me.UserID, BlockedID=payload.blocked_id))
+    db.commit()
+    return {"ok": True, "detail": "User blocked"}
+
+
+@app.delete("/blocks")
+def unblock_user(
+    payload: BlockPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    row = db.query(Blocks).filter(
+        Blocks.BlockerID == me.UserID,
+        Blocks.BlockedID == payload.blocked_id,
+    ).first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    db.delete(row)
+    db.commit()
+    return {"ok": True, "detail": "User unblocked"}
+
+
+@app.get("/blocks/status")
+def get_block_status(
+    other_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    i_blocked = db.query(Blocks).filter(
+        Blocks.BlockerID == me.UserID,
+        Blocks.BlockedID == other_id,
+    ).first()
+
+    they_blocked = db.query(Blocks).filter(
+        Blocks.BlockerID == other_id,
+        Blocks.BlockedID == me.UserID,
+    ).first()
+
+    return {
+        "i_blocked_them": i_blocked is not None,
+        "they_blocked_me": they_blocked is not None,
+    }
+
+
+@app.post("/reports")
+def report_user(
+    payload: ReportPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if me.UserID == payload.reported_id:
+        raise HTTPException(status_code=400, detail="Cannot report yourself")
+
+    if not db.query(Accounts).filter(Accounts.UserID == payload.reported_id).first():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not payload.description.strip():
+        raise HTTPException(status_code=400, detail="Description cannot be empty")
+
+    db.add(Reports(
+        ReporterID=me.UserID,
+        ReportedID=payload.reported_id,
+        description=payload.description.strip(),
+    ))
+    db.commit()
+    return {"ok": True, "detail": "Report submitted"}
 

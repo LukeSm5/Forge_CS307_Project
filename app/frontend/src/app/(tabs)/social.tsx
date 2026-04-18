@@ -39,6 +39,25 @@ type FriendModalState = {
   action: FriendshipAction | null;
 };
 
+type ReportModalState = {
+  visible: boolean;
+  loading: boolean;
+  profile: ProfileSearchResult | null;
+  description: string;
+  blockAfter: boolean;  // checkbox option to also block after reporting
+};
+
+type FlagStep = 'choose' | 'block_confirm' | 'report';
+
+type FlagModalState = {
+  visible: boolean;
+  loading: boolean;
+  profile: ProfileSearchResult | null;
+  step: FlagStep | null;
+  isBlocked: boolean;      // whether me -> them block already exists
+  description: string;
+};
+
 export default function ProfilesTab() {
   const scheme = useScheme();
   const tabBarHeight = useBottomTabBarHeight();
@@ -78,7 +97,28 @@ export default function ProfilesTab() {
     profile: null,
     action: null,
   });
+  const [reportModal, setReportModal] = useState<ReportModalState>({
+    visible: false,
+    loading: false,
+    profile: null,
+    description: '',
+    blockAfter: false,
+  });
+  const closeReportModal = () => {
+    setReportModal({ visible: false, loading: false, profile: null, description: '', blockAfter: false });
+  };
+  const [flagModal, setFlagModal] = useState<FlagModalState>({
+    visible: false,
+    loading: false,
+    profile: null,
+    step: null,
+    isBlocked: false,
+    description: '',
+  });
 
+  const closeFlagModal = () => {
+    setFlagModal({ visible: false, loading: false, profile: null, step: null, isBlocked: false, description: '' });
+  };
   const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
@@ -186,8 +226,59 @@ export default function ProfilesTab() {
     }
   };
 
-  const handleFlag = (profile: ProfileSearchResult) => {
-    console.log("flag pressed for", profile.username);
+  const handleFlag = async (profile: ProfileSearchResult) => {
+    try {
+      setFlagModal({ visible: true, loading: true, profile, step: null, isBlocked: false, description: '' });
+
+      const blockStatus = await api.checkBlock(profile.id as number);
+
+      setFlagModal((prev) => ({
+        ...prev,
+        loading: false,
+        step: 'choose',
+        isBlocked: blockStatus.i_blocked_them,
+      }));
+    } catch (e) {
+      console.error(e);
+      closeFlagModal();
+      setError('Unable to load options right now.');
+    }
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!flagModal.profile) return;
+    try {
+      setFlagModal((prev) => ({ ...prev, loading: true }));
+
+      if (flagModal.isBlocked) {
+        await api.unblockUser(flagModal.profile!.id as number);
+      } else {
+        await api.blockUser(flagModal.profile!.id as number);
+      }
+
+      closeFlagModal();
+    } catch (e) {
+      console.error(e);
+      setFlagModal((prev) => ({ ...prev, loading: false }));
+      setError('Unable to complete that action right now.');
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!flagModal.profile) return;
+    if (!flagModal.description.trim()) {
+      setError('Please describe the violation before submitting.');
+      return;
+    }
+    try {
+      setFlagModal((prev) => ({ ...prev, loading: true }));
+      await api.reportUser(flagModal.profile!.id as number, flagModal.description.trim());
+      closeFlagModal();
+    } catch (e) {
+      console.error(e);
+      setFlagModal((prev) => ({ ...prev, loading: false }));
+      setError('Unable to submit report right now.');
+    }
   };
 
   const modalTitle =
@@ -683,6 +774,154 @@ export default function ProfilesTab() {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={flagModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFlagModal}
+      >
+        <View style={[styles.modalBackdrop, { backgroundColor: colors.modalBackdrop }]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.modalCardBg, borderColor: colors.border }]}>
+
+            {/* ── LOADING ── */}
+            {flagModal.loading || !flagModal.step ? (
+              <View style={styles.modalLoadingWrap}>
+                <ActivityIndicator size="small" />
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>Loading...</Text>
+              </View>
+
+            /* ── STEP 1: CHOOSE ── */
+            ) : flagModal.step === 'choose' ? (
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  @{flagModal.profile?.username}
+                </Text>
+
+                <View style={styles.modalButtonRow}>
+                  <Pressable
+                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'block_confirm' }))}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.red, borderColor: colors.red },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.modalDangerButtonText}>
+                      {flagModal.isBlocked ? 'Unblock' : 'Block'}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'report' }))}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.red, borderColor: colors.red },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.modalDangerButtonText}>Report</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={closeFlagModal}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Cancel</Text>
+                  </Pressable>
+                </View>
+              </>
+
+            /* ── STEP 2: BLOCK CONFIRM ── */
+            ) : flagModal.step === 'block_confirm' ? (
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {flagModal.isBlocked ? 'Unblock User?' : 'Block User?'}
+                </Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  {flagModal.isBlocked
+                    ? `Unblock @${flagModal.profile?.username}?`
+                    : `Block @${flagModal.profile?.username}? This will also remove any existing friendship.`}
+                </Text>
+
+                <View style={styles.modalButtonRow}>
+                  <Pressable
+                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'choose' }))}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>No</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleConfirmBlock}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.red, borderColor: colors.red },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.modalDangerButtonText}>Yes</Text>
+                  </Pressable>
+                </View>
+              </>
+
+            /* ── STEP 3: REPORT ── */
+            ) : flagModal.step === 'report' ? (
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Report User</Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  Describe the violation by @{flagModal.profile?.username}:
+                </Text>
+
+                <TextInput
+                  value={flagModal.description}
+                  onChangeText={(t) => setFlagModal((prev) => ({ ...prev, description: t }))}
+                  placeholder="Describe what happened..."
+                  placeholderTextColor={colors.placeholder}
+                  multiline
+                  numberOfLines={4}
+                  style={[
+                    styles.reportInput,
+                    { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                  ]}
+                />
+
+                <View style={styles.modalButtonRow}>
+                  <Pressable
+                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'choose' }))}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Back</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleSubmitReport}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      { backgroundColor: colors.red, borderColor: colors.red },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.modalDangerButtonText}>Submit</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
+
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -895,5 +1134,28 @@ const styles = StyleSheet.create({
   macroPillText: {
     fontSize: 11,
     fontWeight: "600",
+  },
+
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+  },
+  reportInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    marginTop: 12,
+    minHeight: 90,
+    textAlignVertical: 'top',
   },
 });
