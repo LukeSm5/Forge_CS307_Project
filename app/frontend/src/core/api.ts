@@ -152,7 +152,15 @@ export const api = {
       accepted_terms: e.acceptedTerms,
     });
 
-    return res.ok;
+    if (!res.ok) return false;
+
+    if (e.bio) {
+      await patch<{ ok: boolean }>(`/accounts/${me.profile_id}/profile`, {
+        bio: e.bio,
+      });
+    }
+
+    return true;
   },
   getExercises: async (): Promise<Record<string, number>> => {
     const rows = await get<ExerciseLookupRow[]>('/exercises');

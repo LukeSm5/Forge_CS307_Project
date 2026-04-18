@@ -839,7 +839,7 @@ export default function ProfilesTab() {
             ) : flagModal.step === 'block_confirm' ? (
               <>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {flagModal.isBlocked ? 'Unblock User?' : 'Block User?'}
+                  {flagModal.isBlocked ? 'Unblock User' : 'Block User'}
                 </Text>
                 <Text style={[styles.modalBodyText, { color: colors.muted }]}>
                   {flagModal.isBlocked
