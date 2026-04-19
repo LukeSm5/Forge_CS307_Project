@@ -10,8 +10,10 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
+
 import { Text, View, useScheme } from "@/components/Themed";
 import ForgeButton from "@/components/ForgeButton";
+import ForgeTextBox from "@/components/ForgeTextBox";
 import AltMachButton from "@/components/machineAlternatives/AltMachButton";
 import ExerciseHelpInterface from "@/components/exerciseHelp/ExerciseHelpInterface";
 import { api, QuickWorkoutResponse } from "@/core/api";
@@ -25,12 +27,12 @@ function normalizeExerciseName(name: string) {
 }
 
 export default function LogGeneratedWorkout() {
-    const router = useRouter();
+  const router = useRouter();
   const s = useScheme();
-    const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
+  const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
         workout_name: string;
         exercises: string;
-    }>();
+  }>();
 
   const exercises: QuickWorkoutResponse["exercises"] = exercisesJson
         ? JSON.parse(exercisesJson) 
@@ -44,6 +46,10 @@ export default function LogGeneratedWorkout() {
   );
   const [selectedExerciseName, setSelectedExerciseName] = useState("");
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<{
+    index: number;
+    sets: {weight : Number, reps: number}[];
+  } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,6 +125,34 @@ export default function LogGeneratedWorkout() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Exercise</Text>
+            {editingExercise?.sets.map((_, set_idx) => (
+                <RNView key={set_idx} style={{flexDirection: "row", gap: 12}}>
+                  <Text style={{marginBottom: 6}}>Set {set_idx + 1}:</Text>
+                  <RNView style = {{flexDirection: "row", gap: 12, flex: 1}}>
+                    <ForgeTextBox
+                        label = "Weight"
+                        value={String(editingExercise.sets[set_idx].weight)}
+                        onChangeText={(text) => {
+                            const updated = [...editingExercise.sets];
+                            updated[set_idx] = {...updated[set_idx], weight: Number(text)};
+                            setEditingExercise({...editingExercise, sets: updated});
+                        }}
+                        placeholder = "Weight"
+                    />
+                    <ForgeTextBox
+                        label = "Reps"
+                        value={String(editingExercise.sets[set_idx].reps)}
+                        onChangeText={(text) => {
+                            const updated = [...editingExercise.sets];
+                            updated[set_idx] = {...updated[set_idx], reps: Number(text)};
+                            setEditingExercise({...editingExercise, sets: updated});
+                        }}
+                        placeholder = "Reps"
+                    />
+                  </RNView>
+                </RNView>
+            ))}
+            <ForgeButton text="Save" onPress={() => setEditModalVisible(false)} />
             <ForgeButton text="Close" onPress={() => setEditModalVisible(false)} />
           </View>
         </View>
@@ -148,7 +182,13 @@ export default function LogGeneratedWorkout() {
             <RNView style={styles.exerciseActions}>
               <ForgeButton
                     text="Edit"
-                    onPress = {() => setEditModalVisible(true)}
+                    onPress = {() => {
+                      setEditingExercise({
+                        index: i,
+                        sets: Array.from({ length: ex.sets }, () => ({weight: ex.weight, reps: ex.reps})),
+                      });
+                      setEditModalVisible(true);
+                    }}
               />
               <TouchableOpacity
                 style={[
@@ -281,7 +321,7 @@ const styles = StyleSheet.create({
     },
     modalCard: {
       width: "100%",
-      maxWidth: 480,
+      maxWidth: 860,
       maxHeight: "90%",
       borderRadius: 14,
       padding: 16,

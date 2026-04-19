@@ -13,6 +13,7 @@ interface PasswordInputProps {
   maxLength?: number;
   isVisible?: boolean;
   onToggleVisibility?: () => void;
+  style ?: object;
 }
 
 // Setting up the reset password text boxes with the given attributes
@@ -23,11 +24,12 @@ const ForgeTextBox = ({
   placeholder,
   maxLength,
   isVisible,
+  style,
 }: PasswordInputProps) => {
   const s = useScheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {label && (
         <Text
           style={[
