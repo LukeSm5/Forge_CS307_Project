@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -21,7 +22,9 @@ import {
   SharedMeal,
   subscribeToSharedMeals,
   removeSharedMeal,
+  refreshFeed,
 } from "@/core/sharedMealsStore";
+import { api, SavedMealPost } from "@/core/api";
 
 type ProfileSearchResult = {
   id: number | string;
@@ -120,12 +123,46 @@ export default function ProfilesTab() {
     setFlagModal({ visible: false, loading: false, profile: null, step: null, isBlocked: false, description: '' });
   };
   const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedError, setFeedError] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
 
   useEffect(() => {
     return subscribeToSharedMeals(setSharedMeals);
   }, []);
+
+  /* Fetch feed from backend on mount */
+  useEffect(() => {
+    setFeedLoading(true);
+    setFeedError('');
+    refreshFeed()
+      .catch(() => setFeedError('Could not load feed.'))
+      .finally(() => setFeedLoading(false));
+  }, []);
+
+  const handleRemoveSharedMeal = async (shareId: string) => {
+    try {
+      await removeSharedMeal(shareId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDownloadMeal = async (meal: SharedMeal) => {
+    if (!meal.postId) return;
+    setDownloadingId(meal.shareId);
+    try {
+      await api.saveMealFromFeed(meal.postId);
+      Alert.alert('Saved!', `"${meal.name}" has been added to your meal library.`);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Could not save meal. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -489,22 +526,32 @@ export default function ProfilesTab() {
             )}
           </View>
         </View>
-        {/* ─── SHARED MEALS FROM DIET TAB ─── */}
-        {sharedMeals.length > 0 && (
-          <View
-            style={[
-              styles.headerCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.border,
-                marginTop: 16,
-              },
-            ]}
-          >
-            <Text style={[styles.eyebrow, { color: colors.orange }]}>
-              SHARED MEALS
-            </Text>
+        {/* ─── MEAL FEED ─── */}
+        <View
+          style={[
+            styles.headerCard,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: colors.border,
+              marginTop: 16,
+            },
+          ]}
+        >
+          <Text style={[styles.eyebrow, { color: colors.orange }]}>
+            MEAL FEED
+          </Text>
 
+          {feedLoading ? (
+            <ActivityIndicator style={{ marginTop: 12 }} />
+          ) : feedError ? (
+            <Text style={[styles.errorText, { color: colors.red, marginTop: 8 }]}>
+              {feedError}
+            </Text>
+          ) : sharedMeals.length === 0 ? (
+            <Text style={[styles.stateText, { color: colors.muted, marginTop: 8 }]}>
+              No meals shared yet. Share a meal from the Diet tab to get started.
+            </Text>
+          ) : (
             <View style={{ gap: 10, marginTop: 8 }}>
               {sharedMeals.map((meal) => (
                 <View
@@ -518,14 +565,19 @@ export default function ProfilesTab() {
                   ]}
                 >
                   <View style={styles.profileMain}>
+                    {/* Meal name + poster */}
                     <Text style={[styles.usernameText, { color: colors.text }]}>
                       {meal.name}
                     </Text>
+                    {meal.username ? (
+                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                        @{meal.username}
+                      </Text>
+                    ) : null}
 
+                    {/* Source subtitle */}
                     {meal.source === "restaurant" && meal.restaurant ? (
-                      <Text
-                        style={[styles.locationText, { color: colors.orange }]}
-                      >
+                      <Text style={[styles.bioText, { color: colors.muted }]}>
                         {meal.restaurant}
                         {meal.category ? ` · ${meal.category}` : ""}
                         {meal.mealType
@@ -533,11 +585,8 @@ export default function ProfilesTab() {
                           : ""}
                       </Text>
                     ) : null}
-
                     {meal.source === "tagged" && (meal.cuisine || meal.goal) ? (
-                      <Text
-                        style={[styles.locationText, { color: colors.orange }]}
-                      >
+                      <Text style={[styles.bioText, { color: colors.muted }]}>
                         {[meal.cuisine, meal.goal, meal.complexity]
                           .filter(Boolean)
                           .join(" · ")}
@@ -554,84 +603,36 @@ export default function ProfilesTab() {
                       }}
                     >
                       {meal.calories != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.macroPillText,
-                              { color: colors.orange },
-                            ]}
-                          >
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: colors.orange }]}>
                             {meal.calories} kcal
                           </Text>
                         </View>
                       ) : null}
                       {meal.protein != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#60a5fa" }]}
-                          >
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: "#60a5fa" }]}>
                             {meal.protein}g protein
                           </Text>
                         </View>
                       ) : null}
                       {meal.carbs != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#a78bfa" }]}
-                          >
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: "#a78bfa" }]}>
                             {meal.carbs}g carbs
                           </Text>
                         </View>
                       ) : null}
                       {meal.fat != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#fbbf24" }]}
-                          >
+                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
+                          <Text style={[styles.macroPillText, { color: "#fbbf24" }]}>
                             {meal.fat}g fat
                           </Text>
                         </View>
                       ) : null}
                     </View>
 
-                    <Text
-                      style={[
-                        styles.bioText,
-                        { color: colors.muted, marginTop: 6 },
-                      ]}
-                    >
+                    <Text style={[styles.bioText, { color: colors.muted, marginTop: 6 }]}>
                       {new Date(meal.sharedAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -640,8 +641,32 @@ export default function ProfilesTab() {
                   </View>
 
                   <View style={styles.actionsCol}>
+                    {/* Download — save to diet tab meal library */}
                     <Pressable
-                      onPress={() => removeSharedMeal(meal.shareId)}
+                      onPress={() => handleDownloadMeal(meal)}
+                      disabled={downloadingId === meal.shareId}
+                      style={({ pressed }) => [
+                        styles.iconButton,
+                        {
+                          backgroundColor: colors.friendBg,
+                          borderColor: colors.friendBorder,
+                        },
+                        pressed && styles.pressed,
+                        downloadingId === meal.shareId && { opacity: 0.5 },
+                      ]}
+                    >
+                      {downloadingId === meal.shareId ? (
+                        <ActivityIndicator size="small" />
+                      ) : (
+                        <Text style={[styles.friendButtonText, { color: colors.orange }]}>
+                          ↓
+                        </Text>
+                      )}
+                    </Pressable>
+
+                    {/* Remove from feed */}
+                    <Pressable
+                      onPress={() => handleRemoveSharedMeal(meal.shareId)}
                       style={({ pressed }) => [
                         styles.iconButton,
                         {
@@ -651,9 +676,7 @@ export default function ProfilesTab() {
                         pressed && styles.pressed,
                       ]}
                     >
-                      <Text
-                        style={[styles.flagButtonText, { color: colors.red }]}
-                      >
+                      <Text style={[styles.flagButtonText, { color: colors.red }]}>
                         ✕
                       </Text>
                     </Pressable>
@@ -661,8 +684,8 @@ export default function ProfilesTab() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </ScrollView>
 
       <SocialChatButton
