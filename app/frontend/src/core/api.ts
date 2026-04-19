@@ -277,7 +277,7 @@ of injury or technical difficulty, i.e. deadlift, clean and jerk, snatch, etc.
 The user is requesting a quick workout that they can do. It should be tailored to a user's goals and profile, so use the user's information to cater the workout to them. The workout should be formatted as a JSON object as follows:
 {
   workout: string, // The name of the workout
-  exercises: { exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
+  exercises: { machine: string, exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
 }
 
 For example, if the user wants a quick workout, you may return objects like the following:
@@ -286,12 +286,14 @@ For example, if the user wants a quick workout, you may return objects like the 
   workout: "Back Day",
   exercises: [
     {
+      machine: "cable",
       exercise: "lateral pull down",
       sets: 3,
       reps: 10,
       weight: 100
     }
-    { exercise: "row",
+    { machine: "dumbbell",
+      exercise: "row",
       sets: 3,
       reps: 10,
       weight: 80
@@ -303,6 +305,7 @@ For example, if the user wants a quick workout, you may return objects like the 
   workout: "bicep",
   exercises: [
     {
+      machine: "dumbbell",
       exercise: "bicep curl",
       sets: 3,
       reps: 10,
@@ -315,7 +318,10 @@ When choosing a workout, only choose from these categories: back, bicep, chest, 
 When choosing an exercise for a workout, only choose from these exercises: pull up, lateral pull down, row, face pull, bicep curl, preacher curl, hammer curl, straight-bar curl, bench press
 incline bench press, cable fly, high low cable fly, low high cable fly, skull crusher, tricep push down, shoulder press
 shoulder raise, shrug, bulgarian split squat, romanian deadlift, power clean, burpee, sled push, russian twist
-sled pull, box jump, cardio
+sled pull, box jump, cardio.
+
+When choosing an exercise, please explicitly name the machine used out of this list, and this list only:
+dumbbell, barbell, body weight, cable, treadmill, stair master, elliptical, bike, row.
 
       `});
     const responses = JSON.parse(res.text);
@@ -339,7 +345,7 @@ sled pull, box jump, cardio
 The user is requesting a quick workout that they can do for ${muscle}. It should be tailored to a user's goals and profile, so use the user's information to cater the workout to them. The workout should be formatted as a JSON object as follows:
 {
   workout: string, // The name of the workout
-  exercises: { exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
+  exercises: { machine: string, exercise: string; sets: number; reps: number; weight: number }[], // A list of exercises in the workout
 }
 
 For example, if the user wants a workout for back, as in the first example, or a bicep, for the second example, you may return objects like the following:
@@ -348,12 +354,14 @@ For example, if the user wants a workout for back, as in the first example, or a
   workout: "Back Day",
   exercises: [
     {
+      machine: "cable",
       exercise: "lateral pull down",
       sets: 3,
       reps: 10,
       weight: 100
     }
-    { exercise: "row",
+    { machine: "barbell",
+      exercise: "row",
       sets: 3,
       reps: 10,
       weight: 80
@@ -365,6 +373,7 @@ For example, if the user wants a workout for back, as in the first example, or a
   workout: "bicep",
   exercises: [
     {
+      machine: "dumbbell",
       exercise: "bicep curl",
       sets: 3,
       reps: 10,
@@ -379,8 +388,17 @@ incline bench press, cable fly, high low cable fly, low high cable fly, skull cr
 shoulder raise, shrug, bulgarian split squat, romanian deadlift, power clean, burpee, sled push, russian twist
 sled pull, box jump, cardio
 
+When choosing an exercise, please explicitly name the machine used out of this list, and this list only:
+dumbbell, barbell, body weight, cable, treadmill, stair master, elliptical, bike, row
+
+
       `});
-    const responses = JSON.parse(res.text);
+    const raw = res.text
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+    const responses = JSON.parse(raw);  
     return responses;
   },
   
@@ -963,7 +981,7 @@ export type RecalibrateCaloriesResponse = {
 
 export type QuickWorkoutResponse = {
   workout: string;
-  exercises: { exercise: string; sets: number; reps: number; weight: number}[];
+  exercises: { machine: string, exercise: string; sets: number; reps: number; weight: number}[];
 };
 
 export type quickMuscleEvent = {

@@ -26,6 +26,36 @@ function normalizeExerciseName(name: string) {
     .trim();
 }
 
+const exerciseToMuscle: Record<string, string> = {
+  "pull up": "back",
+  "lateral pull down": "back",
+  "row": "back",
+  "face pull": "back",
+  "bicep curl": "bicep",
+  "preacher curl": "bicep",
+  "hammer curl": "bicep",
+  "straight-bar curl": "bicep",
+  "bench press": "chest",
+  "incline bench press": "chest",
+  "cable fly": "chest",
+  "high low cable fly": "chest",
+  "low high cable fly": "chest",
+  "skull crusher": "tricep",
+  "tricep push down": "tricep",
+  "shoulder press": "shoulder",
+  "shoulder raise": "shoulder",
+  "shrug": "shoulder",
+  "bulgarian split squat": "quad",
+  "romanian deadlift": "hamstring",
+  "power clean": "full body",
+  "burpee": "full body",
+  "sled push": "full body",
+  "sled pull": "full body",
+  "russian twist": "ab",
+  "box jump": "quad",
+  "cardio": "cardio",
+};
+
 export default function LogGeneratedWorkout() {
   const router = useRouter();
   const s = useScheme();
@@ -41,6 +71,8 @@ export default function LogGeneratedWorkout() {
   const [exerciseMap, setExerciseMap] = useState<Record<string, number>>({});
   const [exerciseMapLoading, setExerciseMapLoading] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [machineMap, setMachineMap] = useState<Record<string, number>>({});
+  const [workoutMap, setWorkoutMap] = useState<Record<string, number>>({});
   const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(
     null,
   );
@@ -57,10 +89,21 @@ export default function LogGeneratedWorkout() {
     async function loadExercises() {
       try {
         setExerciseMapLoading(true);
-        const lookup = await api.getExercises();
+        const [lookup, machineRows, workoutRows] = await Promise.all([
+          api.getExercises(),
+          api.getMachines(),
+          api.getWorkouts(),
+        ]);
         if (isMounted) {
           setExerciseMap(lookup);
         }
+        const machineMap: Record<string, number> = {};
+        machineRows.forEach((machine) => {machineMap[machine.name] = machine.machine_id});
+        setMachineMap(machineMap);
+        const workoutMap: Record<string, number> = {};
+        workoutRows.forEach((workout) => {workoutMap[workout.name.toLowerCase()] = workout.workout_id});
+        setWorkoutMap(workoutMap);
+
       } catch {
         if (isMounted) {
           setExerciseMap({});
@@ -115,6 +158,40 @@ export default function LogGeneratedWorkout() {
     setHelpVisible(true);
   }
 
+  function getWorkoutID(): number {
+    const muscleGroups = new Set(
+        exercises.map((ex) => exerciseToMuscle[normalizeExerciseName(ex.exercise)])
+    );
+    muscleGroups.delete(undefined as any);
+    if (muscleGroups.size > 1) {
+        return workoutMap["full body"] ?? 0;
+    }
+
+    const singleMuscle = [...muscleGroups][0];
+    return workoutMap[singleMuscle] ?? workoutMap["full body"] ?? 0;
+  }
+
+async function handleLogWorkout() {
+    try {
+        await api.addWorkoutLog({
+            workout_id: getWorkoutID(),
+            split_name: workout_name,
+            duration: 0, 
+            date: new Date().toISOString().split("T")[0],
+            exercises:
+                exercises.map((ex) => ({
+                    exercise_id: exerciseMap[ex.exercise] ?? normalizedExerciseMap[normalizeExerciseName(ex.exercise)],
+                    machine_id: machineMap[ex.machine] ?? 0,
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    weight: ex.weight,
+                }))
+        })
+    } catch (error) {
+        Alert.alert("Workout did not log")
+    }
+}
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>{workout_name}</Text>
@@ -137,7 +214,6 @@ export default function LogGeneratedWorkout() {
                             updated[set_idx] = {...updated[set_idx], weight: Number(text)};
                             setEditingExercise({...editingExercise, sets: updated});
                         }}
-                        placeholder = "Weight"
                     />
                     <ForgeTextBox
                         label = "Reps"
@@ -147,7 +223,6 @@ export default function LogGeneratedWorkout() {
                             updated[set_idx] = {...updated[set_idx], reps: Number(text)};
                             setEditingExercise({...editingExercise, sets: updated});
                         }}
-                        placeholder = "Reps"
                     />
                   </RNView>
                 </RNView>
@@ -223,7 +298,10 @@ export default function LogGeneratedWorkout() {
       <RNView style={styles.footerButtons}>
         <ForgeButton
           text="Log Generated Workout"
-          onPress={() => router.push("/(tabs)/workout")}
+          onPress={() => {
+            handleLogWorkout();
+            router.push("/(tabs)/workout")}
+        }
         />
         <ForgeButton
           text="Cancel"
