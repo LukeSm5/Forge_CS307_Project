@@ -286,7 +286,7 @@ function BrowseMealCard({
   meal: TaggedMeal;
   onEdit: (meal: TaggedMeal) => void;
   onDelete: (id: number) => void;
-  onShare: (meal: TaggedMeal) => void;
+  onShare: (meal: TaggedMeal) => void | Promise<void>;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -1010,24 +1010,29 @@ export default function Diet() {
     setTaggedMealToDelete(id);
   };
 
-  const handleShareTaggedMeal = (meal: TaggedMeal) => {
-    shareMeal({
-      source: 'tagged',
-      name: meal.name,
-      calories: meal.macros?.calories,
-      protein: meal.macros?.protein,
-      carbs: meal.macros?.carbs,
-      fat: meal.macros?.fat,
-      sugar: meal.macros?.sugar,
-      fiber: meal.macros?.fiber,
-      sodium: meal.macros?.sodium,
-      cuisine: meal.tags.cuisine,
-      goal: meal.tags.goal,
-      complexity: meal.tags.complexity,
-      spiceLevel: meal.tags.spiceLevel,
-      dietary: meal.tags.dietary,
-    });
-    Alert.alert('Shared!', `"${meal.name}" has been shared to the Social tab.`);
+  const handleShareTaggedMeal = async (meal: TaggedMeal) => {
+    try {
+      await shareMeal({
+        source: 'tagged',
+        name: meal.name,
+        calories: meal.macros?.calories,
+        protein: meal.macros?.protein,
+        carbs: meal.macros?.carbs,
+        fat: meal.macros?.fat,
+        sugar: meal.macros?.sugar,
+        fiber: meal.macros?.fiber,
+        sodium: meal.macros?.sodium,
+        cuisine: meal.tags.cuisine,
+        goal: meal.tags.goal,
+        complexity: meal.tags.complexity,
+        spiceLevel: meal.tags.spiceLevel,
+        dietary: meal.tags.dietary,
+      });
+      Alert.alert('Shared!', `"${meal.name}" has been shared to the Social tab.`);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Could not share meal. Please try again.');
+    }
   };
 
   const confirmDeleteTaggedMeal = () => {
@@ -1242,22 +1247,27 @@ export default function Diet() {
     }
   };
 
-  const handleShareLoggedMeal = (item: LoggedMenuMeal) => {
-    shareMeal({
-      source: 'restaurant',
-      name: item.product,
-      calories: item.energy_kcal,
-      protein: item.protein_g,
-      carbs: item.carbohydrates_g,
-      fat: item.total_fat_g,
-      sugar: item.sugar_g,
-      fiber: item.fiber_g,
-      sodium: item.sodium_mg,
-      restaurant: item.restaurant,
-      category: item.category,
-      mealType: item.meal_type,
-    });
-    Alert.alert('Shared!', `"${item.product}" has been shared to the Social tab.`);
+  const handleShareLoggedMeal = async (item: LoggedMenuMeal) => {
+    try {
+      await shareMeal({
+        source: 'restaurant',
+        name: item.product,
+        calories: item.energy_kcal,
+        protein: item.protein_g,
+        carbs: item.carbohydrates_g,
+        fat: item.total_fat_g,
+        sugar: item.sugar_g,
+        fiber: item.fiber_g,
+        sodium: item.sodium_mg,
+        restaurant: item.restaurant,
+        category: item.category,
+        mealType: item.meal_type,
+      });
+      Alert.alert('Shared!', `"${item.product}" has been shared to the Social tab.`);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Could not share meal. Please try again.');
+    }
   };
 
   const handleConfirmMealType = async () => {
@@ -1453,8 +1463,6 @@ export default function Diet() {
       <SectionCard title={editing ? 'Meal Tagging · Edit Meal' : 'Meal Tagging · Add Meal'}>
         <Text style={styles.sectionLabel}>Meal Name</Text>
         <TextInput value={name} onChangeText={setName} placeholder="e.g. Grilled Chicken & Rice" placeholderTextColor="#6b7280" style={styles.input} returnKeyType="done" onSubmitEditing={handleSaveMeal} />
-
-        {/* Tab switcher */}
         <View style={styles.tabRow}>
           <Pressable onPress={() => setTagTab('tags')} style={[styles.tabBtn, tagTab === 'tags' && styles.tabBtnActive]}>
             <Text style={[styles.tabBtnText, tagTab === 'tags' && styles.tabBtnTextActive]}>🏷 Tags & Macros</Text>
@@ -1526,7 +1534,7 @@ export default function Diet() {
             </CollapsibleSection>
 
             <CollapsibleSection
-              title="📊 Macros"
+              title="Macros"
               open={addMacrosOpen}
               onToggle={() => setAddMacrosOpen(!addMacrosOpen)}
               badge={(() => {
