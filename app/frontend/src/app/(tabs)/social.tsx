@@ -1,4 +1,3 @@
-import { api } from "../../core/api";
 import React, { useEffect, useMemo, useState } from "react";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import {

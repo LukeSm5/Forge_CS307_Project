@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View as RNView,
+  Modal
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
@@ -24,16 +25,16 @@ function normalizeExerciseName(name: string) {
 }
 
 export default function LogGeneratedWorkout() {
-  const router = useRouter();
+    const router = useRouter();
   const s = useScheme();
-  const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
-    workout_name: string;
-    exercises: string;
-  }>();
+    const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
+        workout_name: string;
+        exercises: string;
+    }>();
 
   const exercises: QuickWorkoutResponse["exercises"] = exercisesJson
-    ? JSON.parse(exercisesJson)
-    : [];
+        ? JSON.parse(exercisesJson) 
+        : [];
 
   const [exerciseMap, setExerciseMap] = useState<Record<string, number>>({});
   const [exerciseMapLoading, setExerciseMapLoading] = useState(false);
@@ -42,6 +43,7 @@ export default function LogGeneratedWorkout() {
     null,
   );
   const [selectedExerciseName, setSelectedExerciseName] = useState("");
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +59,7 @@ export default function LogGeneratedWorkout() {
         if (isMounted) {
           setExerciseMap({});
         }
-      } finally {
+        } finally {
         if (isMounted) {
           setExerciseMapLoading(false);
         }
@@ -107,18 +109,26 @@ export default function LogGeneratedWorkout() {
     setHelpVisible(true);
   }
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{workout_name}</Text>
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>{workout_name}</Text>
       <Text style={[styles.subtitle, { color: s.secondaryText }]}>
         Generated exercises
       </Text>
+      <Modal visible={editModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Exercise</Text>
+            <ForgeButton text="Close" onPress={() => setEditModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {exercises.map((ex, i) => (
+                {exercises.map((ex, i) => (
           <View
             key={`${ex.exercise}-${i}`}
             style={[
@@ -129,13 +139,17 @@ export default function LogGeneratedWorkout() {
               },
             ]}
           >
-            <Text style={styles.exerciseName}>{ex.exercise}</Text>
+                        <Text style={styles.exerciseName}>{ex.exercise}</Text>
 
             <Text style={[styles.exerciseStats, { color: s.secondaryText }]}>
               {ex.sets} sets x {ex.reps} reps @ {ex.weight} lbs
             </Text>
 
             <RNView style={styles.exerciseActions}>
+              <ForgeButton
+                    text="Edit"
+                    onPress = {() => setEditModalVisible(true)}
+              />
               <TouchableOpacity
                 style={[
                   styles.helpButton,
@@ -162,9 +176,9 @@ export default function LogGeneratedWorkout() {
                 <AltMachButton exercise={ex.exercise} />
               </RNView>
             </RNView>
-          </View>
-        ))}
-      </ScrollView>
+                    </View>
+                ))}
+            </ScrollView>
 
       <RNView style={styles.footerButtons}>
         <ForgeButton
@@ -183,22 +197,22 @@ export default function LogGeneratedWorkout() {
         exerciseId={selectedExerciseId}
         exerciseName={selectedExerciseName}
       />
-    </View>
-  );
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+    container: {
+        flex: 1,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
-  },
-  title: {
-    fontSize: 24,
+    },
+    title: {
+        fontSize: 24,
     fontWeight: "bold",
     marginBottom: 6,
-  },
+    },
   subtitle: {
     fontSize: 15,
     marginBottom: 18,
@@ -212,9 +226,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 16,
-  },
-  exerciseName: {
-    fontSize: 18,
+    },
+    exerciseName: {
+        fontSize: 18,
     fontWeight: "700",
     lineHeight: 26,
     marginBottom: 10,
@@ -253,5 +267,24 @@ const styles = StyleSheet.create({
   footerButtons: {
     marginTop: 4,
     backgroundColor: "transparent",
-  },
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        textAlign: "center",
+    },
+    modalCard: {
+      width: "100%",
+      maxWidth: 480,
+      maxHeight: "90%",
+      borderRadius: 14,
+      padding: 16,
+      backgroundColor: "#fff",
+    },
 });
