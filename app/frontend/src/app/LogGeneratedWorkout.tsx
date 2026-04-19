@@ -68,6 +68,7 @@ export default function LogGeneratedWorkout() {
         ? JSON.parse(exercisesJson) 
         : [];
 
+  const [exerciseList, setExerciseList] = useState(exercises);
   const [exerciseMap, setExerciseMap] = useState<Record<string, number>>({});
   const [exerciseMapLoading, setExerciseMapLoading] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
@@ -80,7 +81,7 @@ export default function LogGeneratedWorkout() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingExercise, setEditingExercise] = useState<{
     index: number;
-    sets: {weight : Number, reps: number}[];
+    sets: {weight : string, reps: string}[];
   } | null>(null);
 
   useEffect(() => {
@@ -158,6 +159,21 @@ export default function LogGeneratedWorkout() {
     setHelpVisible(true);
   }
 
+  function handleSaveEdit() {
+    if (!editingExercise) {
+        return;
+    }
+    const updatedExercises = [...exerciseList];
+    const firstSet = editingExercise.sets[0];
+    updatedExercises[editingExercise.index] = {
+        ...updatedExercises[editingExercise.index],
+        sets: editingExercise.sets.length,
+        reps: Number(editingExercise.sets[0].reps),
+        weight: Number(editingExercise.sets[0].weight),
+    }
+    setExerciseList(updatedExercises);
+    setEditModalVisible(false);
+  }
   function getWorkoutID(): number {
     const muscleGroups = new Set(
         exercises.map((ex) => exerciseToMuscle[normalizeExerciseName(ex.exercise)])
@@ -179,7 +195,7 @@ async function handleLogWorkout() {
             duration: 0, 
             date: new Date().toISOString().split("T")[0],
             exercises:
-                exercises.map((ex) => ({
+                exerciseList.map((ex) => ({
                     exercise_id: exerciseMap[ex.exercise] ?? normalizedExerciseMap[normalizeExerciseName(ex.exercise)],
                     machine_id: machineMap[ex.machine] ?? 0,
                     sets: ex.sets,
@@ -211,7 +227,7 @@ async function handleLogWorkout() {
                         value={String(editingExercise.sets[set_idx].weight)}
                         onChangeText={(text) => {
                             const updated = [...editingExercise.sets];
-                            updated[set_idx] = {...updated[set_idx], weight: Number(text)};
+                            updated[set_idx] = {...updated[set_idx], weight: text};
                             setEditingExercise({...editingExercise, sets: updated});
                         }}
                     />
@@ -220,14 +236,14 @@ async function handleLogWorkout() {
                         value={String(editingExercise.sets[set_idx].reps)}
                         onChangeText={(text) => {
                             const updated = [...editingExercise.sets];
-                            updated[set_idx] = {...updated[set_idx], reps: Number(text)};
+                            updated[set_idx] = {...updated[set_idx], reps: text};
                             setEditingExercise({...editingExercise, sets: updated});
                         }}
                     />
                   </RNView>
                 </RNView>
             ))}
-            <ForgeButton text="Save" onPress={() => setEditModalVisible(false)} />
+            <ForgeButton text="Save" onPress={handleSaveEdit} />
             <ForgeButton text="Close" onPress={() => setEditModalVisible(false)} />
           </View>
         </View>
@@ -237,7 +253,7 @@ async function handleLogWorkout() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-                {exercises.map((ex, i) => (
+                {exerciseList.map((ex, i) => (
           <View
             key={`${ex.exercise}-${i}`}
             style={[
@@ -260,7 +276,7 @@ async function handleLogWorkout() {
                     onPress = {() => {
                       setEditingExercise({
                         index: i,
-                        sets: Array.from({ length: ex.sets }, () => ({weight: ex.weight, reps: ex.reps})),
+                        sets: Array.from({ length: ex.sets }, () => ({weight: String(ex.weight), reps: String(ex.reps)})),
                       });
                       setEditModalVisible(true);
                     }}
