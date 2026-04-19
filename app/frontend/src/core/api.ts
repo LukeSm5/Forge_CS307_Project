@@ -1,4 +1,3 @@
-
 import Constants from 'expo-constants';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
@@ -600,6 +599,44 @@ look pleasing on a graph.
       description,
     });
   },
+
+  publishMealPost: async (payload: PublishMealPostRequest): Promise<MealPost> => {
+    return post<MealPost>('/feed/posts', payload);
+  },
+
+  getFeed: async (limit = 50, offset = 0): Promise<MealPost[]> => {
+    return get<MealPost[]>(`/feed/posts?limit=${limit}&offset=${offset}`);
+  },
+
+  deleteMealPost: async (postId: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/feed/posts/${postId}`, {
+      method: 'DELETE',
+      headers: headers(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+    }
+  },
+
+  saveMealFromFeed: async (postId: number): Promise<SavedMealPost> => {
+    return post<SavedMealPost>(`/feed/posts/${postId}/save`, {});
+  },
+
+  unsaveMealPost: async (saveId: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/feed/saved/${saveId}`, {
+      method: 'DELETE',
+      headers: headers(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+    }
+  },
+
+  getSavedFeedMeals: async (): Promise<SavedMealPost[]> => {
+    return get<SavedMealPost[]>('/feed/saved');
+  },
 };
 
 export type User = {
@@ -976,3 +1013,71 @@ export type BlockStatus = {
   they_blocked_me: boolean;
 };
 
+export type MealPostSource = 'tagged' | 'restaurant';
+
+export type MealPost = {
+  post_id: number;
+  profile_id: number;
+  username: string;
+  source: MealPostSource;
+  name: string;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  sugar?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+  cuisine?: string | null;
+  goal?: string | null;
+  complexity?: string | null;
+  spice_level?: string | null;
+  dietary?: string[];
+  restaurant?: string | null;
+  category?: string | null;
+  meal_type?: string | null;
+  created_at: string;
+};
+
+export type PublishMealPostRequest = {
+  source: MealPostSource;
+  name: string;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  sugar?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+  cuisine?: string | null;
+  goal?: string | null;
+  complexity?: string | null;
+  spice_level?: string | null;
+  dietary?: string[];
+  restaurant?: string | null;
+  category?: string | null;
+  meal_type?: string | null;
+};
+
+export type SavedMealPost = {
+  save_id: number;
+  post_id: number;
+  name: string;
+  source: MealPostSource;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  sugar?: number | null;
+  fiber?: number | null;
+  sodium?: number | null;
+  cuisine?: string | null;
+  goal?: string | null;
+  complexity?: string | null;
+  spice_level?: string | null;
+  dietary?: string[];
+  restaurant?: string | null;
+  category?: string | null;
+  meal_type?: string | null;
+  saved_at: string;
+};
