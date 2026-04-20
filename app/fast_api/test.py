@@ -1,14 +1,13 @@
 
 from app.fast_api import api
-from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals, Friendships
+from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals, Friendships, Blocks, Reports
 import pytest
 from app.core.session import engine, Base, SessionLocal
 from datetime import date
 from app.core import repos
 
 from app.fast_api.api import LogMenuMealRequest, CreateAccountRequest, CreateSessionRequest, CreateProfileRequest, LogMenuMealRequest, TailorExerciseRequest, RecalibrateCaloriesRequest, LoginRequest
-from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn, FriendAddresseePayload, FriendAcceptPayload
-
+from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn, FriendAddresseePayload, FriendAcceptPayload, BlockPayload, ReportPayload
 
 def seed_test_user(db):
     """
@@ -361,10 +360,77 @@ def test_userstory_42(db, me, them):
 
     # if we never assert then we pass all checks
     print('passed: user story 42\n')
+
+
+def test_userstory_45(db, me, them):
+    """
+    block and report users on a social platform
+    """
+    print('testing: user story 45')
+
+    # clean up any existing blocks or reports
+    check1 = db.query(Blocks).filter(Blocks.BlockerID == me.UserID, Blocks.BlockedID == them.UserID).first()
+    check2 = db.query(Blocks).filter(Blocks.BlockerID == them.UserID, Blocks.BlockedID == me.UserID).first()
+    if check1:
+        db.delete(check1)
+        db.commit()
+        print('\tcleaned up any existing records')
+    if check2:
+        db.delete(check2)
+        db.commit()
+        print('\tcleaned up any existing records')
+
+    # 1. block the user
+    payload_block = BlockPayload(blocked_id=them.UserID)
+    response = api.block_user(payload_block, me, db)
+    print(f'\tblock user: {response}')
+    assert response["ok"] == True
+
+    # 2. confirm block exists
+    row = db.query(Blocks).filter(Blocks.BlockerID == me.UserID, Blocks.BlockedID == them.UserID).first()
+    assert row is not None, "Block row should exist"
+    print(f'\tblock confirmed in db')
+
+    # 3. confirm friend request is rejected while blocked
+    try:
+        payload_friend = FriendAddresseePayload(addressee_id=them.UserID)
+        api.send_friend_request(payload_friend, me, db)
+        assert False, "Should have raised 403"
+    except Exception as e:  # HTTP
+        assert e.status_code == 403
+        print(f'\tfriend request correctly blocked: 403')
+
+    # 4. unblock
+    response = api.unblock_user(payload_block, me, db)
+    print(f'\tunblock user: {response}')
+    assert response["ok"] == True
+
+    # 5. confirm block gone
+    row = db.query(Blocks).filter(Blocks.BlockerID == me.UserID, Blocks.BlockedID == them.UserID).first()
+    assert row is None, "Block row should be deleted"
+    print(f'\tunblock confirmed in db')
+
+    # 6. report the user
+    payload_report = ReportPayload(reported_id=them.UserID, description="Test violation description")
+    response = api.report_user(payload_report, me, db)
+    print(f'\treport user: {response}')
+    assert response["ok"] == True
+
+    # 7. confirm report exists
+    row = db.query(Reports).filter(Reports.ReporterID == me.UserID, Reports.ReportedID == them.UserID).first()
+    assert row is not None, "Report row should exist"
+    assert row.description == "Test violation description"
+    print(f'\treport confirmed in db: "{row.description}"')
+
+    # if we never assert then we pass all checks
+    print('passed: user story 45\n')
             
 
 
 def test_userstories(db):
+    """
+    for sprint review
+    """
     me = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
     them = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
     print('')
@@ -386,17 +452,8 @@ if __name__ == '__main__':
         # test_userstories(db)
         m = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
         t = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
-        test_userstory_42(db, m, t)
+        test_userstory_45(db, m, t)
 
-
-
-        # test_reset_password_simple()
-        # test_reset_password_multiple_times()
-        # test_reset_password_invalid_user()
-        # test_reset_password_empty_password()
-        # test_reset_password_short_password()
-        # test_reset_password_long_password()
-        # test_reset_password_multiple_users()
     finally:
         db.close()
 
