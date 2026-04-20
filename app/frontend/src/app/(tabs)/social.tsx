@@ -32,6 +32,7 @@ type ProfileSearchResult = {
   username: string;
   gymLocation?: string | null;
   bio?: string | null;
+  workoutStreakWeeks?: number;
 };
 
 type FriendshipAction = "send" | "remove" | "cancel" | "accept";
@@ -41,6 +42,13 @@ type FriendModalState = {
   loading: boolean;
   profile: ProfileSearchResult | null;
   action: FriendshipAction | null;
+};
+
+type ProfileDetailModalState = {
+  visible: boolean;
+  loading: boolean;
+  profile: ProfileSearchResult | null;
+  error: string;
 };
 
 type ReportModalState = {
@@ -101,6 +109,13 @@ export default function ProfilesTab() {
     profile: null,
     action: null,
   });
+  const [profileDetailModal, setProfileDetailModal] =
+    useState<ProfileDetailModalState>({
+      visible: false,
+      loading: false,
+      profile: null,
+      error: "",
+    });
   const [reportModal, setReportModal] = useState<ReportModalState>({
     visible: false,
     loading: false,
@@ -233,6 +248,7 @@ export default function ProfilesTab() {
           username: p.username,
           bio: p.bio,
           gymLocation: p.gym_location,
+          workoutStreakWeeks: p.workout_streak_weeks ?? 0,
         })),
       );
     } catch (e) {
@@ -257,6 +273,53 @@ export default function ProfilesTab() {
       profile: null,
       action: null,
     });
+  };
+
+  const closeProfileDetailModal = () => {
+    setProfileDetailModal({
+      visible: false,
+      loading: false,
+      profile: null,
+      error: "",
+    });
+  };
+
+  const handleOpenProfileDetail = async (profile: ProfileSearchResult) => {
+    setProfileDetailModal({
+      visible: true,
+      loading: true,
+      profile,
+      error: "",
+    });
+
+    try {
+      const streak = await api.getProfileStreak(Number(profile.id));
+      const updatedProfile = {
+        ...profile,
+        workoutStreakWeeks: streak.workout_streak_weeks,
+      };
+
+      setResults((current) =>
+        current.map((item) =>
+          item.id === profile.id ? updatedProfile : item,
+        ),
+      );
+      setProfileDetailModal({
+        visible: true,
+        loading: false,
+        profile: updatedProfile,
+        error: "",
+      });
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Unable to load profile streak.";
+      setProfileDetailModal({
+        visible: true,
+        loading: false,
+        profile,
+        error: message,
+      });
+    }
   };
 
   const handleFriendPress = async (profile: ProfileSearchResult) => {
@@ -595,7 +658,13 @@ export default function ProfilesTab() {
                       },
                     ]}
                   >
-                    <View style={styles.profileMain}>
+                    <Pressable
+                      onPress={() => handleOpenProfileDetail(profile)}
+                      style={({ pressed }) => [
+                        styles.profileMain,
+                        pressed && styles.pressed,
+                      ]}
+                    >
                       <Text
                         style={[styles.usernameText, { color: colors.text }]}
                       >
@@ -608,13 +677,33 @@ export default function ProfilesTab() {
                         {profile.gymLocation || "No gym location provided"}
                       </Text>
 
+                      <View
+                        style={[
+                          styles.streakBadge,
+                          {
+                            backgroundColor: colors.friendBg,
+                            borderColor: colors.friendBorder,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.streakBadgeText,
+                            { color: colors.orange },
+                          ]}
+                        >
+                          Workout streak: {profile.workoutStreakWeeks ?? 0} week
+                          {(profile.workoutStreakWeeks ?? 0) === 1 ? "" : "s"}
+                        </Text>
+                      </View>
+
                       <Text
                         style={[styles.bioText, { color: colors.muted }]}
                         numberOfLines={2}
                       >
                         {profile.bio || "No bio provided"}
                       </Text>
-                    </View>
+                    </Pressable>
 
                     <View style={styles.actionsCol}>
                       <Pressable
@@ -902,6 +991,142 @@ export default function ProfilesTab() {
         }}
         onPress={() => setActiveSocialPanel("chats")}
       />
+
+      <Modal
+        visible={profileDetailModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeProfileDetailModal}
+      >
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: colors.modalBackdrop },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.modalCardBg,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {profileDetailModal.loading ? (
+              <View style={styles.modalLoadingWrap}>
+                <ActivityIndicator size="small" />
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  Loading profile...
+                </Text>
+              </View>
+            ) : profileDetailModal.profile ? (
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  @{profileDetailModal.profile.username}
+                </Text>
+
+                <View
+                  style={[
+                    styles.profileDetailHero,
+                    {
+                      backgroundColor: colors.modalSecondaryBg,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.profileDetailStreakNumber,
+                      { color: colors.orange },
+                    ]}
+                  >
+                    {profileDetailModal.profile.workoutStreakWeeks ?? 0}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.profileDetailStreakLabel,
+                      { color: colors.muted },
+                    ]}
+                  >
+                    week workout streak
+                  </Text>
+                </View>
+
+                <View style={styles.profileDetailSection}>
+                  <Text
+                    style={[styles.profileDetailLabel, { color: colors.orange }]}
+                  >
+                    Gym
+                  </Text>
+                  <Text style={[styles.modalBodyText, { color: colors.text }]}>
+                    {profileDetailModal.profile.gymLocation ||
+                      "No gym location provided"}
+                  </Text>
+                </View>
+
+                <View style={styles.profileDetailSection}>
+                  <Text
+                    style={[styles.profileDetailLabel, { color: colors.orange }]}
+                  >
+                    Bio
+                  </Text>
+                  <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                    {profileDetailModal.profile.bio || "No bio provided"}
+                  </Text>
+                </View>
+
+                {profileDetailModal.error ? (
+                  <Text style={[styles.errorText, { color: colors.red }]}>
+                    {profileDetailModal.error}
+                  </Text>
+                ) : null}
+
+                <View style={styles.modalButtonRow}>
+                  <Pressable
+                    onPress={() => {
+                      const profile = profileDetailModal.profile;
+                      closeProfileDetailModal();
+                      if (profile) handleFriendPress(profile);
+                    }}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      {
+                        backgroundColor: colors.friendBg,
+                        borderColor: colors.friendBorder,
+                      },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.orange },
+                      ]}
+                    >
+                      Friend
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={closeProfileDetailModal}
+                    style={({ pressed }) => [
+                      styles.modalButton,
+                      {
+                        backgroundColor: colors.orange,
+                        borderColor: colors.orange,
+                      },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.modalPrimaryButtonText}>Close</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={friendModal.visible}
@@ -1308,6 +1533,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  streakBadge: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 8,
+  },
+
+  streakBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
   bioText: {
     fontSize: 13,
     lineHeight: 18,
@@ -1374,6 +1613,40 @@ const styles = StyleSheet.create({
   modalBodyText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+
+  profileDetailHero: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
+  profileDetailStreakNumber: {
+    fontSize: 42,
+    fontWeight: "800",
+    lineHeight: 48,
+  },
+
+  profileDetailStreakLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+
+  profileDetailSection: {
+    marginTop: 10,
+  },
+
+  profileDetailLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
 
   modalButtonRow: {

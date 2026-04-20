@@ -534,6 +534,10 @@ look pleasing on a graph.
     )
   },
 
+  getProfileStreak: async (profileId: number): Promise<ProfileStreak> => {
+    return get<ProfileStreak>(`/profiles/${profileId}/streak`);
+  },
+
   checkFriendship: async (addresseeId: number): Promise<FriendshipStatus> => {
     const res = await get<FriendshipStatusResponse>(
       `/friends/status?addressee_id=${addresseeId}`
@@ -1026,6 +1030,14 @@ export type ProfileSearchResult = {
   username: string;
   bio: string | null;
   gym_location: string | null;
+  workout_streak_weeks?: number;
+};
+
+export type ProfileStreak = {
+  profile_id: number;
+  workout_streak_weeks: number;
+  current_week_active: boolean;
+  last_workout_date: string | null;
 };
 
 export type Notification = {

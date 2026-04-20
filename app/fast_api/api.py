@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import logging
 import re
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta, date
 from sqlalchemy import inspect, text, or_, and_
 from openai import OpenAI
 import os
@@ -427,6 +427,7 @@ class GenerateRecipeRequest(BaseModel):
     goal: Optional[str] = None
     cravings: Optional[str] = None
     constraints: Optional[str] = None
+    no_cook: bool = False
 
 
 class FriendAddresseePayload(BaseModel):
@@ -434,6 +435,12 @@ class FriendAddresseePayload(BaseModel):
 
 class FriendAcceptPayload(BaseModel):
     requester_id: int
+
+class StreakResponse(BaseModel):
+    profile_id: int
+    workout_streak_weeks: int
+    current_week_active: bool
+    last_workout_date: Optional[datetime] = None
 
 class BlockPayload(BaseModel):
     blocked_id: int
@@ -616,6 +623,66 @@ def _recipe_history_defaults(db: Session, profile_id: int) -> tuple[List[str], L
         workout_refs = ["No logged workouts yet for this user"]
 
     return meal_refs[:2], workout_refs[:2]
+
+
+def _week_start(value: datetime) -> date:
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    day = value.date()
+    return day - timedelta(days=day.weekday())
+
+
+def _calculate_workout_streak(db: Session, profile_id: int) -> StreakResponse:
+    rows = (
+        db.query(session_workouts.date)
+        .filter(session_workouts.ProfileID == profile_id)
+        .order_by(session_workouts.date.desc())
+        .all()
+    )
+
+    if not rows:
+        return StreakResponse(
+            profile_id=profile_id,
+            workout_streak_weeks=0,
+            current_week_active=False,
+            last_workout_date=None,
+        )
+
+    workout_dates = [row[0] for row in rows if row[0] is not None]
+    active_weeks = {_week_start(workout_date) for workout_date in workout_dates}
+    current_week = _week_start(datetime.now(timezone.utc))
+    current_week_active = current_week in active_weeks
+
+    streak = 0
+    cursor = current_week
+    if current_week_active:
+        while cursor in active_weeks:
+            streak += 1
+            cursor -= timedelta(days=7)
+
+    return StreakResponse(
+        profile_id=profile_id,
+        workout_streak_weeks=streak,
+        current_week_active=current_week_active,
+        last_workout_date=max(workout_dates) if workout_dates else None,
+    )
+
+
+def _profiles_can_view_streak(db: Session, viewer_id: int, target_id: int) -> bool:
+    if viewer_id == target_id:
+        return True
+
+    blocked = db.query(Blocks).filter(
+        or_(
+            and_(Blocks.BlockerID == viewer_id, Blocks.BlockedID == target_id),
+            and_(Blocks.BlockerID == target_id, Blocks.BlockedID == viewer_id),
+        )
+    ).first()
+    if blocked:
+        return False
+
+    friendship = repos.lookup_friendship(db, viewer_id, target_id)
+    return friendship is not None and friendship.status == "accepted"
 
 
 def _send_account_update_notification(
@@ -2133,9 +2200,26 @@ def search_profiles(
             "username": account.username,
             "bio": account.bio,
             "gym_location": profile.gym_location if profile else None,
+            "workout_streak_weeks": _calculate_workout_streak(db, account.UserID).workout_streak_weeks if profile else 0,
         }
         for account, profile in rows
     ]
+
+
+@app.get("/profiles/{profile_id}/streak", response_model=StreakResponse)
+def get_profile_streak(
+    profile_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    profile = db.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if not _profiles_can_view_streak(db, me.UserID, profile_id):
+        raise HTTPException(status_code=403, detail="You do not have access to view this streak")
+
+    return _calculate_workout_streak(db, profile_id)
 
 
 @app.post("/friends/request")
