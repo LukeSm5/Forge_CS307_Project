@@ -655,6 +655,10 @@ look pleasing on a graph.
   getSavedFeedMeals: async (): Promise<SavedMealPost[]> => {
     return get<SavedMealPost[]>('/feed/saved');
   },
+
+  getGymWorkoutFeed: async (): Promise<WorkoutFeedPost[]> => {
+    return get<WorkoutFeedPost[]>('/feed/workouts/gym');
+  },
 };
 
 export type User = {
@@ -953,6 +957,29 @@ export type SessionExerciseLog = {
   set_number: number;
   reps: number;
   weight?: number | null;
+};
+
+export type WorkoutFeedExercise = {
+  exercise_id: number;
+  exercise_name: string;
+  machine_id?: number | null;
+  machine_name?: string | null;
+  sets: number;
+  reps: number;
+  weight?: number | null;
+};
+
+export type WorkoutFeedPost = {
+  session_id: number;
+  profile_id: number;
+  username: string;
+  gym_location?: string | null;
+  workout_id: number;
+  workout_name: string;
+  split_name?: string | null;
+  date: string;
+  duration: number;
+  exercises: WorkoutFeedExercise[];
 };
 
 export type TailoredExercise = {

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +17,7 @@ import { Text, useScheme } from "@/components/Themed";
 import SocialActionButtons from "@/components/social/SocialActionButtons";
 import SocialChatButton from "@/components/social/SocialChatButton";
 import SocialPreviewCard from "@/components/social/SocialPreviewCard";
+import WorkoutFeedCard from "@/components/social/WorkoutFeedCard";
 import { SocialPanel } from "@/components/social/socialTypes";
 import {
   SharedMeal,
@@ -23,7 +25,7 @@ import {
   removeSharedMeal,
   refreshFeed,
 } from "@/core/sharedMealsStore";
-import { api, SavedMealPost } from "@/core/api";
+import { api, SavedMealPost, WorkoutFeedPost } from "@/core/api";
 
 type ProfileSearchResult = {
   id: number | string;
@@ -46,17 +48,17 @@ type ReportModalState = {
   loading: boolean;
   profile: ProfileSearchResult | null;
   description: string;
-  blockAfter: boolean;  // checkbox option to also block after reporting
+  blockAfter: boolean; // checkbox option to also block after reporting
 };
 
-type FlagStep = 'choose' | 'block_confirm' | 'report';
+type FlagStep = "choose" | "block_confirm" | "report";
 
 type FlagModalState = {
   visible: boolean;
   loading: boolean;
   profile: ProfileSearchResult | null;
   step: FlagStep | null;
-  isBlocked: boolean;      // whether me -> them block already exists
+  isBlocked: boolean; // whether me -> them block already exists
   description: string;
 };
 
@@ -103,11 +105,17 @@ export default function ProfilesTab() {
     visible: false,
     loading: false,
     profile: null,
-    description: '',
+    description: "",
     blockAfter: false,
   });
   const closeReportModal = () => {
-    setReportModal({ visible: false, loading: false, profile: null, description: '', blockAfter: false });
+    setReportModal({
+      visible: false,
+      loading: false,
+      profile: null,
+      description: "",
+      blockAfter: false,
+    });
   };
   const [flagModal, setFlagModal] = useState<FlagModalState>({
     visible: false,
@@ -115,16 +123,26 @@ export default function ProfilesTab() {
     profile: null,
     step: null,
     isBlocked: false,
-    description: '',
+    description: "",
   });
 
   const closeFlagModal = () => {
-    setFlagModal({ visible: false, loading: false, profile: null, step: null, isBlocked: false, description: '' });
+    setFlagModal({
+      visible: false,
+      loading: false,
+      profile: null,
+      step: null,
+      isBlocked: false,
+      description: "",
+    });
   };
   const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
-  const [feedError, setFeedError] = useState('');
+  const [feedError, setFeedError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [gymWorkouts, setGymWorkouts] = useState<WorkoutFeedPost[]>([]);
+  const [gymFeedLoading, setGymFeedLoading] = useState(false);
+  const [gymFeedError, setGymFeedError] = useState("");
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
 
@@ -135,9 +153,9 @@ export default function ProfilesTab() {
   /* Fetch feed from backend on mount */
   useEffect(() => {
     setFeedLoading(true);
-    setFeedError('');
+    setFeedError("");
     refreshFeed()
-      .catch(() => setFeedError('Could not load feed.'))
+      .catch(() => setFeedError("Could not load feed."))
       .finally(() => setFeedLoading(false));
   }, []);
 
@@ -154,14 +172,45 @@ export default function ProfilesTab() {
     setDownloadingId(meal.shareId);
     try {
       await api.saveMealFromFeed(meal.postId);
-      Alert.alert('Saved!', `"${meal.name}" has been added to your meal library.`);
+      Alert.alert(
+        "Saved!",
+        `"${meal.name}" has been added to your meal library.`,
+      );
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Could not save meal. Please try again.');
+      Alert.alert("Error", "Could not save meal. Please try again.");
     } finally {
       setDownloadingId(null);
     }
   };
+
+  const loadGymWorkoutFeed = useCallback(async () => {
+    try {
+      setGymFeedLoading(true);
+      setGymFeedError("");
+      const rows = await api.getGymWorkoutFeed();
+      setGymWorkouts(rows);
+    } catch (e) {
+      console.error(e);
+      setGymFeedError("Could not load gym workouts right now.");
+    } finally {
+      setGymFeedLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (activeSocialPanel !== "gym") return undefined;
+      void loadGymWorkoutFeed();
+      return undefined;
+    }, [activeSocialPanel, loadGymWorkoutFeed]),
+  );
+
+  useEffect(() => {
+    if (activeSocialPanel === "gym") {
+      void loadGymWorkoutFeed();
+    }
+  }, [activeSocialPanel, loadGymWorkoutFeed]);
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -264,20 +313,27 @@ export default function ProfilesTab() {
 
   const handleFlag = async (profile: ProfileSearchResult) => {
     try {
-      setFlagModal({ visible: true, loading: true, profile, step: null, isBlocked: false, description: '' });
+      setFlagModal({
+        visible: true,
+        loading: true,
+        profile,
+        step: null,
+        isBlocked: false,
+        description: "",
+      });
 
       const blockStatus = await api.checkBlock(profile.id as number);
 
       setFlagModal((prev) => ({
         ...prev,
         loading: false,
-        step: 'choose',
+        step: "choose",
         isBlocked: blockStatus.i_blocked_them,
       }));
     } catch (e) {
       console.error(e);
       closeFlagModal();
-      setError('Unable to load options right now.');
+      setError("Unable to load options right now.");
     }
   };
 
@@ -296,24 +352,27 @@ export default function ProfilesTab() {
     } catch (e) {
       console.error(e);
       setFlagModal((prev) => ({ ...prev, loading: false }));
-      setError('Unable to complete that action right now.');
+      setError("Unable to complete that action right now.");
     }
   };
 
   const handleSubmitReport = async () => {
     if (!flagModal.profile) return;
     if (!flagModal.description.trim()) {
-      setError('Please describe the violation before submitting.');
+      setError("Please describe the violation before submitting.");
       return;
     }
     try {
       setFlagModal((prev) => ({ ...prev, loading: true }));
-      await api.reportUser(flagModal.profile!.id as number, flagModal.description.trim());
+      await api.reportUser(
+        flagModal.profile!.id as number,
+        flagModal.description.trim(),
+      );
       closeFlagModal();
     } catch (e) {
       console.error(e);
       setFlagModal((prev) => ({ ...prev, loading: false }));
-      setError('Unable to submit report right now.');
+      setError("Unable to submit report right now.");
     }
   };
 
@@ -365,20 +424,98 @@ export default function ProfilesTab() {
           onSelectPanel={setActiveSocialPanel}
         />
 
-        <SocialPreviewCard
-          activePanel={activeSocialPanel}
-          colors={{
-            background: colors.cardBg,
-            secondaryBackground: colors.soft,
-            border: colors.border,
-            text: colors.text,
-            muted: colors.muted,
-            tint: colors.orange,
-            buttonBg: colors.buttonBg,
-            buttonSecondaryBg: colors.buttonSecondaryBg,
-            buttonText: colors.buttonText,
-          }}
-        />
+        {activeSocialPanel === "gym" ? (
+          <View
+            style={[
+              styles.headerCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            <Text style={[styles.eyebrow, { color: colors.orange }]}>
+              GYM WORKOUT FEED
+            </Text>
+            <Text
+              style={[
+                styles.stateText,
+                { color: colors.muted, textAlign: "left" },
+              ]}
+            >
+              Recent workouts logged by people who selected the same gym
+              location as you.
+            </Text>
+
+            {gymFeedLoading ? (
+              <View
+                style={[
+                  styles.centerState,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                    marginTop: 12,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="small" />
+                <Text style={[styles.stateText, { color: colors.muted }]}>
+                  Loading gym posts...
+                </Text>
+              </View>
+            ) : gymFeedError ? (
+              <Text style={[styles.errorText, { color: colors.red }]}>
+                {gymFeedError}
+              </Text>
+            ) : gymWorkouts.length === 0 ? (
+              <Text
+                style={[
+                  styles.stateText,
+                  { color: colors.muted, marginTop: 12, textAlign: "left" },
+                ]}
+              >
+                No workout posts yet for your gym. Once someone with the same
+                selected gym logs a workout, it will show up here.
+              </Text>
+            ) : (
+              <View style={styles.feedList}>
+                {gymWorkouts.map((post) => (
+                  <WorkoutFeedCard
+                    key={post.session_id}
+                    post={post}
+                    colors={{
+                      background: colors.cardBg,
+                      secondaryBackground: colors.soft,
+                      border: colors.border,
+                      text: colors.text,
+                      muted: colors.muted,
+                      tint: colors.orange,
+                      buttonBg: colors.buttonBg,
+                      buttonSecondaryBg: colors.buttonSecondaryBg,
+                      buttonText: colors.buttonText,
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <SocialPreviewCard
+            activePanel={activeSocialPanel}
+            colors={{
+              background: colors.cardBg,
+              secondaryBackground: colors.soft,
+              border: colors.border,
+              text: colors.text,
+              muted: colors.muted,
+              tint: colors.orange,
+              buttonBg: colors.buttonBg,
+              buttonSecondaryBg: colors.buttonSecondaryBg,
+              buttonText: colors.buttonText,
+            }}
+          />
+        )}
         <View
           style={[
             styles.headerCard,
@@ -543,12 +680,17 @@ export default function ProfilesTab() {
           {feedLoading ? (
             <ActivityIndicator style={{ marginTop: 12 }} />
           ) : feedError ? (
-            <Text style={[styles.errorText, { color: colors.red, marginTop: 8 }]}>
+            <Text
+              style={[styles.errorText, { color: colors.red, marginTop: 8 }]}
+            >
               {feedError}
             </Text>
           ) : sharedMeals.length === 0 ? (
-            <Text style={[styles.stateText, { color: colors.muted, marginTop: 8 }]}>
-              No meals shared yet. Share a meal from the Diet tab to get started.
+            <Text
+              style={[styles.stateText, { color: colors.muted, marginTop: 8 }]}
+            >
+              No meals shared yet. Share a meal from the Diet tab to get
+              started.
             </Text>
           ) : (
             <View style={{ gap: 10, marginTop: 8 }}>
@@ -569,7 +711,9 @@ export default function ProfilesTab() {
                       {meal.name}
                     </Text>
                     {meal.username ? (
-                      <Text style={[styles.locationText, { color: colors.orange }]}>
+                      <Text
+                        style={[styles.locationText, { color: colors.orange }]}
+                      >
                         @{meal.username}
                       </Text>
                     ) : null}
@@ -602,36 +746,84 @@ export default function ProfilesTab() {
                       }}
                     >
                       {meal.calories != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: colors.orange }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.macroPillText,
+                              { color: colors.orange },
+                            ]}
+                          >
                             {meal.calories} kcal
                           </Text>
                         </View>
                       ) : null}
                       {meal.protein != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: "#60a5fa" }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#60a5fa" }]}
+                          >
                             {meal.protein}g protein
                           </Text>
                         </View>
                       ) : null}
                       {meal.carbs != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: "#a78bfa" }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#a78bfa" }]}
+                          >
                             {meal.carbs}g carbs
                           </Text>
                         </View>
                       ) : null}
                       {meal.fat != null ? (
-                        <View style={[styles.macroPill, { backgroundColor: colors.soft, borderColor: colors.border }]}>
-                          <Text style={[styles.macroPillText, { color: "#fbbf24" }]}>
+                        <View
+                          style={[
+                            styles.macroPill,
+                            {
+                              backgroundColor: colors.soft,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.macroPillText, { color: "#fbbf24" }]}
+                          >
                             {meal.fat}g fat
                           </Text>
                         </View>
                       ) : null}
                     </View>
 
-                    <Text style={[styles.bioText, { color: colors.muted, marginTop: 6 }]}>
+                    <Text
+                      style={[
+                        styles.bioText,
+                        { color: colors.muted, marginTop: 6 },
+                      ]}
+                    >
                       {new Date(meal.sharedAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -657,7 +849,12 @@ export default function ProfilesTab() {
                       {downloadingId === meal.shareId ? (
                         <ActivityIndicator size="small" />
                       ) : (
-                        <Text style={[styles.friendButtonText, { color: colors.orange }]}>
+                        <Text
+                          style={[
+                            styles.friendButtonText,
+                            { color: colors.orange },
+                          ]}
+                        >
                           ↓
                         </Text>
                       )}
@@ -675,7 +872,9 @@ export default function ProfilesTab() {
                         pressed && styles.pressed,
                       ]}
                     >
-                      <Text style={[styles.flagButtonText, { color: colors.red }]}>
+                      <Text
+                        style={[styles.flagButtonText, { color: colors.red }]}
+                      >
                         ✕
                       </Text>
                     </Pressable>
@@ -802,18 +1001,31 @@ export default function ProfilesTab() {
         animationType="fade"
         onRequestClose={closeFlagModal}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.modalBackdrop }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.modalCardBg, borderColor: colors.border }]}>
-
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: colors.modalBackdrop },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.modalCardBg,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             {/* ── LOADING ── */}
             {flagModal.loading || !flagModal.step ? (
               <View style={styles.modalLoadingWrap}>
                 <ActivityIndicator size="small" />
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>Loading...</Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  Loading...
+                </Text>
               </View>
-
-            /* ── STEP 1: CHOOSE ── */
-            ) : flagModal.step === 'choose' ? (
+            ) : /* ── STEP 1: CHOOSE ── */
+            flagModal.step === "choose" ? (
               <>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
                   @{flagModal.profile?.username}
@@ -821,7 +1033,12 @@ export default function ProfilesTab() {
 
                 <View style={styles.modalButtonRow}>
                   <Pressable
-                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'block_confirm' }))}
+                    onPress={() =>
+                      setFlagModal((prev) => ({
+                        ...prev,
+                        step: "block_confirm",
+                      }))
+                    }
                     style={({ pressed }) => [
                       styles.modalButton,
                       { backgroundColor: colors.red, borderColor: colors.red },
@@ -829,12 +1046,14 @@ export default function ProfilesTab() {
                     ]}
                   >
                     <Text style={styles.modalDangerButtonText}>
-                      {flagModal.isBlocked ? 'Unblock' : 'Block'}
+                      {flagModal.isBlocked ? "Unblock" : "Block"}
                     </Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'report' }))}
+                    onPress={() =>
+                      setFlagModal((prev) => ({ ...prev, step: "report" }))
+                    }
                     style={({ pressed }) => [
                       styles.modalButton,
                       { backgroundColor: colors.red, borderColor: colors.red },
@@ -848,20 +1067,29 @@ export default function ProfilesTab() {
                     onPress={closeFlagModal}
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Cancel</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      Cancel
+                    </Text>
                   </Pressable>
                 </View>
               </>
-
-            /* ── STEP 2: BLOCK CONFIRM ── */
-            ) : flagModal.step === 'block_confirm' ? (
+            ) : /* ── STEP 2: BLOCK CONFIRM ── */
+            flagModal.step === "block_confirm" ? (
               <>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {flagModal.isBlocked ? 'Unblock User' : 'Block User'}
+                  {flagModal.isBlocked ? "Unblock User" : "Block User"}
                 </Text>
                 <Text style={[styles.modalBodyText, { color: colors.muted }]}>
                   {flagModal.isBlocked
@@ -871,14 +1099,26 @@ export default function ProfilesTab() {
 
                 <View style={styles.modalButtonRow}>
                   <Pressable
-                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'choose' }))}
+                    onPress={() =>
+                      setFlagModal((prev) => ({ ...prev, step: "choose" }))
+                    }
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>No</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      No
+                    </Text>
                   </Pressable>
 
                   <Pressable
@@ -893,38 +1133,57 @@ export default function ProfilesTab() {
                   </Pressable>
                 </View>
               </>
-
-            /* ── STEP 3: REPORT ── */
-            ) : flagModal.step === 'report' ? (
+            ) : /* ── STEP 3: REPORT ── */
+            flagModal.step === "report" ? (
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Report User</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Report User
+                </Text>
                 <Text style={[styles.modalBodyText, { color: colors.muted }]}>
                   Describe the violation by @{flagModal.profile?.username}:
                 </Text>
 
                 <TextInput
                   value={flagModal.description}
-                  onChangeText={(t) => setFlagModal((prev) => ({ ...prev, description: t }))}
+                  onChangeText={(t) =>
+                    setFlagModal((prev) => ({ ...prev, description: t }))
+                  }
                   placeholder="Describe what happened..."
                   placeholderTextColor={colors.placeholder}
                   multiline
                   numberOfLines={4}
                   style={[
                     styles.reportInput,
-                    { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
                   ]}
                 />
 
                 <View style={styles.modalButtonRow}>
                   <Pressable
-                    onPress={() => setFlagModal((prev) => ({ ...prev, step: 'choose' }))}
+                    onPress={() =>
+                      setFlagModal((prev) => ({ ...prev, step: "choose" }))
+                    }
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Back</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      Back
+                    </Text>
                   </Pressable>
 
                   <Pressable
@@ -940,7 +1199,6 @@ export default function ProfilesTab() {
                 </View>
               </>
             ) : null}
-
           </View>
         </View>
       </Modal>
@@ -1019,6 +1277,11 @@ const styles = StyleSheet.create({
 
   resultsList: {
     gap: 10,
+  },
+
+  feedList: {
+    gap: 12,
+    marginTop: 14,
   },
 
   profileRow: {
@@ -1159,8 +1422,8 @@ const styles = StyleSheet.create({
   },
 
   checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginTop: 14,
   },
@@ -1178,6 +1441,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     minHeight: 90,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
 });

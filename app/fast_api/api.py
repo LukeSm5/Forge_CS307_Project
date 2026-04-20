@@ -280,6 +280,29 @@ class SessionOut(BaseModel):
     exercises: List[SessionExerciseOut]
 
 
+class WorkoutFeedExerciseOut(BaseModel):
+    exercise_id: int
+    exercise_name: str
+    machine_id: Optional[int] = None
+    machine_name: Optional[str] = None
+    sets: int
+    reps: int
+    weight: Optional[int] = None
+
+
+class WorkoutFeedPostOut(BaseModel):
+    session_id: int
+    profile_id: int
+    username: str
+    gym_location: Optional[str] = None
+    workout_id: int
+    workout_name: str
+    split_name: Optional[str] = None
+    date: str
+    duration: int
+    exercises: List[WorkoutFeedExerciseOut]
+
+
 class LogMenuMealRequest(BaseModel):
     menu_meal_id: int
     meal_type: str  # breakfast / lunch / dinner / snack
@@ -1322,6 +1345,55 @@ async def get_llm_context(request: Request, db: Session = Depends(get_db)):
     return prompt
 
 
+def _build_session_exercise_summary(db: Session, session_id: int) -> List[WorkoutFeedExerciseOut]:
+    rows = (
+        db.query(session_exercises)
+        .filter(session_exercises.SessionID == session_id)
+        .order_by(session_exercises.ExerciseID, session_exercises.set_number)
+        .all()
+    )
+
+    grouped: Dict[tuple[int, Optional[int]], WorkoutFeedExerciseOut] = {}
+    for row in rows:
+        key = (row.ExerciseID, row.MachineID)
+        current = grouped.get(key)
+        if current is None:
+            ex_obj = db.query(Exercises).filter(Exercises.ExerciseID == row.ExerciseID).first()
+            machine_obj = (
+                db.query(Machines).filter(Machines.MachineID == row.MachineID).first()
+                if row.MachineID is not None
+                else None
+            )
+            grouped[key] = WorkoutFeedExerciseOut(
+                exercise_id=row.ExerciseID,
+                exercise_name=ex_obj.name if ex_obj else "Unknown",
+                machine_id=row.MachineID,
+                machine_name=machine_obj.name if machine_obj else None,
+                sets=1,
+                reps=row.reps or 0,
+                weight=row.weight,
+            )
+        else:
+            current.sets += 1
+
+    return list(grouped.values())
+
+
+def _blocked_user_ids(db: Session, user_id: int) -> set[int]:
+    rows = (
+        db.query(Blocks)
+        .filter(or_(Blocks.BlockerID == user_id, Blocks.BlockedID == user_id))
+        .all()
+    )
+    blocked_ids: set[int] = set()
+    for row in rows:
+        if row.BlockerID == user_id:
+            blocked_ids.add(row.BlockedID)
+        else:
+            blocked_ids.add(row.BlockerID)
+    return blocked_ids
+
+
 @app.post("/sessions", response_model=SessionOut)
 def create_workout_session(
     payload: CreateSessionRequest,
@@ -1934,6 +2006,63 @@ def recalibrate_calories(
 
     return RecalibrateCaloriesResponse(calorie_goal=new_goal)
 
+@app.get("/feed/workouts/gym", response_model=List[WorkoutFeedPostOut])
+def get_same_gym_workout_feed(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    my_profile = db.query(Profiles).filter(Profiles.ProfileID == me.UserID).first()
+    gym_location = (my_profile.gym_location or "").strip() if my_profile else ""
+
+    if not gym_location or gym_location.lower() == "unknown location":
+        return []
+
+    blocked_ids = _blocked_user_ids(db, me.UserID)
+
+    query = (
+        db.query(session_workouts, Accounts, Profiles, Workouts)
+        .join(Accounts, Accounts.UserID == session_workouts.ProfileID)
+        .join(Profiles, Profiles.ProfileID == session_workouts.ProfileID)
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID != me.UserID)
+        .filter(Profiles.gym_location == gym_location)
+        .order_by(session_workouts.date.desc())
+    )
+
+    if blocked_ids:
+        query = query.filter(~session_workouts.ProfileID.in_(blocked_ids))
+
+    rows = query.limit(50).all()
+
+    from app.core.db import Splits
+
+    result: List[WorkoutFeedPostOut] = []
+    for session_row, account, profile, workout in rows:
+        split = (
+            db.query(Splits)
+            .filter(Splits.SplitID == session_row.SplitID)
+            .first()
+            if session_row.SplitID
+            else None
+        )
+        result.append(
+            WorkoutFeedPostOut(
+                session_id=session_row.SessionID,
+                profile_id=session_row.ProfileID,
+                username=account.username,
+                gym_location=profile.gym_location,
+                workout_id=workout.WorkoutID,
+                workout_name=workout.name,
+                split_name=split.name if split else None,
+                date=str(session_row.date),
+                duration=session_row.duration,
+                exercises=_build_session_exercise_summary(db, session_row.SessionID),
+            )
+        )
+
+    return result
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.fast_api.api:app", host="0.0.0.0", port=8000, reload=True)
@@ -2187,4 +2316,3 @@ def report_user(
     ))
     db.commit()
     return {"ok": True, "detail": "Report submitted"}
-
