@@ -29,6 +29,7 @@ import {
 } from "@/core/notifications";
 import { useUnits } from "@/core/conversions";
 import { Dropdown } from "react-native-element-dropdown";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 type Status = { type: "ok" | "err"; msg: string } | null;
 type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
 
@@ -42,8 +43,15 @@ function ModeButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.modeBtn, selected && styles.modeBtnSelected]}>
-      <Text style={[styles.modeBtnText, selected && styles.modeBtnTextSelected]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[styles.modeBtn, selected && styles.modeBtnSelected]}
+    >
+      <Text
+        style={[styles.modeBtnText, selected && styles.modeBtnTextSelected]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -55,7 +63,12 @@ function SectionHeader({ title }: { title: string }) {
 function StatusBanner({ status }: { status: Status }) {
   if (!status) return null;
   return (
-    <View style={[styles.statusBanner, status.type === "ok" ? styles.statusOk : styles.statusErr]}>
+    <View
+      style={[
+        styles.statusBanner,
+        status.type === "ok" ? styles.statusOk : styles.statusErr,
+      ]}
+    >
       <Text style={styles.statusText}>{status.msg}</Text>
     </View>
   );
@@ -160,16 +173,17 @@ function formatStoredTime(storedTime: string) {
 }
 
 export default function SettingsScreen() {
-  const { colorMode, setColorMode, textScale, setTextScale } = useAccessibility();
+  const { colorMode, setColorMode, textScale, setTextScale } =
+    useAccessibility();
   const { currentUser, setCurrentUser, setLoggedIn } = useAuth();
   const [status, setStatus] = useState<Status>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(true);
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(
-    DEFAULT_NOTIFICATION_PREFERENCES
-  );
-  const [activeMealPicker, setActiveMealPicker] = useState<MealTimeField | null>(null);
+  const [notificationPrefs, setNotificationPrefs] =
+    useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [activeMealPicker, setActiveMealPicker] =
+    useState<MealTimeField | null>(null);
   const [pUsername, setPUsername] = useState("");
   const [pBio, setPBio] = useState("");
   const [pGymLocation, setPGymLocation] = useState("Unknown Location");
@@ -191,7 +205,7 @@ export default function SettingsScreen() {
         label: location,
         value: location,
       })),
-    [gymLocations]
+    [gymLocations],
   );
 
   async function refreshMe() {
@@ -242,7 +256,7 @@ export default function SettingsScreen() {
 
   async function persistNotificationPrefs(
     nextPrefs: NotificationPreferences,
-    successMessage: string
+    successMessage: string,
   ) {
     setNotificationLoading(true);
     setStatus(null);
@@ -268,7 +282,10 @@ export default function SettingsScreen() {
       await loadCalendarAndRescheduleNotificationsAsync(nextPrefs);
       setStatus({ type: "ok", msg: successMessage });
     } catch (e: any) {
-      setStatus({ type: "err", msg: e?.message ?? "Unable to update notification settings." });
+      setStatus({
+        type: "err",
+        msg: e?.message ?? "Unable to update notification settings.",
+      });
     } finally {
       setNotificationLoading(false);
     }
@@ -280,21 +297,21 @@ export default function SettingsScreen() {
         ...notificationPrefs,
         notificationsEnabled: enabled,
       },
-      enabled ? "Notifications enabled." : "Notifications disabled."
+      enabled ? "Notifications enabled." : "Notifications disabled.",
     );
   }
 
   async function updateNotificationToggle(
     key: "workoutRemindersEnabled" | "mealRemindersEnabled",
     enabled: boolean,
-    label: string
+    label: string,
   ) {
     await persistNotificationPrefs(
       {
         ...notificationPrefs,
         [key]: enabled,
       },
-      `${label} ${enabled ? "enabled" : "disabled"}.`
+      `${label} ${enabled ? "enabled" : "disabled"}.`,
     );
   }
 
@@ -315,7 +332,8 @@ export default function SettingsScreen() {
         username: pUsername || undefined,
         bio: pBio ?? "",
         gym_location: pGymLocation || "Unknown Location",
-      });      if (typeof updated === "undefined") throw new Error("User not signed in");
+      });
+      if (typeof updated === "undefined") throw new Error("User not signed in");
       setUser(updated);
       setStatus({ type: "ok", msg: "Profile updated." });
     } catch (e: any) {
@@ -329,8 +347,12 @@ export default function SettingsScreen() {
     setLoading(true);
     setStatus(null);
     try {
-      const res = await api.changePassword({ current_password: cCurrent, new_password: cNew });
-      if (typeof res === "undefined") throw new Error("Password change failed.");
+      const res = await api.changePassword({
+        current_password: cCurrent,
+        new_password: cNew,
+      });
+      if (typeof res === "undefined")
+        throw new Error("Password change failed.");
       setCCurrent("");
       setCNew("");
       setStatus({ type: "ok", msg: "Password changed." });
@@ -340,7 +362,23 @@ export default function SettingsScreen() {
       setLoading(false);
     }
   }
-  
+
+  async function doLogout() {
+    setLoading(true);
+    setStatus(null);
+    try {
+      await AsyncStorage.removeItem("refresh_token");
+      setToken(null);
+      setUser(null);
+      setCurrentUser(null);
+      setLoggedIn(false);
+      router.replace("/loginScreen");
+    } catch (e: any) {
+      setStatus({ type: "err", msg: e?.message ?? "Unable to log out." });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -374,7 +412,9 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Text Size</Text>
-        <Text style={styles.helper}>Adjust the slider to scale text across the app.</Text>
+        <Text style={styles.helper}>
+          Adjust the slider to scale text across the app.
+        </Text>
         <Slider
           style={{ width: "100%", height: 40 }}
           minimumValue={1.0}
@@ -393,13 +433,17 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={styles.footerNote}>
-          Settings are saved automatically and will persist after restarting the app.
+          Settings are saved automatically and will persist after restarting the
+          app.
         </Text>
         <SectionHeader title="Notifications" />
-        {notificationLoading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
+        {notificationLoading && (
+          <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />
+        )}
         <Text style={styles.sectionTitle}>App notifications</Text>
         <Text style={styles.helper}>
-          Enable reminders for workouts on the calendar and recurring meal reminders.
+          Enable reminders for workouts on the calendar and recurring meal
+          reminders.
         </Text>
         <View style={styles.modeRow}>
           <ModeButton
@@ -424,21 +468,30 @@ export default function SettingsScreen() {
           <>
             <Text style={styles.sectionTitle}>Workout reminders</Text>
             <Text style={styles.helper}>
-              Workouts with a time on your calendar will send a reminder at the scheduled time.
+              Workouts with a time on your calendar will send a reminder at the
+              scheduled time.
             </Text>
             <View style={styles.modeRow}>
               <ModeButton
                 label="On"
                 selected={notificationPrefs.workoutRemindersEnabled}
                 onPress={() =>
-                  updateNotificationToggle("workoutRemindersEnabled", true, "Workout reminders")
+                  updateNotificationToggle(
+                    "workoutRemindersEnabled",
+                    true,
+                    "Workout reminders",
+                  )
                 }
               />
               <ModeButton
                 label="Off"
                 selected={!notificationPrefs.workoutRemindersEnabled}
                 onPress={() =>
-                  updateNotificationToggle("workoutRemindersEnabled", false, "Workout reminders")
+                  updateNotificationToggle(
+                    "workoutRemindersEnabled",
+                    false,
+                    "Workout reminders",
+                  )
                 }
               />
             </View>
@@ -452,32 +505,47 @@ export default function SettingsScreen() {
                 label="On"
                 selected={notificationPrefs.mealRemindersEnabled}
                 onPress={() =>
-                  updateNotificationToggle("mealRemindersEnabled", true, "Meal reminders")
+                  updateNotificationToggle(
+                    "mealRemindersEnabled",
+                    true,
+                    "Meal reminders",
+                  )
                 }
               />
               <ModeButton
                 label="Off"
                 selected={!notificationPrefs.mealRemindersEnabled}
                 onPress={() =>
-                  updateNotificationToggle("mealRemindersEnabled", false, "Meal reminders")
+                  updateNotificationToggle(
+                    "mealRemindersEnabled",
+                    false,
+                    "Meal reminders",
+                  )
                 }
               />
             </View>
 
             {notificationPrefs.mealRemindersEnabled && (
               <View style={styles.notificationCard}>
-                {([
-                  ["Breakfast", "breakfastTime"],
-                  ["Lunch", "lunchTime"],
-                  ["Dinner", "dinnerTime"],
-                ] as Array<[string, MealTimeField]>).map(([label, field]) => (
+                {(
+                  [
+                    ["Breakfast", "breakfastTime"],
+                    ["Lunch", "lunchTime"],
+                    ["Dinner", "dinnerTime"],
+                  ] as Array<[string, MealTimeField]>
+                ).map(([label, field]) => (
                   <View key={field} style={styles.timeRow}>
                     <View>
                       <Text style={styles.timeLabel}>{label}</Text>
-                      <Text style={styles.timeValue}>{formatStoredTime(notificationPrefs[field])}</Text>
+                      <Text style={styles.timeValue}>
+                        {formatStoredTime(notificationPrefs[field])}
+                      </Text>
                     </View>
 
-                    <Pressable style={styles.timeButton} onPress={() => setActiveMealPicker(field)}>
+                    <Pressable
+                      style={styles.timeButton}
+                      onPress={() => setActiveMealPicker(field)}
+                    >
                       <Text style={styles.timeButtonText}>Change</Text>
                     </Pressable>
                   </View>
@@ -512,24 +580,28 @@ export default function SettingsScreen() {
         {/* Conversions from Metric to Imperial Units in UI */}
         <SectionHeader title="Measuring Units" />
         <Text style={styles.sectionTitle}>Preferred units</Text>
-        <Text style={styles.helper}>Unit preferences will be applied across the app.</Text>
+        <Text style={styles.helper}>
+          Unit preferences will be applied across the app.
+        </Text>
         <View style={styles.modeRow}>
           {/* When selected, units will be displayed in Metric (kg, cm, mL, L) */}
-          <ModeButton 
-          label="Metric" 
-          selected={!isImperial} 
-          onPress={() => setIsImperial(false)} 
+          <ModeButton
+            label="Metric"
+            selected={!isImperial}
+            onPress={() => setIsImperial(false)}
           />
           {/* When selected, units will be displayed in Imperial (lbs, inches, fl oz, gallons) */}
-          <ModeButton 
-          label="Imperial" 
-          selected={isImperial} 
-          onPress={() => setIsImperial(true)} 
+          <ModeButton
+            label="Imperial"
+            selected={isImperial}
+            onPress={() => setIsImperial(true)}
           />
         </View>
         <SectionHeader title="Account" />
-          <View style={styles.accountNested}>
-          {loading && <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />}
+        <View style={styles.accountNested}>
+          {loading && (
+            <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />
+          )}
           <Text style={[styles.helper, { marginBottom: 12 }]}>
             {currentUser
               ? `Signed in as ${currentUser.username ?? "User"} (${currentUser.email})`
@@ -565,7 +637,11 @@ export default function SettingsScreen() {
                 onChange={(item) => setPGymLocation(item.value)}
               />
             </View>
-            <ActionButton label="Save Profile" onPress={doUpdateProfile} disabled={loading} />
+            <ActionButton
+              label="Save Profile"
+              onPress={doUpdateProfile}
+              disabled={loading}
+            />
           </View>
 
           <View style={styles.accountSubsection}>
@@ -586,6 +662,19 @@ export default function SettingsScreen() {
               label="Change Password"
               onPress={doChangePassword}
               disabled={loading || !cCurrent || !cNew}
+              variant="secondary"
+            />
+          </View>
+
+          <View style={styles.accountSubsection}>
+            <Text style={styles.accountSubsectionTitle}>Session</Text>
+            <Text style={[styles.helper, { marginBottom: 10 }]}>
+              Log out of this account and return to the login screen.
+            </Text>
+            <ActionButton
+              label="Log Out"
+              onPress={doLogout}
+              disabled={loading}
               variant="secondary"
             />
           </View>
@@ -628,8 +717,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(0,0,0,0.15)",
     paddingBottom: 6,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 14, marginBottom: 6 },
-    accountSubsectionTitle: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  accountSubsectionTitle: {
     fontSize: 15,
     fontWeight: "800",
     marginTop: 18,
@@ -665,7 +759,12 @@ const styles = StyleSheet.create({
   statusErr: { backgroundColor: "#f8d7da" },
   statusText: { fontWeight: "600", fontSize: 13 },
   fieldWrapper: { marginBottom: 10 },
-  fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4, opacity: 0.75 },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+    opacity: 0.75,
+  },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 10,
