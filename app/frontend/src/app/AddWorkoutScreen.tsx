@@ -7,7 +7,7 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { Dropdown } from "react-native-element-dropdown";
 
 import ForgeButton from "@/components/ForgeButton";
@@ -460,330 +460,338 @@ export default function AddWorkoutScreen() {
   const styles = stylesProvider();
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Log Workout</Text>
+    <>
+      <Stack.Screen
+        options={{
+          headerBackTitle: "Back",
+          headerTitle: "Log Workout",
+        }}
+      />
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={styles.title}>Log Workout</Text>
 
-        <Text style={styles.label}>Date and split</Text>
-        <View style={styles.row}>
-          <View style={styles.dateBox}>
-            <TextInput
-              style={styles.input}
-              value={sessionDate}
-              onChangeText={(value) => setSessionDate(formatDateInput(value))}
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor={s.secondaryText}
-              keyboardType="number-pad"
-            />
-          </View>
-
-          <View style={styles.splitBox}>
-            <TextInput
-              style={styles.input}
-              value={splitName}
-              onChangeText={(value) => {
-                setSplitName(value);
-                setShowSplitSuggestions(true);
-              }}
-              onFocus={() => setShowSplitSuggestions(true)}
-              placeholder="e.g. Pull Day"
-              placeholderTextColor={s.secondaryText}
-            />
-          </View>
-        </View>
-
-        {showSplitSuggestions && splitSuggestions.length > 0 && (
-          <View style={styles.suggestionCard}>
-            {splitSuggestions.map((session) => (
-              <Pressable
-                key={session.session_id}
-                style={styles.suggestionItem}
-                onPress={() => {
-                  setSplitName(session.split_name ?? "");
-                  setSessionDate(isoToDisplayDate(session.date));
-                  setShowSplitSuggestions(false);
-                }}
-              >
-                <Text style={styles.suggestionTitle}>
-                  {session.split_name ?? "Unknown Split"}
-                </Text>
-                <Text style={styles.suggestionSubtitle}>
-                  {isoToDisplayDate(session.date)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Muscle group</Text>
-        <Dropdown
-          style={styles.dropdown}
-          data={workoutOptions}
-          labelField="label"
-          valueField="value"
-          value={selectedWorkoutId}
-          placeholder="Select muscle group"
-          placeholderStyle={styles.dropdownPlaceholder}
-          selectedTextStyle={styles.dropdownSelectedText}
-          containerStyle={styles.dropdownContainer}
-          itemContainerStyle={styles.dropdownItemContainer}
-          itemTextStyle={styles.dropdownItemText}
-          onChange={(item) => setSelectedWorkoutId(item.value)}
-          renderItem={(item) => {
-            const isSelected = item.value === selectedWorkoutId;
-
-            return (
-              <View
-                style={[
-                  styles.dropdownOption,
-                  { backgroundColor: isSelected ? s.buttonBg : s.background },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    { color: isSelected ? "#fff" : s.text },
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            );
-          }}
-        />
-
-        <Text style={styles.sectionTitle}>Add exercise</Text>
-
-        <Text style={styles.subsectionTitle}>Exercise</Text>
-        <Dropdown
-          style={styles.dropdown}
-          data={exerciseOptions}
-          labelField="label"
-          valueField="value"
-          value={selectedExerciseName}
-          placeholder="Select exercise"
-          placeholderStyle={styles.dropdownPlaceholder}
-          selectedTextStyle={styles.dropdownSelectedText}
-          containerStyle={styles.dropdownContainer}
-          itemContainerStyle={styles.dropdownItemContainer}
-          itemTextStyle={styles.dropdownItemText}
-          inputSearchStyle={styles.dropdownSearchInput}
-          search
-          searchPlaceholder="Search exercises"
-          onChange={(item) => setSelectedExerciseName(item.value)}
-          renderItem={(item) => {
-            const isSelected = item.value === selectedExerciseName;
-
-            return (
-              <View
-                style={[
-                  styles.dropdownOption,
-                  { backgroundColor: isSelected ? s.buttonBg : s.background },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    { color: isSelected ? "#fff" : s.text },
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            );
-          }}
-        />
-
-        <Text style={styles.subsectionTitle}>Machine</Text>
-        <Dropdown
-          style={[styles.dropdown, styles.machineDropdown]}
-          data={machineOptions}
-          labelField="label"
-          valueField="value"
-          value={selectedMachineId}
-          placeholder="Select machine"
-          placeholderStyle={styles.dropdownPlaceholder}
-          selectedTextStyle={styles.dropdownSelectedText}
-          containerStyle={styles.dropdownContainer}
-          itemContainerStyle={styles.dropdownItemContainer}
-          itemTextStyle={styles.dropdownItemText}
-          onChange={(item) => setSelectedMachineId(item.value)}
-          renderItem={(item) => {
-            const isSelected = item.value === selectedMachineId;
-
-            return (
-              <View
-                style={[
-                  styles.dropdownOption,
-                  { backgroundColor: isSelected ? s.buttonBg : s.background },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dropdownOptionText,
-                    { color: isSelected ? "#fff" : s.text },
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            );
-          }}
-        />
-
-        <View style={styles.row}>
-          <View style={styles.exerciseInputCol}>
-            <View style={styles.row}>
-              <View style={styles.half}>
-                <Text style={styles.label}>Weight (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={weight}
-                  onChangeText={setWeight}
-                  keyboardType="numeric"
-                  placeholder="25"
-                  placeholderTextColor={s.secondaryText}
-                />
-              </View>
-              <View style={styles.half}>
-                <Text style={styles.label}>Sets</Text>
-                <TextInput
-                  style={styles.input}
-                  value={sets}
-                  onChangeText={setSets}
-                  keyboardType="numeric"
-                  placeholder="3"
-                  placeholderTextColor={s.secondaryText}
-                />
-              </View>
-            </View>
-            <View>
-              <Text style={styles.label}>Reps</Text>
+          <Text style={styles.label}>Date and split</Text>
+          <View style={styles.row}>
+            <View style={styles.dateBox}>
               <TextInput
                 style={styles.input}
-                value={reps}
-                onChangeText={setReps}
-                keyboardType="numeric"
-                placeholder="10"
+                value={sessionDate}
+                onChangeText={(value) => setSessionDate(formatDateInput(value))}
+                placeholder="MM/DD/YYYY"
+                placeholderTextColor={s.secondaryText}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <View style={styles.splitBox}>
+              <TextInput
+                style={styles.input}
+                value={splitName}
+                onChangeText={(value) => {
+                  setSplitName(value);
+                  setShowSplitSuggestions(true);
+                }}
+                onFocus={() => setShowSplitSuggestions(true)}
+                placeholder="e.g. Pull Day"
                 placeholderTextColor={s.secondaryText}
               />
             </View>
           </View>
 
-          <View style={styles.tailorCol}>
-            <ForgeButton
-              text="Tailor"
-              color={s.buttonBg}
-              onPress={() => {
-                void handleTailor();
-              }}
-              style={styles.tailorBtn}
-            />
-          </View>
-        </View>
-
-        <ForgeButton
-          text="Add Exercise"
-          onPress={addExercise}
-          color={s.buttonSecondaryBg}
-        />
-
-        <Text style={styles.sectionTitle}>Current exercises</Text>
-        {exerciseList.length === 0 ? (
-          <Text style={styles.empty}>No exercises added</Text>
-        ) : (
-          exerciseList.map((ex, idx) => (
-            <View key={`${ex.name}-${idx}`} style={styles.card}>
-              <Text style={styles.cardTitle}>{ex.name}</Text>
-              <Text>{`${ex.sets} x ${ex.reps}${ex.weight ? ` @ ${ex.weight} lbs` : ""} (${ex.machine_name})`}</Text>
+          {showSplitSuggestions && splitSuggestions.length > 0 && (
+            <View style={styles.suggestionCard}>
+              {splitSuggestions.map((session) => (
+                <Pressable
+                  key={session.session_id}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setSplitName(session.split_name ?? "");
+                    setSessionDate(isoToDisplayDate(session.date));
+                    setShowSplitSuggestions(false);
+                  }}
+                >
+                  <Text style={styles.suggestionTitle}>
+                    {session.split_name ?? "Unknown Split"}
+                  </Text>
+                  <Text style={styles.suggestionSubtitle}>
+                    {isoToDisplayDate(session.date)}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
-          ))
-        )}
+          )}
 
-        <Text style={styles.sectionTitle}>Duration</Text>
+          <Text style={styles.sectionTitle}>Muscle group</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={workoutOptions}
+            labelField="label"
+            valueField="value"
+            value={selectedWorkoutId}
+            placeholder="Select muscle group"
+            placeholderStyle={styles.dropdownPlaceholder}
+            selectedTextStyle={styles.dropdownSelectedText}
+            containerStyle={styles.dropdownContainer}
+            itemContainerStyle={styles.dropdownItemContainer}
+            itemTextStyle={styles.dropdownItemText}
+            onChange={(item) => setSelectedWorkoutId(item.value)}
+            renderItem={(item) => {
+              const isSelected = item.value === selectedWorkoutId;
 
-        <View style={styles.timerCard}>
-          <Text style={styles.timerDisplay}>
-            {formatElapsed(elapsedSeconds)}
-          </Text>
-          <View style={styles.timerButtonRow}>
-            <ForgeButton
-              text={
-                timerRunning
-                  ? "Stop Timer"
-                  : elapsedSeconds > 0
-                    ? "Resume Timer"
-                    : "Start Timer"
-              }
-              color={timerRunning ? s.dangerColor : s.buttonBg}
-              compact
-              style={styles.timerToggleBtn}
-              onPress={handleToggleTimer}
-            />
-            <ForgeButton
-              text="Save to Duration"
-              color={s.buttonSecondaryBg}
-              compact
-              style={styles.timerToggleBtn}
-              onPress={handleSaveTimerToDuration}
-              disabled={elapsedSeconds === 0}
-            />
-          </View>
-        </View>
+              return (
+                <View
+                  style={[
+                    styles.dropdownOption,
+                    { backgroundColor: isSelected ? s.buttonBg : s.background },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownOptionText,
+                      { color: isSelected ? "#fff" : s.text },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </View>
+              );
+            }}
+          />
 
-        <Text style={styles.label}>Or enter manually</Text>
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <Text style={styles.label}>Minutes</Text>
-            <TextInput
-              style={styles.input}
-              value={durationMinutes}
-              onChangeText={setDurationMinutes}
-              keyboardType="number-pad"
-              placeholder="45"
-              placeholderTextColor={s.secondaryText}
-            />
-          </View>
-          <View style={styles.half}>
-            <Text style={styles.label}>Seconds</Text>
-            <TextInput
-              style={styles.input}
-              value={durationSeconds}
-              onChangeText={setDurationSeconds}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor={s.secondaryText}
-            />
-          </View>
-        </View>
+          <Text style={styles.sectionTitle}>Add exercise</Text>
 
-        <ForgeButton
-          text={saving ? "Saving..." : "Log Workout"}
-          onPress={() => {
-            void handleSave();
-          }}
-          color={s.buttonBg}
-          disabled={saving}
-        />
-        <ForgeButton
-          text="Back"
-          onPress={() => router.back()}
-          color={s.neutralColor}
-        />
+          <Text style={styles.subsectionTitle}>Exercise</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={exerciseOptions}
+            labelField="label"
+            valueField="value"
+            value={selectedExerciseName}
+            placeholder="Select exercise"
+            placeholderStyle={styles.dropdownPlaceholder}
+            selectedTextStyle={styles.dropdownSelectedText}
+            containerStyle={styles.dropdownContainer}
+            itemContainerStyle={styles.dropdownItemContainer}
+            itemTextStyle={styles.dropdownItemText}
+            inputSearchStyle={styles.dropdownSearchInput}
+            search
+            searchPlaceholder="Search exercises"
+            onChange={(item) => setSelectedExerciseName(item.value)}
+            renderItem={(item) => {
+              const isSelected = item.value === selectedExerciseName;
 
-        <Modal visible={tailorModalVisible} transparent animationType="fade">
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <ActivityIndicator size="large" color={s.buttonBg} />
-              <Text style={styles.modalTitle}>Tailoring your workout</Text>
-              <Text style={styles.modalSubtitle}>
-                Finding the ideal weight, sets & reps for{"\n"}
-                {selectedExerciseName || "your exercise"}...
-              </Text>
+              return (
+                <View
+                  style={[
+                    styles.dropdownOption,
+                    { backgroundColor: isSelected ? s.buttonBg : s.background },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownOptionText,
+                      { color: isSelected ? "#fff" : s.text },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+
+          <Text style={styles.subsectionTitle}>Machine</Text>
+          <Dropdown
+            style={[styles.dropdown, styles.machineDropdown]}
+            data={machineOptions}
+            labelField="label"
+            valueField="value"
+            value={selectedMachineId}
+            placeholder="Select machine"
+            placeholderStyle={styles.dropdownPlaceholder}
+            selectedTextStyle={styles.dropdownSelectedText}
+            containerStyle={styles.dropdownContainer}
+            itemContainerStyle={styles.dropdownItemContainer}
+            itemTextStyle={styles.dropdownItemText}
+            onChange={(item) => setSelectedMachineId(item.value)}
+            renderItem={(item) => {
+              const isSelected = item.value === selectedMachineId;
+
+              return (
+                <View
+                  style={[
+                    styles.dropdownOption,
+                    { backgroundColor: isSelected ? s.buttonBg : s.background },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownOptionText,
+                      { color: isSelected ? "#fff" : s.text },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+
+          <View style={styles.row}>
+            <View style={styles.exerciseInputCol}>
+              <View style={styles.row}>
+                <View style={styles.half}>
+                  <Text style={styles.label}>Weight (optional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={weight}
+                    onChangeText={setWeight}
+                    keyboardType="numeric"
+                    placeholder="25"
+                    placeholderTextColor={s.secondaryText}
+                  />
+                </View>
+                <View style={styles.half}>
+                  <Text style={styles.label}>Sets</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={sets}
+                    onChangeText={setSets}
+                    keyboardType="numeric"
+                    placeholder="3"
+                    placeholderTextColor={s.secondaryText}
+                  />
+                </View>
+              </View>
+              <View>
+                <Text style={styles.label}>Reps</Text>
+                <TextInput
+                  style={styles.input}
+                  value={reps}
+                  onChangeText={setReps}
+                  keyboardType="numeric"
+                  placeholder="10"
+                  placeholderTextColor={s.secondaryText}
+                />
+              </View>
+            </View>
+
+            <View style={styles.tailorCol}>
+              <ForgeButton
+                text="Tailor"
+                color={s.buttonBg}
+                onPress={() => {
+                  void handleTailor();
+                }}
+                style={styles.tailorBtn}
+              />
             </View>
           </View>
-        </Modal>
-      </ScrollView>
-    </View>
+
+          <ForgeButton
+            text="Add Exercise"
+            onPress={addExercise}
+            color={s.buttonSecondaryBg}
+          />
+
+          <Text style={styles.sectionTitle}>Current exercises</Text>
+          {exerciseList.length === 0 ? (
+            <Text style={styles.empty}>No exercises added</Text>
+          ) : (
+            exerciseList.map((ex, idx) => (
+              <View key={`${ex.name}-${idx}`} style={styles.card}>
+                <Text style={styles.cardTitle}>{ex.name}</Text>
+                <Text>{`${ex.sets} x ${ex.reps}${ex.weight ? ` @ ${ex.weight} lbs` : ""} (${ex.machine_name})`}</Text>
+              </View>
+            ))
+          )}
+
+          <Text style={styles.sectionTitle}>Duration</Text>
+
+          <View style={styles.timerCard}>
+            <Text style={styles.timerDisplay}>
+              {formatElapsed(elapsedSeconds)}
+            </Text>
+            <View style={styles.timerButtonRow}>
+              <ForgeButton
+                text={
+                  timerRunning
+                    ? "Stop Timer"
+                    : elapsedSeconds > 0
+                      ? "Resume Timer"
+                      : "Start Timer"
+                }
+                color={timerRunning ? s.dangerColor : s.buttonBg}
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleToggleTimer}
+              />
+              <ForgeButton
+                text="Save to Duration"
+                color={s.buttonSecondaryBg}
+                compact
+                style={styles.timerToggleBtn}
+                onPress={handleSaveTimerToDuration}
+                disabled={elapsedSeconds === 0}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Or enter manually</Text>
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.label}>Minutes</Text>
+              <TextInput
+                style={styles.input}
+                value={durationMinutes}
+                onChangeText={setDurationMinutes}
+                keyboardType="number-pad"
+                placeholder="45"
+                placeholderTextColor={s.secondaryText}
+              />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.label}>Seconds</Text>
+              <TextInput
+                style={styles.input}
+                value={durationSeconds}
+                onChangeText={setDurationSeconds}
+                keyboardType="number-pad"
+                placeholder="0"
+                placeholderTextColor={s.secondaryText}
+              />
+            </View>
+          </View>
+
+          <ForgeButton
+            text={saving ? "Saving..." : "Log Workout"}
+            onPress={() => {
+              void handleSave();
+            }}
+            color={s.buttonBg}
+            disabled={saving}
+          />
+          <ForgeButton
+            text="Back"
+            onPress={() => router.back()}
+            color={s.neutralColor}
+          />
+
+          <Modal visible={tailorModalVisible} transparent animationType="fade">
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <ActivityIndicator size="large" color={s.buttonBg} />
+                <Text style={styles.modalTitle}>Tailoring your workout</Text>
+                <Text style={styles.modalSubtitle}>
+                  Finding the ideal weight, sets & reps for{"\n"}
+                  {selectedExerciseName || "your exercise"}...
+                </Text>
+              </View>
+            </View>
+          </Modal>
+        </ScrollView>
+      </View>
+    </>
   );
 }
