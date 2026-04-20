@@ -1,38 +1,38 @@
-import React from 'react';
-import LoginButton from '../components/ForgeButton';
-import LoginTextBox from '../components/ForgeTextBox';
-import { StyleSheet, View, Text } from 'react-native';
-import { useRouter } from 'expo-router/build/exports';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-import { useAuth } from '@/core/auth';
-import { setToken } from '@/core/api';
-import { Schemes } from '@/constants/Colors';
-import { useAppColorScheme } from '@/core/accessibility';
+import React from "react";
+import LoginButton from "../components/ForgeButton";
+import LoginTextBox from "../components/ForgeTextBox";
+import { StyleSheet, View, Text } from "react-native";
+import { useRouter } from "expo-router/build/exports";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import { useAuth } from "@/core/auth";
+import { setToken } from "@/core/api";
+import { Schemes } from "@/constants/Colors";
+import { useAppColorScheme } from "@/core/accessibility";
 
-const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const expoHost = Constants.expoConfig?.hostUri?.split(":")[0];
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  (Platform.OS === 'web'
-    ? 'http://localhost:8000'
+  (Platform.OS === "web"
+    ? "http://localhost:8000"
     : expoHost
       ? `http://${expoHost}:8000`
-      : 'http://localhost:8000');
+      : "http://localhost:8000");
 
 const CreateAccountScreen = () => {
   const router = useRouter();
   const { setLoggedIn, setCurrentUser } = useAuth();
-  const scheme = useAppColorScheme() ?? 'light';
+  const scheme = useAppColorScheme() ?? "light";
 
-  const [email, setEmail] = React.useState('');
-  const [username, setUsername] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [email, setEmail] = React.useState("");
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   const createAccount = async () => {
     try {
       const response = await fetch(`${BASE_URL}/auth/create_account`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email,
           username: username,
@@ -50,7 +50,7 @@ const CreateAccountScreen = () => {
       }
 
       if (!response.ok) {
-        alert(`Error: ${data?.detail ?? raw ?? 'Request failed'}`);
+        alert(`Error: ${data?.detail ?? raw ?? "Request failed"}`);
       } else {
         setToken(data.access_token ?? null);
         setCurrentUser({
@@ -58,10 +58,10 @@ const CreateAccountScreen = () => {
           username: username,
         });
         setLoggedIn(true);
-        router.replace('/onboarding');
+        router.replace("/onboarding");
       }
     } catch (error) {
-      console.log('Full error:', error);
+      console.log("Full error:", error);
       alert(`Server did not connect properly. API: ${BASE_URL}`);
     }
   };
@@ -73,12 +73,7 @@ const CreateAccountScreen = () => {
         { backgroundColor: Schemes[scheme].background },
       ]}
     >
-      <Text
-        style={[
-          styles.title,
-          { color: Schemes[scheme].text },
-        ]}
-      >
+      <Text style={[styles.title, { color: Schemes[scheme].text }]}>
         Create Account
       </Text>
 
@@ -103,6 +98,10 @@ const CreateAccountScreen = () => {
       />
 
       <LoginButton onPress={createAccount} text="Create Account" />
+      <LoginButton
+        onPress={() => router.replace("/loginScreen")}
+        text="Back to Login"
+      />
     </View>
   );
 };
@@ -110,14 +109,14 @@ const CreateAccountScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   title: {
     fontSize: 24,
     marginBottom: 30,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 
