@@ -138,6 +138,14 @@ class Reports(Base):
     description = Column(Text, nullable=False)
     created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+class InboxNotifications(Base):
+    __tablename__ = "InboxNotifications"
+    NotificationID = Column(Integer, primary_key=True, autoincrement=True)
+    ProfileID    = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False)
+    message        = Column(Text, nullable=False)
+    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    data           = Column(Text, default="{\"type\": \"generic\"}")  # JSON blob for any additional data (e.g., PostID for a like notification)
+
 class Likes(Base):
     __tablename__ = 'Likes'
     PostID = Column(Integer, primary_key=True, nullable=False)

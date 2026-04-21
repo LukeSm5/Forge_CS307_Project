@@ -564,34 +564,33 @@ look pleasing on a graph.
   // TODO: hookup with api 🤙
   // not a vibe coded comment just thought the emoji was fun here
   getNotifications: async (): Promise<Notification[]> => {
-    return [
-      {
-        id: 1,
-        type: 'friend_request',
-        message: 'JohnDoe has sent you a friend request.',
-        timestamp: new Date().getTime(),
-        data: { requesterId: 123, requesterUsername: 'JohnDoe' },
-      },
-      {
-        id: 2,
-        type: 'generic',
-        message: 'Your workout summary is ready to view.',
-        timestamp: new Date().getTime() + 100,
-      },
-      {
-        id: 3,
-        type: 'generic',
-        message: 'Your meal summary is ready to view.',
-        timestamp: new Date().getTime() - 100_000,
-      },
-      {
-        id: 4,
-        type: 'view_post',
-        message: 'JaneSmith has made a new post in the community forum.',
-        timestamp: new Date().getTime() - 50_000,
-        data: { postId: 456, posterUsername: 'JaneSmith' },
+    const notifications = [];
+    const rawNotifications = await get<UnformattedNotification[]>('/inbox');
+    for (const notif of rawNotifications) {
+      const notifType: NotificationType = notif.data.type as NotificationType || 'generic';
+      const data: Record<string, unknown> = {};
+
+      switch (notifType) {
+        case 'friend_request':
+          data.requesterId = (notif.data as any).requesterId;
+          data.requesterUsername = (notif.data as any).requesterUsername;
+          break;
+        case 'view_post':
+          data.postId = (notif.data as any).postId;
+          data.posterUsername = (notif.data as any).posterUsername;
+          break;
       }
-    ];
+
+      notifications.push({
+        id: notif.id,
+        type: notifType,
+        message: notif.message,
+        timestamp: notif.timestamp,
+        data,
+      });
+    }
+
+    return notifications;
   },
 
 
@@ -1039,6 +1038,13 @@ export type ProfileStreak = {
   current_week_active: boolean;
   last_workout_date: string | null;
 };
+
+export type UnformattedNotification = {
+  id: number;
+  message: string;
+  timestamp: number;
+  data?: Record<string, unknown>;
+}
 
 export type Notification = {
   id: number;

@@ -84,7 +84,7 @@ export default function ProfilesTab() {
     inputBg: scheme.background,
     inputBorder: scheme.neutralColor,
     placeholder: scheme.secondaryText,
-    orange: scheme.tint,
+    orange: scheme.buttonBg,
     orangeGlow: scheme.buttonBg,
     red: scheme.dangerColor,
     friendBg: scheme.secondaryBackground,

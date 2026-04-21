@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports
+from app.core.db import Accounts, InboxNotifications, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -2222,6 +2222,31 @@ def get_profile_streak(
     return _calculate_workout_streak(db, profile_id)
 
 
+def add_notification(db: Session, profile_id: int, message: str, data: str = None):
+    db.add(InboxNotifications(ProfileID=profile_id, message=message, data=data, created_at=datetime.now(timezone.utc)))
+    db.commit()
+
+
+@app.get("/inbox")
+def get_inbox_notifications(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
+    rows = (
+        db.query(InboxNotifications)
+        .filter(InboxNotifications.ProfileID == me.UserID)
+        .order_by(InboxNotifications.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": n.NotificationID,
+            "message": n.message,
+            "timestamp": n.created_at.timestamp(),
+            "data": json.loads(n.data) if n.data else None,
+        }
+        for n in rows
+    ]
+
+
 @app.post("/friends/request")
 def send_friend_request(
     payload: FriendAddresseePayload, 
@@ -2254,6 +2279,9 @@ def send_friend_request(
         status="pending",
     ))
     db.commit()
+
+    add_notification(db, payload.addressee_id, f"{me.username} sent you a friend request", data=json.dumps({"type": "friend_request", "requesterId": me.UserID, "requesterUsername": me.username}))
+
     return {"ok": True, "status": "pending"}
 
 

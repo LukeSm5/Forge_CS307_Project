@@ -40,10 +40,12 @@ export default function NotificationComponent({ notification }: { notification: 
         );
     }
 
+    console.log("timestamp: ", notification.timestamp);
+
     return (
         <View style={{ ...styles.container, boxShadow: `3px 3px 10px ${s.shadow}`, }}>
             <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <Text style={{ marginBottom: 10 }}>{new Date(notification.timestamp).toLocaleString()}</Text>
+                <Text style={{ marginBottom: 10 }}>{new Date(notification.timestamp * 1000).toLocaleString()}</Text>
                 <Text style={styles.title}>{notification.message}</Text>
             </View>
             <Separator />
