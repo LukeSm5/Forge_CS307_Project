@@ -1,168 +1,33 @@
-import React, { useEffect, useMemo, useState } from "react";
 import {
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ScrollView,
   ActivityIndicator,
   Platform,
+  Pressable,
+  ScrollView,
 } from "react-native";
-import Slider from "@react-native-community/slider";
+import { setToken } from "@/core/api";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { View, Text } from "@/components/Themed";
-import { useAccessibility, useAppColorScheme } from "@/core/accessibility";
-import { Schemes } from "@/constants/Colors";
-import { api, setToken, User } from "@/core/api";
-import { useAuth } from "@/core/auth";
-import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
-import DeleteAccountBanner from "@/components/deleteAccount/DeleteAccountBanner";
-import { useRouter, Stack } from "expo-router";
-import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  NotificationPreferences,
-  dateFromStoredTime,
-  loadCalendarAndRescheduleNotificationsAsync,
-  loadNotificationPreferencesAsync,
-  requestNotificationPermissionsAsync,
-  saveNotificationPreferencesAsync,
-  timeStringFromDate,
-} from "@/core/notifications";
-import { useUnits } from "@/core/conversions";
 import { Dropdown } from "react-native-element-dropdown";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-type Status = { type: "ok" | "err"; msg: string } | null;
-type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
+import React, { useEffect, useMemo, useState } from "react";
 
-function ModeButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.modeBtn, selected && styles.modeBtnSelected]}
-    >
-      <Text
-        style={[styles.modeBtnText, selected && styles.modeBtnTextSelected]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+import { ActionButton } from "@/components/settings/ActionButton";
+import {
+  dateFromStoredTime,
+} from "@/core/notifications";
+import DeleteAccountBanner from "@/components/deleteAccount/DeleteAccountBanner";
+import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton";
+import { Field } from "@/components/settings/Field";
+import { ModeButton } from "@/components/settings/ModeButton";
+import { useSettings, MealTimeField } from "@/components/settings/settingsHook";
+import { styles } from "@/app/settings.Style"
+import { StatusBanner } from "@/components/settings/StatusBanner";
+import Slider from "@react-native-community/slider";
+import { View, Text } from "@/components/Themed";
+import { useAccessibility } from "@/core/accessibility";
+import { useRouter, Stack } from "expo-router";
+import { useUnits } from "@/core/conversions";
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
-}
-
-function StatusBanner({ status }: { status: Status }) {
-  if (!status) return null;
-  return (
-    <View
-      style={[
-        styles.statusBanner,
-        status.type === "ok" ? styles.statusOk : styles.statusErr,
-      ]}
-    >
-      <Text style={styles.statusText}>{status.msg}</Text>
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry,
-  multiline,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder?: string;
-  secureTextEntry?: boolean;
-  multiline?: boolean;
-}) {
-  const scheme = useAppColorScheme() ?? "light";
-  const isDark = scheme === "dark";
-
-  return (
-    <View style={styles.fieldWrapper}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[
-          styles.input,
-          multiline && styles.inputMultiline,
-          {
-            color: Schemes[scheme].text,
-            borderColor: isDark ? "#6b7280" : "rgba(0,0,0,0.25)",
-            backgroundColor: isDark ? "#111827" : "#ffffff",
-          },
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        secureTextEntry={secureTextEntry}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        placeholderTextColor={isDark ? "#9ca3af" : "rgba(0,0,0,0.35)"}
-        selectionColor="#2f80ed"
-      />
-    </View>
-  );
-}
-
-function ActionButton({
-  label,
-  onPress,
-  disabled,
-  variant,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  variant?: "primary" | "secondary" | "danger";
-}) {
-  const scheme = useAppColorScheme() ?? "light";
-  const isDark = scheme === "dark";
-
-  const variantStyle =
-    variant === "danger"
-      ? styles.btnDanger
-      : variant === "secondary"
-        ? [
-            styles.btnSecondary,
-            {
-              borderColor: isDark ? "#60a5fa" : "rgba(0,0,0,0.3)",
-              backgroundColor: isDark ? "rgba(96,165,250,0.10)" : "transparent",
-            },
-          ]
-        : styles.btnPrimary;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.btn, variantStyle, disabled && styles.btnDisabled]}
-    >
-      <Text
-        style={[
-          styles.btnText,
-          variant === "secondary" && {
-            color: isDark ? "#93c5fd" : "#2f80ed",
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
 }
 
 function formatStoredTime(storedTime: string) {
@@ -173,23 +38,17 @@ function formatStoredTime(storedTime: string) {
 }
 
 export default function SettingsScreen() {
+  const {loading, status, user, pUsername, setPUsername,
+    pBio, setPBio, pGymLocation, setPGymLocation,
+    notificationLoading, notificationPrefs, refreshMe, refreshNotificationPrefs,
+    refreshGymLocations, updateNotificationsEnabled, updateNotificationToggle,
+    updateMealTime, doUpdateProfile, doChangePassword, doLogout, setUser, setStatus,
+    gymLocations, setGymLocations, cCurrent, setCCurrent, cNew, setCNew,
+    setCurrentUser, setLoggedIn, currentUser} = useSettings();
   const { colorMode, setColorMode, textScale, setTextScale } =
     useAccessibility();
-  const { currentUser, setCurrentUser, setLoggedIn } = useAuth();
-  const [status, setStatus] = useState<Status>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [notificationLoading, setNotificationLoading] = useState(true);
-  const [notificationPrefs, setNotificationPrefs] =
-    useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
   const [activeMealPicker, setActiveMealPicker] =
     useState<MealTimeField | null>(null);
-  const [pUsername, setPUsername] = useState("");
-  const [pBio, setPBio] = useState("");
-  const [pGymLocation, setPGymLocation] = useState("Unknown Location");
-  const [gymLocations, setGymLocations] = useState<string[]>([]);
-  const [cCurrent, setCCurrent] = useState("");
-  const [cNew, setCNew] = useState("");
   const [accountDeleted, setAccountDeleted] = useState(false);
   const router = useRouter();
   const { isImperial, setIsImperial } = useUnits();
@@ -208,177 +67,11 @@ export default function SettingsScreen() {
     [gymLocations],
   );
 
-  async function refreshMe() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      const me = await api.me();
-      if (typeof me === "undefined") throw new Error("User not signed in.");
-      setUser(me);
-      setPUsername(me.username ?? "");
-      setPBio(me.bio ?? "");
-      setPBio(me.bio ?? "");
-      setPGymLocation(me.gym_location ?? "Unknown Location");
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function refreshNotificationPrefs() {
-    setNotificationLoading(true);
-    try {
-      const prefs = await loadNotificationPreferencesAsync();
-      setNotificationPrefs(prefs);
-    } finally {
-      setNotificationLoading(false);
-    }
-  }
-
-  async function refreshGymLocations() {
-    try {
-      const locations = await api.getGymLocations();
-      const withDefault = locations.includes("Unknown Location")
-        ? locations
-        : ["Unknown Location", ...locations];
-      setGymLocations(withDefault);
-    } catch {
-      setGymLocations(["Unknown Location"]);
-    }
-  }
-
   useEffect(() => {
     refreshMe();
     refreshNotificationPrefs();
     refreshGymLocations();
   }, []);
-
-  async function persistNotificationPrefs(
-    nextPrefs: NotificationPreferences,
-    successMessage: string,
-  ) {
-    setNotificationLoading(true);
-    setStatus(null);
-
-    try {
-      if (nextPrefs.notificationsEnabled) {
-        const granted = await requestNotificationPermissionsAsync();
-        if (!granted) {
-          const reverted = { ...nextPrefs, notificationsEnabled: false };
-          setNotificationPrefs(reverted);
-          await saveNotificationPreferencesAsync(reverted);
-          await loadCalendarAndRescheduleNotificationsAsync(reverted);
-          setStatus({
-            type: "err",
-            msg: "Notification permission was not granted, so reminders remain off.",
-          });
-          return;
-        }
-      }
-
-      setNotificationPrefs(nextPrefs);
-      await saveNotificationPreferencesAsync(nextPrefs);
-      await loadCalendarAndRescheduleNotificationsAsync(nextPrefs);
-      setStatus({ type: "ok", msg: successMessage });
-    } catch (e: any) {
-      setStatus({
-        type: "err",
-        msg: e?.message ?? "Unable to update notification settings.",
-      });
-    } finally {
-      setNotificationLoading(false);
-    }
-  }
-
-  async function updateNotificationsEnabled(enabled: boolean) {
-    await persistNotificationPrefs(
-      {
-        ...notificationPrefs,
-        notificationsEnabled: enabled,
-      },
-      enabled ? "Notifications enabled." : "Notifications disabled.",
-    );
-  }
-
-  async function updateNotificationToggle(
-    key: "workoutRemindersEnabled" | "mealRemindersEnabled",
-    enabled: boolean,
-    label: string,
-  ) {
-    await persistNotificationPrefs(
-      {
-        ...notificationPrefs,
-        [key]: enabled,
-      },
-      `${label} ${enabled ? "enabled" : "disabled"}.`,
-    );
-  }
-
-  async function updateMealTime(field: MealTimeField, date: Date) {
-    const nextPrefs = {
-      ...notificationPrefs,
-      [field]: timeStringFromDate(date),
-    };
-
-    await persistNotificationPrefs(nextPrefs, "Meal reminder time updated.");
-  }
-
-  async function doUpdateProfile() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      const updated = await api.updateMe({
-        username: pUsername || undefined,
-        bio: pBio ?? "",
-        gym_location: pGymLocation || "Unknown Location",
-      });
-      if (typeof updated === "undefined") throw new Error("User not signed in");
-      setUser(updated);
-      setStatus({ type: "ok", msg: "Profile updated." });
-    } catch (e: any) {
-      setStatus({ type: "err", msg: e.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function doChangePassword() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      const res = await api.changePassword({
-        current_password: cCurrent,
-        new_password: cNew,
-      });
-      if (typeof res === "undefined")
-        throw new Error("Password change failed.");
-      setCCurrent("");
-      setCNew("");
-      setStatus({ type: "ok", msg: "Password changed." });
-    } catch (e: any) {
-      setStatus({ type: "err", msg: e.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function doLogout() {
-    setLoading(true);
-    setStatus(null);
-    try {
-      await AsyncStorage.removeItem("refresh_token");
-      setToken(null);
-      setUser(null);
-      setCurrentUser(null);
-      setLoggedIn(false);
-      router.replace("/loginScreen");
-    } catch (e: any) {
-      setStatus({ type: "err", msg: e?.message ?? "Unable to log out." });
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <>
@@ -711,151 +404,3 @@ export default function SettingsScreen() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollContent: { flexGrow: 1 },
-  container: { flex: 1, padding: 16 },
-  pageTitle: { fontSize: 22, fontWeight: "800", marginBottom: 12 },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    opacity: 0.45,
-    marginTop: 28,
-    marginBottom: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.15)",
-    paddingBottom: 6,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  accountSubsectionTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 18,
-    marginBottom: 8,
-    opacity: 0.9,
-  },
-  helper: { opacity: 0.65, fontSize: 13, marginBottom: 4 },
-  modeRow: { flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" },
-  modeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.25)",
-  },
-  modeBtnSelected: { backgroundColor: "#2f80ed", borderColor: "#2f80ed" },
-  modeBtnText: { fontWeight: "700" },
-  modeBtnTextSelected: { color: "white" },
-  previewCard: {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.2)",
-  },
-  footerNote: { marginTop: 14, opacity: 0.55, fontSize: 12 },
-  statusBanner: {
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  statusOk: { backgroundColor: "#d4edda" },
-  statusErr: { backgroundColor: "#f8d7da" },
-  statusText: { fontWeight: "600", fontSize: 13 },
-  fieldWrapper: { marginBottom: 10 },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 4,
-    opacity: 0.75,
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 15,
-  },
-  inputMultiline: { minHeight: 72, textAlignVertical: "top" },
-  btn: {
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 6,
-    alignSelf: "flex-start",
-  },
-  btnPrimary: { backgroundColor: "#2f80ed" },
-  btnSecondary: {
-    backgroundColor: "transparent",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  btnDanger: { backgroundColor: "#e53935" },
-  btnDisabled: { opacity: 0.45 },
-  btnText: { color: "white", fontWeight: "700", fontSize: 14 },
-  notificationCard: {
-    marginTop: 10,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.15)",
-    backgroundColor: "rgba(47,128,237,0.04)",
-    gap: 12,
-  },
-  timeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
-  timeLabel: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  timeValue: {
-    marginTop: 2,
-    fontSize: 13,
-    opacity: 0.7,
-  },
-  timeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: "#2f80ed",
-  },
-  timeButtonText: {
-    color: "white",
-    fontWeight: "700",
-  },
-  pickerCard: {
-    marginTop: 8,
-    paddingTop: 4,
-  },
-
-  accountNested: {
-    marginLeft: 12,
-    paddingLeft: 14,
-    borderLeftWidth: 2,
-    borderLeftColor: "rgba(0,0,0,0.12)",
-  },
-
-  accountSubsection: {
-    marginTop: 18,
-  },
-
-  dropdown: {
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "#ffffff",
-  },
-});
