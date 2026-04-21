@@ -155,6 +155,9 @@ export default function ProfilesTab() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [friendsWorkouts, setFriendsWorkouts] = useState<WorkoutFeedPost[]>([]);
+  const [friendsFeedLoading, setFriendsFeedLoading] = useState(false);
+  const [friendsFeedError, setFriendsFeedError] = useState("");
   const [gymWorkouts, setGymWorkouts] = useState<WorkoutFeedPost[]>([]);
   const [gymFeedLoading, setGymFeedLoading] = useState(false);
   const [gymFeedError, setGymFeedError] = useState("");
@@ -199,6 +202,20 @@ export default function ProfilesTab() {
     }
   };
 
+  const loadFriendsWorkoutFeed = useCallback(async () => {
+    try {
+      setFriendsFeedLoading(true);
+      setFriendsFeedError("");
+      const rows = await api.getFriendsWorkoutFeed();
+      setFriendsWorkouts(rows);
+    } catch (e) {
+      console.error(e);
+      setFriendsFeedError("Could not load friend workouts right now.");
+    } finally {
+      setFriendsFeedLoading(false);
+    }
+  }, []);
+
   const loadGymWorkoutFeed = useCallback(async () => {
     try {
       setGymFeedLoading(true);
@@ -215,17 +232,22 @@ export default function ProfilesTab() {
 
   useFocusEffect(
     useCallback(() => {
-      if (activeSocialPanel !== "gym") return undefined;
-      void loadGymWorkoutFeed();
+      if (activeSocialPanel === "friends") {
+        void loadFriendsWorkoutFeed();
+      } else if (activeSocialPanel === "gym") {
+        void loadGymWorkoutFeed();
+      }
       return undefined;
-    }, [activeSocialPanel, loadGymWorkoutFeed]),
+    }, [activeSocialPanel, loadFriendsWorkoutFeed, loadGymWorkoutFeed]),
   );
 
   useEffect(() => {
-    if (activeSocialPanel === "gym") {
+    if (activeSocialPanel === "friends") {
+      void loadFriendsWorkoutFeed();
+    } else if (activeSocialPanel === "gym") {
       void loadGymWorkoutFeed();
     }
-  }, [activeSocialPanel, loadGymWorkoutFeed]);
+  }, [activeSocialPanel, loadFriendsWorkoutFeed, loadGymWorkoutFeed]);
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -300,9 +322,7 @@ export default function ProfilesTab() {
       };
 
       setResults((current) =>
-        current.map((item) =>
-          item.id === profile.id ? updatedProfile : item,
-        ),
+        current.map((item) => (item.id === profile.id ? updatedProfile : item)),
       );
       setProfileDetailModal({
         visible: true,
@@ -487,7 +507,83 @@ export default function ProfilesTab() {
           onSelectPanel={setActiveSocialPanel}
         />
 
-        {activeSocialPanel === "gym" ? (
+        {activeSocialPanel === "friends" ? (
+          <View
+            style={[
+              styles.headerCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            <Text style={[styles.eyebrow, { color: colors.orange }]}>
+              FRIENDS WORKOUT FEED
+            </Text>
+            <Text
+              style={[
+                styles.stateText,
+                { color: colors.muted, textAlign: "left" },
+              ]}
+            >
+              Recent workouts logged by users whose friend requests have been
+              accepted.
+            </Text>
+
+            {friendsFeedLoading ? (
+              <View
+                style={[
+                  styles.centerState,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                    marginTop: 12,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="small" />
+                <Text style={[styles.stateText, { color: colors.muted }]}>
+                  Loading friend posts...
+                </Text>
+              </View>
+            ) : friendsFeedError ? (
+              <Text style={[styles.errorText, { color: colors.red }]}>
+                {friendsFeedError}
+              </Text>
+            ) : friendsWorkouts.length === 0 ? (
+              <Text
+                style={[
+                  styles.stateText,
+                  { color: colors.muted, marginTop: 12, textAlign: "left" },
+                ]}
+              >
+                No workout posts from friends yet. Once an accepted friend logs
+                a workout, it will show up here.
+              </Text>
+            ) : (
+              <View style={styles.feedList}>
+                {friendsWorkouts.map((post) => (
+                  <WorkoutFeedCard
+                    key={`friend-${post.session_id}`}
+                    post={post}
+                    colors={{
+                      background: colors.cardBg,
+                      secondaryBackground: colors.soft,
+                      border: colors.border,
+                      text: colors.text,
+                      muted: colors.muted,
+                      tint: colors.orange,
+                      buttonBg: colors.buttonBg,
+                      buttonSecondaryBg: colors.buttonSecondaryBg,
+                      buttonText: colors.buttonText,
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : activeSocialPanel === "gym" ? (
           <View
             style={[
               styles.headerCard,
@@ -545,7 +641,7 @@ export default function ProfilesTab() {
               <View style={styles.feedList}>
                 {gymWorkouts.map((post) => (
                   <WorkoutFeedCard
-                    key={post.session_id}
+                    key={`gym-${post.session_id}`}
                     post={post}
                     colors={{
                       background: colors.cardBg,
@@ -1055,7 +1151,10 @@ export default function ProfilesTab() {
 
                 <View style={styles.profileDetailSection}>
                   <Text
-                    style={[styles.profileDetailLabel, { color: colors.orange }]}
+                    style={[
+                      styles.profileDetailLabel,
+                      { color: colors.orange },
+                    ]}
                   >
                     Gym
                   </Text>
@@ -1067,7 +1166,10 @@ export default function ProfilesTab() {
 
                 <View style={styles.profileDetailSection}>
                   <Text
-                    style={[styles.profileDetailLabel, { color: colors.orange }]}
+                    style={[
+                      styles.profileDetailLabel,
+                      { color: colors.orange },
+                    ]}
                   >
                     Bio
                   </Text>

@@ -680,6 +680,10 @@ look pleasing on a graph.
     return get<WorkoutFeedPost[]>('/feed/workouts/gym');
   },
 
+  getFriendsWorkoutFeed: async (): Promise<WorkoutFeedPost[]> => {
+    return get<WorkoutFeedPost[]>('/feed/workouts/friends');
+  },
+
   acceptFriendRequest: async (requesterId: number): Promise<void> => {
     await post<{ ok: boolean }>('/friends/accept', { requester_id: requesterId });
   },

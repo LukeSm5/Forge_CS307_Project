@@ -1464,6 +1464,58 @@ def _blocked_user_ids(db: Session, user_id: int) -> set[int]:
     return blocked_ids
 
 
+def _accepted_friend_ids(db: Session, user_id: int) -> set[int]:
+    rows = (
+        db.query(Friendships)
+        .filter(Friendships.status == "accepted")
+        .filter(
+            or_(
+                Friendships.RequesterID == user_id,
+                Friendships.AddresseeID == user_id,
+            )
+        )
+        .all()
+    )
+
+    friend_ids: set[int] = set()
+    for row in rows:
+        if row.RequesterID == user_id:
+            friend_ids.add(row.AddresseeID)
+        else:
+            friend_ids.add(row.RequesterID)
+    return friend_ids
+
+
+def _build_workout_feed_posts(db: Session, rows) -> List[WorkoutFeedPostOut]:
+    from app.core.db import Splits
+
+    result: List[WorkoutFeedPostOut] = []
+    for session_row, account, profile, workout in rows:
+        split = (
+            db.query(Splits)
+            .filter(Splits.SplitID == session_row.SplitID)
+            .first()
+            if session_row.SplitID
+            else None
+        )
+        result.append(
+            WorkoutFeedPostOut(
+                session_id=session_row.SessionID,
+                profile_id=session_row.ProfileID,
+                username=account.username,
+                gym_location=profile.gym_location,
+                workout_id=workout.WorkoutID,
+                workout_name=workout.name,
+                split_name=split.name if split else None,
+                date=str(session_row.date),
+                duration=session_row.duration,
+                exercises=_build_session_exercise_summary(db, session_row.SessionID),
+            )
+        )
+
+    return result
+
+
 @app.post("/sessions", response_model=SessionOut)
 def create_workout_session(
     payload: CreateSessionRequest,
@@ -2103,34 +2155,34 @@ def get_same_gym_workout_feed(
         query = query.filter(~session_workouts.ProfileID.in_(blocked_ids))
 
     rows = query.limit(50).all()
+    return _build_workout_feed_posts(db, rows)
 
-    from app.core.db import Splits
 
-    result: List[WorkoutFeedPostOut] = []
-    for session_row, account, profile, workout in rows:
-        split = (
-            db.query(Splits)
-            .filter(Splits.SplitID == session_row.SplitID)
-            .first()
-            if session_row.SplitID
-            else None
-        )
-        result.append(
-            WorkoutFeedPostOut(
-                session_id=session_row.SessionID,
-                profile_id=session_row.ProfileID,
-                username=account.username,
-                gym_location=profile.gym_location,
-                workout_id=workout.WorkoutID,
-                workout_name=workout.name,
-                split_name=split.name if split else None,
-                date=str(session_row.date),
-                duration=session_row.duration,
-                exercises=_build_session_exercise_summary(db, session_row.SessionID),
-            )
-        )
+@app.get("/feed/workouts/friends", response_model=List[WorkoutFeedPostOut])
+def get_friends_workout_feed(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    friend_ids = _accepted_friend_ids(db, me.UserID)
+    if not friend_ids:
+        return []
 
-    return result
+    visible_friend_ids = friend_ids - _blocked_user_ids(db, me.UserID)
+    if not visible_friend_ids:
+        return []
+
+    rows = (
+        db.query(session_workouts, Accounts, Profiles, Workouts)
+        .join(Accounts, Accounts.UserID == session_workouts.ProfileID)
+        .join(Profiles, Profiles.ProfileID == session_workouts.ProfileID)
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID.in_(visible_friend_ids))
+        .order_by(session_workouts.date.desc())
+        .limit(50)
+        .all()
+    )
+
+    return _build_workout_feed_posts(db, rows)
 
 
 if __name__ == "__main__":
