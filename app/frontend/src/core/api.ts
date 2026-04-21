@@ -1,14 +1,33 @@
 import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+let token: string | null = null;
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
 const fallbackBaseUrl = expoHost ? `http://${expoHost}:8000` : 'http://localhost:8000';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? fallbackBaseUrl;
 
-// If you use auth tokens, wire this up later:
-let token: string | null = null;
+const TOKEN_KEY = 'access_token';
+
+export async function loadToken() {
+  if (Platform.OS === 'web') {
+    token = localStorage.getItem(TOKEN_KEY);
+  } else {
+    token = await SecureStore.getItemAsync(TOKEN_KEY);
+  }
+}
+
 export function setToken(t: string | null) {
   token = t;
+  if (Platform.OS === 'web') {
+    if (t) localStorage.setItem(TOKEN_KEY, t);
+    else localStorage.removeItem(TOKEN_KEY);
+  } else {
+    if (t) SecureStore.setItemAsync(TOKEN_KEY, t);
+    else SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
 }
 
 function headers() {
@@ -661,6 +680,10 @@ look pleasing on a graph.
 
   getGymWorkoutFeed: async (): Promise<WorkoutFeedPost[]> => {
     return get<WorkoutFeedPost[]>('/feed/workouts/gym');
+  },
+
+  acceptFriendRequest: async (requesterId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/friends/accept', { requester_id: requesterId });
   },
 };
 
