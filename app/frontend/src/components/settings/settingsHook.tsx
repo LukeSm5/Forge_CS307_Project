@@ -11,8 +11,11 @@ import { useState } from "react";
 import { Status } from "./StatusBanner";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/core/auth";
+
 export type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
+
 export function useSettings() {
+
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<Status>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +30,7 @@ export function useSettings() {
   const [cNew, setCNew] = useState("");
   const router = useRouter();
   const { currentUser, setCurrentUser, setLoggedIn } = useAuth();
+  
  async function refreshMe() {
     setLoading(true);
     setStatus(null);

@@ -14,7 +14,6 @@ import {
 import { Calendar, DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useScheme, Text } from "@/components/Themed";
-import { useAppColorScheme } from "@/core/accessibility";
 import {
   CalendarItem,
   ExerciseItem,

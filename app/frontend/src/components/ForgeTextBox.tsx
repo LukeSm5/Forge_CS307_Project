@@ -1,7 +1,5 @@
 import React from 'react';
 import { TextInput, StyleSheet, Text, View } from 'react-native';
-import { Schemes } from '@/constants/Colors';
-import { useAppColorScheme } from '@/core/accessibility';
 import { useScheme } from './Themed';
 
 // Attributes of reset password text boxes

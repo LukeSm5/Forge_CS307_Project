@@ -8,6 +8,7 @@ import { Text, View } from '@/components/Themed';
 import { api, SessionExerciseLog } from '@/core/api';
 import { useRouter } from 'expo-router';
 import CardioButton from '@/components/cardioSearch/CardioButton';
+import { AppModal } from '@/components/AppModal';
 
 import { useUnits } from '@/core/conversions';
 import { useAppColorScheme } from '@/core/accessibility';
@@ -342,6 +343,9 @@ export default function WorkoutTabScreen() {
                       </View>))}
                       <View style={styles.timerRow}>
                         <ForgeButton
+                          text = "Upload"
+                        />
+                        <ForgeButton
                           text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
                           theme="danger"
                           compact
@@ -371,72 +375,70 @@ export default function WorkoutTabScreen() {
       <View style={styles.actionsRow}>
         <CardioButton />
       </View>
+      <AppModal 
+        visible ={!!editingLog}
+        scrollStyle={{ maxHeight: 420 }}
+        onClose={() => setEditingLog(null)}
+        title = {editingLog?.title ?? ''}
+        animationType="slide"
+        actions = {
+          <>
+            <ForgeButton text = "Cancel" theme = "neutral" style = {styles.modalButton} onPress={() => setEditingLog(null)} />
+            <ForgeButton
+              text={savingLogId ? 'Saving...' : 'Add'}
+              theme="success"
+              style={styles.modalButton}
+              onPress={submitEditedWorkout}
+              disabled={!!savingLogId}
+            />
+          </>
+        }
+      >
+        <Text style = {[styles.modalSubtitle, {color: palette.mutedText}]}>Edit exercises, then add this workout log.</Text>
+        {exerciseDrafts.map((draft, index) => (
+          <View
+            key={`${draft.exercise_id}-${draft.machine_id}-${index}`}
+            style={[styles.modalExerciseCard, { borderColor: palette.border, backgroundColor: palette.surface }]}
+          >
+            <Text style={[styles.exerciseCardTitle, { color: palette.text }]}>{draft.exercise_name}</Text>
 
-      <Modal visible={!!editingLog} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: palette.surfaceAlt }]}>
-            <Text style={[styles.modalTitle, { color: palette.text }]}>{editingLog?.title}</Text>
-            <Text style={[styles.modalSubtitle, { color: palette.mutedText }]}>Edit exercises, then add this workout log.</Text>
-
-            <ScrollView style={styles.modalScroll}>
-              {exerciseDrafts.map((draft, index) => (
-                <View
-                  key={`${draft.exercise_id}-${draft.machine_id}-${index}`}
-                  style={[styles.modalExerciseCard, { borderColor: palette.border, backgroundColor: palette.surface }]}
-                >
-                  <Text style={[styles.exerciseCardTitle, { color: palette.text }]}>{draft.exercise_name}</Text>
-
-                  <View style={styles.twoCols}>
-                    <TextInput
-                      style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
-                      keyboardType="number-pad"
-                      value={draft.sets}
-                      onChangeText={(value) => updateDraft(index, { sets: value })}
-                      placeholder="Sets"
-                      placeholderTextColor={palette.mutedText}
-                    />
-                    <TextInput
-                      style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
-                      keyboardType="number-pad"
-                      value={draft.reps}
-                      onChangeText={(value) => updateDraft(index, { reps: value })}
-                      placeholder="Reps"
-                      placeholderTextColor={palette.mutedText}
-                    />
-                  </View>
-
-                  <TextInput
-                    style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
-                    keyboardType="numeric"
-                    value={draft.weight}
-                    onChangeText={(value) => updateDraft(index, { weight: value })}
-                    placeholder="Weight (optional)"
-                    placeholderTextColor={palette.mutedText}
-                  />
-                  <TextInput
-                    style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
-                    value={draft.notes}
-                    onChangeText={(value) => updateDraft(index, { notes: value })}
-                    placeholder="Notes (optional)"
-                    placeholderTextColor={palette.mutedText}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <ForgeButton text="Cancel" theme="neutral" style={styles.modalButton} onPress={() => setEditingLog(null)} />
-              <ForgeButton
-                text={savingLogId ? 'Saving...' : 'Add'}
-                theme="success"
-                style={styles.modalButton}
-                onPress={submitEditedWorkout}
-                disabled={!!savingLogId}
+            <View style={styles.twoCols}>
+              <TextInput
+                style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+                keyboardType="number-pad"
+                value={draft.sets}
+                onChangeText={(value) => updateDraft(index, { sets: value })}
+                placeholder="Sets"
+                placeholderTextColor={palette.mutedText}
+              />
+              <TextInput
+                style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+                keyboardType="number-pad"
+                value={draft.reps}
+                onChangeText={(value) => updateDraft(index, { reps: value })}
+                placeholder="Reps"
+                placeholderTextColor={palette.mutedText}
               />
             </View>
+
+            <TextInput
+              style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+              keyboardType="numeric"
+              value={draft.weight}
+              onChangeText={(value) => updateDraft(index, { weight: value })}
+              placeholder="Weight (optional)"
+              placeholderTextColor={palette.mutedText}
+            />
+            <TextInput
+              style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+              value={draft.notes}
+              onChangeText={(value) => updateDraft(index, { notes: value })}
+              placeholder="Notes (optional)"
+              placeholderTextColor={palette.mutedText}
+            />
           </View>
-        </View>
-      </Modal>
+        ))}
+      </AppModal>
 
       <Modal visible={!!deleteConfirmLog} animationType="fade" transparent>
         <View style={styles.modalBackdrop}>
@@ -558,12 +560,12 @@ const styles = StyleSheet.create({
     marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   deleteButton: {
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     backgroundColor: '#ef4444',
   },
   deleteButtonText: {
