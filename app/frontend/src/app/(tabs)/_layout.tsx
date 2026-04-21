@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, Tabs } from 'expo-router';
 import { Pressable } from 'react-native';
-
 import { Schemes } from '@/constants/Colors';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useAppColorScheme } from '@/core/accessibility';
+import { loadToken } from '@/core/api';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
@@ -24,6 +23,10 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const colorScheme = useAppColorScheme();
+
+  useEffect(() => {
+    loadToken();
+  }, []);
 
   return (
     <Tabs
@@ -45,14 +48,13 @@ export default function TabLayout() {
           backgroundColor: Schemes[colorScheme ?? 'light'].background,
         },
         headerTintColor: Schemes[colorScheme ?? 'light'].text,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen 
+      }}
+    >
+      <Tabs.Screen
         name="index"
-        options={{ 
-          title: "Home",
+        options={{
+          title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
           ),
@@ -63,12 +65,12 @@ export default function TabLayout() {
                   <Ionicons
                     name="settings-outline"
                     size={24}
-                    color={Schemes[colorScheme ?? "light"].text}
+                    color={Schemes[colorScheme ?? 'light'].text}
                     style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
                   />
-              )}
-            </Pressable>
-          </Link>
+                )}
+              </Pressable>
+            </Link>
           ),
         }}
       />

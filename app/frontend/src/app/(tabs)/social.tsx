@@ -362,7 +362,7 @@ export default function ProfilesTab() {
           await api.removeFriend(targetId);
           break;
         case "accept":
-          // wire up later when you build the accept flow
+          await api.acceptFriendRequest(targetId);
           break;
       }
 
