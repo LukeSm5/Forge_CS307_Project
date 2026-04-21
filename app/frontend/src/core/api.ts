@@ -580,8 +580,6 @@ look pleasing on a graph.
     }
   },
 
-  // TODO: hookup with api 🤙
-  // not a vibe coded comment just thought the emoji was fun here
   getNotifications: async (): Promise<Notification[]> => {
     const notifications = [];
     const rawNotifications = await get<UnformattedNotification[]>('/inbox');
@@ -684,6 +682,10 @@ look pleasing on a graph.
 
   acceptFriendRequest: async (requesterId: number): Promise<void> => {
     await post<{ ok: boolean }>('/friends/accept', { requester_id: requesterId });
+  },
+
+  dismissNotification: async (notificationId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/inbox/dismiss', { notification_id: notificationId });
   },
 };
 
@@ -1066,7 +1068,7 @@ export type UnformattedNotification = {
   id: number;
   message: string;
   timestamp: number;
-  data?: Record<string, unknown>;
+  data: Record<string, unknown>;
 }
 
 export type Notification = {

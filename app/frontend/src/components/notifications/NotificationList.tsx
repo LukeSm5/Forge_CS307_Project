@@ -9,20 +9,32 @@ import {
 
 import { Separator, Text, useScheme, View } from "@/components/Themed";
 import CardioMachineResult from "@/components/cardioSearch/CardioMachineResult";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api, Notification, SearchCardioMachineResponse } from "@/core/api";
 import ForgeButton from "../ForgeButton";
 import { Modal } from "react-native";
 import NotificationComponent from "./NotificationComponent";
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function NotificationList({
-  notifications,
   style,
 }: {
-  notifications: Notification[];
   style?: StyleProp<ViewStyle>;
 }) {
   const s = useScheme();
+
+  const [key, setKey] = useState(0);
+  const refresh = () => setKey(prev => prev + 1);
+
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    api.getNotifications().then(setNotifications);
+  }, [key]);
+
+  useFocusEffect(() => {
+    api.getNotifications().then(setNotifications);
+  });
 
   return (
     <>
@@ -36,7 +48,7 @@ export default function NotificationList({
         {[...(notifications ?? [])]
           .sort((a, b) => b.timestamp - a.timestamp)
           .map((notification: Notification, idx: number) => (
-            <NotificationComponent key={idx} notification={notification} />
+            <NotificationComponent key={idx} notification={notification} dismiss={refresh} />
           ))}
       </ScrollView>
     </>

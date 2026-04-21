@@ -12,22 +12,13 @@ import { api } from "@/core/api";
 import { useEffect, useState } from "react";
 
 export default function TabOneScreen() {
-  const [notifs, setNotifs] = useState([]);
-
-  useEffect(() => {
-    api.getNotifications().then((notifications) => {
-      setNotifs(notifications);
-    }
-    ).catch(alert);
-  }, []);
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tab One</Text>
       <Separator />
       <EditScreenInfo path="app/(tabs)/index.tsx" />
       <GymMapButton />
-      <NotificationList notifications={notifs} style={{ height: 200 }} />
+      <NotificationList style={{ height: 200 }} />
     </View>
   );
 }

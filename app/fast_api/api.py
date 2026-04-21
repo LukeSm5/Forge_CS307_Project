@@ -436,6 +436,9 @@ class FriendAddresseePayload(BaseModel):
 class FriendAcceptPayload(BaseModel):
     requester_id: int
 
+class DismissNotificationPayload(BaseModel):
+    notification_id: int
+
 class StreakResponse(BaseModel):
     profile_id: int
     workout_streak_weeks: int
@@ -2245,6 +2248,28 @@ def get_inbox_notifications(me: Accounts = Depends(get_current_account), db: Ses
         }
         for n in rows
     ]
+
+@app.post("/inbox/dismiss")
+def dismiss_notification(
+    payload: DismissNotificationPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db)
+):
+    row = (
+        db.query(InboxNotifications)
+        .filter(
+            InboxNotifications.NotificationID == payload.notification_id,
+            InboxNotifications.ProfileID == me.UserID,
+        )
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    db.delete(row)
+    db.commit()
+    return {"ok": True, "detail": "Notification dismissed"}
 
 
 @app.post("/friends/request")

@@ -1,30 +1,44 @@
 import { StyleSheet } from 'react-native';
 
 import { Separator, Text, useScheme, View } from '@/components/Themed';
-import { Notification } from '@/core/api';
+import { Notification, FriendRequestNotificationData, ViewPostNotificationData, api } from '@/core/api';
 import ForgeButton from '../ForgeButton';
 
-export default function NotificationComponent({ notification }: { notification: Notification }) {
+export default function NotificationComponent({ notification, dismiss }: { notification: Notification, dismiss: () => void }) {
     const s = useScheme();
+
+    const dismissNotification = async () => {
+        await api.dismissNotification(notification.id);
+        dismiss();
+    };
 
     const interactions: NotificationInteraction[] = [];
     switch (notification.type) {
-        case 'friend_request':
+        case 'friend_request': {
+            const data = notification.data as FriendRequestNotificationData;
             interactions.push({
                 label: 'Accept',
-                onPress: () => alert('Accepting friend request not implemented yet.')
+                onPress: () => {
+                    api.acceptFriendRequest(data.requesterId);
+                    dismissNotification();
+                },
             });
             interactions.push({
                 label: 'Decline',
-                onPress: () => alert('Declining friend request not implemented yet.')
+                onPress: dismissNotification,
             });
             break;
-        case 'view_post':
+        }
+
+        case 'view_post': {
+            const data = notification.data as ViewPostNotificationData;
             interactions.push({
                 label: 'View Post',
                 onPress: () => alert('Viewing post not implemented yet.')
             });
             break;
+        }
+
         default:
             break;
     }
@@ -40,8 +54,6 @@ export default function NotificationComponent({ notification }: { notification: 
         );
     }
 
-    console.log("timestamp: ", notification.timestamp);
-
     return (
         <View style={{ ...styles.container, boxShadow: `3px 3px 10px ${s.shadow}`, }}>
             <View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
@@ -51,7 +63,7 @@ export default function NotificationComponent({ notification }: { notification: 
             <Separator />
             <View style={{ flexDirection: 'row', justifyContent: interactions.length > 0 ? 'space-between' : 'flex-end', alignItems: 'center' }}>
                 {interactionsComponent}
-                <ForgeButton style={{  }} text="Dismiss" onPress={() => alert('Dismissing notification not implemented yet.')} />
+                <ForgeButton style={{  }} text="Dismiss" onPress={dismissNotification} />
             </View>
         </View>
     );
