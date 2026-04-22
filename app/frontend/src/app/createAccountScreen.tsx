@@ -6,7 +6,7 @@ import { useRouter } from "expo-router/build/exports";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { useAuth } from "@/core/auth";
-import { setToken } from "@/core/api";
+import { api, setToken } from "@/core/api";
 import { Schemes } from "@/constants/Colors";
 import { useAppColorScheme } from "@/core/accessibility";
 
@@ -19,6 +19,75 @@ const BASE_URL =
       ? `http://${expoHost}:8000`
       : "http://localhost:8000");
 
+type TemporaryOnboardingSeed = {
+  bio: string;
+  gymLocation: string;
+  onboarding: {
+    healthScore: number;
+    age: number;
+    height: number;
+    weight: number;
+    genderIndex: number;
+    activityIndex: number;
+    calorie_goal: number;
+    goals: string;
+    previousExperience: string;
+    bio: string;
+    acceptedTerms: boolean;
+  };
+};
+
+const TEST_GYM_LOCATION = "Temporary Test Gym";
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pickOne<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function buildTemporaryOnboardingSeed(
+  username: string,
+): TemporaryOnboardingSeed {
+  const goals = [
+    "Build muscle and stay consistent",
+    "Lose fat while keeping strength",
+    "Improve general fitness and routine",
+    "Stay active and hit protein goals",
+  ];
+  const experienceLevels = [
+    "Beginner testing account",
+    "Intermediate lifter testing account",
+    "Experienced gym user testing account",
+  ];
+  const bios = [
+    `Temporary Forge test account for ${username}.`,
+    `Auto-filled onboarding for ${username}.`,
+    `Quick test user profile for ${username}.`,
+  ];
+
+  const bio = pickOne(bios);
+
+  return {
+    bio,
+    gymLocation: TEST_GYM_LOCATION,
+    onboarding: {
+      healthScore: randInt(55, 90),
+      age: randInt(18, 40),
+      height: randInt(62, 76),
+      weight: randInt(130, 230),
+      genderIndex: randInt(0, 1),
+      activityIndex: randInt(0, 4),
+      calorie_goal: randInt(2100, 3000),
+      goals: pickOne(goals),
+      previousExperience: pickOne(experienceLevels),
+      bio,
+      acceptedTerms: true,
+    },
+  };
+}
+
 const CreateAccountScreen = () => {
   const router = useRouter();
   const { setLoggedIn, setCurrentUser } = useAuth();
@@ -27,16 +96,20 @@ const CreateAccountScreen = () => {
   const [email, setEmail] = React.useState("");
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const createAccount = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     try {
       const response = await fetch(`${BASE_URL}/auth/create_account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email,
-          username: username,
-          password: password,
+          email,
+          username,
+          password,
         }),
       });
 
@@ -54,8 +127,8 @@ const CreateAccountScreen = () => {
       } else {
         setToken(data.access_token ?? null);
         setCurrentUser({
-          email: email,
-          username: username,
+          email,
+          username,
         });
         setLoggedIn(true);
         router.replace("/onboarding");
@@ -63,6 +136,85 @@ const CreateAccountScreen = () => {
     } catch (error) {
       console.log("Full error:", error);
       alert(`Server did not connect properly. API: ${BASE_URL}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTemporaryCreate = async () => {
+    if (isSubmitting) return;
+
+    if (!email.trim() || !username.trim() || !password.trim()) {
+      alert("Please fill in email, username, and password first.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${BASE_URL}/auth/create_account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          username: username.trim(),
+          password,
+        }),
+      });
+
+      const raw = await response.text();
+      let data: any = {};
+
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.detail ?? raw ?? "Temporary account creation failed",
+        );
+      }
+
+      setToken(data.access_token ?? null);
+
+      const createdUser = await api.me();
+      if (!createdUser) {
+        throw new Error("Account was created but could not be loaded.");
+      }
+
+      const seed = buildTemporaryOnboardingSeed(username.trim());
+      const onboardingSuccess = await api.submitOnboarding(seed.onboarding);
+      if (!onboardingSuccess) {
+        throw new Error("Automatic onboarding failed.");
+      }
+
+      const updatedUser = await api.updateMe({
+        bio: seed.bio,
+        gym_location: seed.gymLocation,
+      });
+
+      setCurrentUser(
+        updatedUser
+          ? {
+              profile_id: updatedUser.profile_id,
+              email: updatedUser.email,
+              username: updatedUser.username,
+            }
+          : {
+              profile_id: createdUser.profile_id,
+              email: createdUser.email,
+              username: createdUser.username,
+            },
+      );
+
+      setLoggedIn(true);
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      console.log("Temporary create account error:", error);
+      alert(error?.message ?? "Could not create temporary account.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -97,10 +249,23 @@ const CreateAccountScreen = () => {
         isVisible={false}
       />
 
-      <LoginButton onPress={createAccount} text="Create Account" />
+      <LoginButton
+        onPress={createAccount}
+        text={isSubmitting ? "Working..." : "Create Account"}
+        disabled={isSubmitting}
+      />
+      <LoginButton
+        onPress={handleTemporaryCreate}
+        text={isSubmitting ? "Working..." : "Temporary"}
+        disabled={isSubmitting}
+        color="#dc2626"
+        textColor="#ffffff"
+        style={styles.temporaryButton}
+      />
       <LoginButton
         onPress={() => router.replace("/loginScreen")}
         text="Back to Login"
+        disabled={isSubmitting}
       />
     </View>
   );
@@ -117,6 +282,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginBottom: 30,
     fontWeight: "bold",
+  },
+  temporaryButton: {
+    marginTop: 8,
   },
 });
 
