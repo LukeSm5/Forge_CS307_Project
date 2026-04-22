@@ -55,6 +55,9 @@ export default function WorkoutTabScreen() {
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [savingLogId, setSavingLogId] = useState<string | null>(null);
   const [postingLogId, setPostingLogId] = useState<string | null>(null);
+  const [removingPostLogId, setRemovingPostLogId] = useState<string | null>(
+    null,
+  );
   const [postedSessionIds, setPostedSessionIds] = useState<Set<number>>(
     new Set(),
   );
@@ -126,8 +129,8 @@ export default function WorkoutTabScreen() {
     }
   }
 
-  async function handlePostWorkout(log: LoggedWorkout) {
-    if (postingLogId || postedSessionIds.has(Number(log.id))) return;
+  async function createWorkoutPost(log: LoggedWorkout) {
+    if (postingLogId || removingPostLogId) return;
 
     setPostingLogId(log.id);
     try {
@@ -146,6 +149,56 @@ export default function WorkoutTabScreen() {
       Alert.alert("Post failed", message);
     } finally {
       setPostingLogId(null);
+    }
+  }
+
+  function handlePostWorkout(log: LoggedWorkout) {
+    if (postingLogId || removingPostLogId) return;
+
+    if (!postedSessionIds.has(Number(log.id))) {
+      void createWorkoutPost(log);
+      return;
+    }
+
+    Alert.alert(
+      "Remove post?",
+      "This workout has already been posted. Do you want to delete the post?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete Post",
+          style: "destructive",
+          onPress: () => {
+            void removeWorkoutPost(log);
+          },
+        },
+      ],
+    );
+  }
+
+  async function removeWorkoutPost(log: LoggedWorkout) {
+    if (postingLogId || removingPostLogId) return;
+
+    setRemovingPostLogId(log.id);
+    try {
+      await api.deleteWorkoutPost(Number(log.id));
+      setPostedSessionIds((prev) => {
+        const next = new Set(prev);
+        next.delete(Number(log.id));
+        return next;
+      });
+      Alert.alert("Post removed", "Your workout post was deleted.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to remove workout post.";
+      Alert.alert("Remove failed", message);
+    } finally {
+      setRemovingPostLogId(null);
     }
   }
 
@@ -482,11 +535,13 @@ export default function WorkoutTabScreen() {
                         <View style={styles.timerRow}>
                           <ForgeButton
                             text={
-                              postedSessionIds.has(Number(log.id))
-                                ? "Posted"
+                              removingPostLogId === log.id
+                                ? "Removing..."
                                 : postingLogId === log.id
                                   ? "Posting..."
-                                  : "Post"
+                                  : postedSessionIds.has(Number(log.id))
+                                    ? "Posted"
+                                    : "Post"
                             }
                             compact
                             style={styles.postButton}
@@ -497,8 +552,8 @@ export default function WorkoutTabScreen() {
                             }
                             onPress={() => void handlePostWorkout(log)}
                             disabled={
-                              postedSessionIds.has(Number(log.id)) ||
-                              postingLogId === log.id
+                              postingLogId === log.id ||
+                              removingPostLogId === log.id
                             }
                           />
                           <ForgeButton

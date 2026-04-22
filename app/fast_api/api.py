@@ -1509,6 +1509,41 @@ def _fallback_machine_id(db: Session) -> int:
     return first_machine.MachineID
 
 
+def _find_workout_post_rows_for_session(
+    db: Session,
+    profile_id: int,
+    session_id: int,
+) -> List[Posts]:
+    post_rows = db.query(Posts).filter(Posts.ProfileID == profile_id).all()
+    return [
+        post_row
+        for post_row in post_rows
+        if _extract_session_id_from_post_caption(post_row.caption) == session_id
+    ]
+
+
+def _delete_posts_and_related_rows(db: Session, post_ids: List[int]) -> None:
+    if not post_ids:
+        return
+
+    db.query(Likes).filter(Likes.PostID.in_(post_ids)).delete(synchronize_session=False)
+    db.query(Reactions).filter(Reactions.PostID.in_(post_ids)).delete(synchronize_session=False)
+    db.query(Comments).filter(Comments.PostID.in_(post_ids)).delete(synchronize_session=False)
+    db.query(Posts).filter(Posts.PostID.in_(post_ids)).delete(synchronize_session=False)
+
+
+
+def _delete_workout_posts_for_session(
+    db: Session,
+    profile_id: int,
+    session_id: int,
+) -> List[int]:
+    matching_posts = _find_workout_post_rows_for_session(db, profile_id, session_id)
+    post_ids = [int(post_row.PostID) for post_row in matching_posts]
+    _delete_posts_and_related_rows(db, post_ids)
+    return post_ids
+
+
 def _build_feed_post_from_saved_post(db: Session, post_row: Posts) -> Optional[WorkoutFeedPostOut]:
     session_id = _extract_session_id_from_post_caption(post_row.caption)
     if session_id is None:
@@ -1705,6 +1740,8 @@ def delete_workout_session(
 
     if not session_row:
         raise HTTPException(status_code=404, detail="Workout session not found")
+
+    _delete_workout_posts_for_session(db, me.UserID, session_id)
 
     db.query(session_exercises).filter(
         session_exercises.SessionID == session_id
@@ -2315,10 +2352,9 @@ def create_workout_post(
     if session_row is None:
         raise HTTPException(status_code=404, detail="Workout session not found")
 
-    existing_posts = db.query(Posts).filter(Posts.ProfileID == me.UserID).all()
+    existing_posts = _find_workout_post_rows_for_session(db, me.UserID, payload.session_id)
     for post_row in existing_posts:
-        if _extract_session_id_from_post_caption(post_row.caption) == payload.session_id:
-            return {"ok": True, "created": False, "detail": "Workout already posted", "post_id": post_row.PostID}
+        return {"ok": True, "created": False, "detail": "Workout already posted", "post_id": post_row.PostID}
 
     first_session_exercise = (
         db.query(session_exercises)
@@ -2350,6 +2386,36 @@ def create_workout_post(
     db.add(post_row)
     db.commit()
     return {"ok": True, "created": True, "detail": "Workout posted", "post_id": post_row.PostID}
+
+
+@app.delete("/posts/workouts/{session_id}")
+def delete_workout_post(
+    session_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    session_row = (
+        db.query(session_workouts)
+        .filter(
+            session_workouts.SessionID == session_id,
+            session_workouts.ProfileID == me.UserID,
+        )
+        .first()
+    )
+    if session_row is None:
+        raise HTTPException(status_code=404, detail="Workout session not found")
+
+    deleted_post_ids = _delete_workout_posts_for_session(db, me.UserID, session_id)
+    if not deleted_post_ids:
+        raise HTTPException(status_code=404, detail="Workout post not found")
+
+    db.commit()
+    return {
+        "ok": True,
+        "deleted": True,
+        "session_id": session_id,
+        "post_ids": deleted_post_ids,
+    }
 
 
 @app.get("/feed/workouts/friends", response_model=List[WorkoutFeedPostOut])

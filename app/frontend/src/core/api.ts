@@ -715,6 +715,10 @@ look pleasing on a graph.
     return post<{ ok: boolean; created: boolean; detail?: string; post_id?: number }>(`/posts/workouts/create`, { session_id: sessionId });
   },
 
+  deleteWorkoutPost: async (sessionId: number): Promise<{ ok: boolean; deleted: boolean; session_id: number; post_ids: number[] }> => {
+    return del<{ ok: boolean; deleted: boolean; session_id: number; post_ids: number[] }>(`/posts/workouts/${sessionId}`);
+  },
+
   getMyWorkoutPostedSessionIds: async (): Promise<number[]> => {
     return get<number[]>('/posts/workouts/mine');
   },
