@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { StyleSheet } from "react-native";
 import ProgressionInterface from "@/components/workoutProgression/ProgressionInterface";
-import ForgeButton from '../ForgeButton';
+import ForgeButton from "../ForgeButton";
 
+export default function ProgressionButton({
+  exerciseId,
+}: {
+  exerciseId: string;
+}) {
+  const [isOpen, setOpen] = useState(false);
 
-export default function ProgressionButton({ exerciseId }: { exerciseId: string }) {
-    const [isOpen, setOpen] = useState(false);
+  return (
+    <>
+      <ForgeButton text="Progression" onPress={() => setOpen(true)} />
 
-    const progressionInterface = <ProgressionInterface exerciseId={exerciseId} visible={isOpen} setVisible={setOpen}/>
-
-    return (<>
-        <ForgeButton text="Progression" onPress={() => setOpen(true)}/>
-
-        {progressionInterface}
-    </>);
+      {isOpen ? (
+        <ProgressionInterface
+          exerciseId={exerciseId}
+          visible={isOpen}
+          setVisible={setOpen}
+        />
+      ) : null}
+    </>
+  );
 }
