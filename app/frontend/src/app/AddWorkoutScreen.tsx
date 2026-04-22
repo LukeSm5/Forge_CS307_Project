@@ -21,6 +21,7 @@ import {
 } from "@/core/api";
 import { useUnits } from "@/core/conversions";
 import { stylesProvider } from "./AddWorkout.Styles";
+import { AppModal } from "@/components/AppModal";
 
 type SingleExercise = {
   name: string;
@@ -98,6 +99,7 @@ export default function AddWorkoutScreen() {
   const [allSessions, setAllSessions] = useState<SessionLog[]>([]);
   const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
   const { isImperial } = useUnits();
+  const [postSaveModalVisible, setPostSaveModalVisible] = useState(false);
 
   // moving timer from workout
   const [timerRunning, setTimerRunning] = useState(false);
@@ -384,7 +386,7 @@ export default function AddWorkoutScreen() {
       });
 
       Alert.alert("Workout logged", "Workout saved successfully.");
-      router.back();
+      setPostSaveModalVisible(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to save workout.";
@@ -766,12 +768,40 @@ export default function AddWorkoutScreen() {
 
           <ForgeButton
             text={saving ? "Saving..." : "Log Workout"}
-            onPress={() => {
-              void handleSave();
-            }}
             color={s.buttonBg}
             disabled={saving}
+            onPress={() => { void handleSave(); }}
           />
+          <AppModal
+            visible={postSaveModalVisible}
+                onClose={() => {
+                  setPostSaveModalVisible(false); 
+                  router.push("/(tabs)/workout");
+                }}
+                title={"Post Workout"}
+                actions={
+                  <>
+                    <ForgeButton
+                      text="Upload"
+                      onPress={() => {
+                        setPostSaveModalVisible(false);
+                        router.push("/(tabs)/workout");
+                      }}
+                      color={s.buttonBg}
+                    />
+                    <ForgeButton
+                      text="Not Now"
+                      onPress={() => {
+                        setPostSaveModalVisible(false);
+                        router.push("/(tabs)/workout");
+                      }}
+                      color={s.buttonBg}
+                    />
+                  </>
+                }
+              >
+                <Text style={styles.modalSubtitle}> Would you like to upload this workout?</Text>
+              </AppModal>
           <ForgeButton
             text="Back"
             onPress={() => router.back()}

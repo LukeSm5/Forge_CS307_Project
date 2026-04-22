@@ -440,7 +440,7 @@ export default function WorkoutTabScreen() {
             <Text style={styles.statusText}>
               No workouts match "{searchQuery.trim()}".
             </Text>
-          )}
+        )}
 
         {!loadingHistory &&
           !historyError &&
@@ -462,9 +462,9 @@ export default function WorkoutTabScreen() {
                 {group.date}
               </Text>
 
-              {group.sessions.map((log) => {
-                const isExpanded = expandedLogId === log.id;
-                return (
+            {group.sessions.map((log) => {
+              const isExpanded = expandedLogId === log.id;
+              return (
                   <View
                     key={log.id}
                     style={[
@@ -481,7 +481,7 @@ export default function WorkoutTabScreen() {
                         setExpandedLogId(isExpanded ? null : log.id)
                       }
                     >
-                      <View>
+                    <View>
                         <Text
                           style={[styles.logTitle, { color: palette.text }]}
                         >
@@ -490,15 +490,15 @@ export default function WorkoutTabScreen() {
                         <Text
                           style={[styles.logDate, { color: palette.mutedText }]}
                         >{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
-                      </View>
+                    </View>
                       <FontAwesome
                         name={isExpanded ? "chevron-up" : "chevron-down"}
                         size={14}
                         color={palette.mutedText}
                       />
-                    </Pressable>
+                  </Pressable>
 
-                    {isExpanded && (
+                  {isExpanded && (
                       <View
                         style={[
                           styles.exerciseList,
@@ -518,22 +518,22 @@ export default function WorkoutTabScreen() {
                             key={`${exercise.exercise_id}-${exercise.machine_id}-${idx}`}
                             style={styles.exerciseRow}
                           >
-                            <Text
-                              key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
+                        <Text
+                          key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
                               style={[
                                 styles.exerciseItem,
                                 { color: palette.text },
                               ]}
-                            >
-                              - {formatExercise(exercise, isImperial)}
-                            </Text>
+                        >
+                          - {formatExercise(exercise, isImperial)}
+                        </Text>
                             <ProgressionButton
                               exerciseId={exercise.exercise_name}
                             />
                           </View>
                         ))}
-                        <View style={styles.timerRow}>
-                          <ForgeButton
+                      <View style={styles.timerRow}>
+                        <ForgeButton
                             text={
                               removingPostLogId === log.id
                                 ? "Removing..."
@@ -555,27 +555,27 @@ export default function WorkoutTabScreen() {
                               postingLogId === log.id ||
                               removingPostLogId === log.id
                             }
-                          />
-                          <ForgeButton
+                        />
+                        <ForgeButton
                             text={
                               deletingLogId === log.id
                                 ? "Deleting..."
                                 : "Delete"
                             }
-                            compact
-                            style={styles.deleteButton}
+                          compact
+                          style={styles.deleteButton}
                             color={"#ef4444"}
-                            onPress={() => void handleDeleteWorkout(log)}
-                            disabled={deletingLogId === log.id}
-                          />
-                        </View>
+                          onPress={() => void handleDeleteWorkout(log)}
+                          disabled={deletingLogId === log.id}
+                        />
                       </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ))}
       </ScrollView>
 
       <View style={styles.actionsRow}>
@@ -595,7 +595,7 @@ export default function WorkoutTabScreen() {
       <View style={styles.actionsRow}>
         <CardioButton />
       </View>
-      <AppModal
+      <AppModal 
         visible={!!editingLog}
         scrollStyle={{ maxHeight: 420 }}
         onClose={() => setEditingLog(null)}
@@ -972,6 +972,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  postButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 26,
+  }
 });
 
 function formatExercise(
@@ -981,9 +986,9 @@ function formatExercise(
   const weight =
     exercise.weight != null
       ? isImperial
-        ? `${exercise.weight} lb`
-        : `${(exercise.weight * 0.453592).toFixed(0)} kg`
-      : null;
+      ? `${exercise.weight} lb`
+      : `${(exercise.weight * 0.453592).toFixed(0)} kg`
+    : null;
   const parts = [
     exercise.exercise_name,
     `Set ${exercise.set_number} · ${exercise.reps} reps`,

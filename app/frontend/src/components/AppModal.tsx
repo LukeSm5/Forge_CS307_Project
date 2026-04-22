@@ -3,7 +3,7 @@ import { Modal, ScrollView, StyleSheet, Text } from "react-native";
 
 type AppModalProps = {
     visible: boolean;
-    onClose: () => void;
+    onClose?: () => void;
     title: string;
     children: React.ReactNode;
     actions: React.ReactNode;
@@ -11,9 +11,12 @@ type AppModalProps = {
     scrollStyle?: object;
 }
 
-export function AppModal({ visible, onClose, title, children, actions, scrollStyle }: AppModalProps) {
+export function AppModal({ visible, onClose, title, children, actions, scrollStyle, animationType }: AppModalProps) {
+  const handleClose = () => {
+    onClose?.();
+  }
     return (
-      <Modal visible={visible} transparent animationType="fade">
+      <Modal visible={visible} transparent animationType={animationType} onRequestClose={handleClose}>
         <View style={styles.backdrop}>
             <View style={styles.card}>
                 <Text style={styles.title}>{title}</Text>
