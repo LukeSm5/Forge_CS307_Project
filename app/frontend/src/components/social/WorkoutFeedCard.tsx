@@ -6,6 +6,7 @@ import { Text } from "@/components/Themed";
 import { WorkoutFeedPost, api, PostInfo } from "@/core/api";
 
 import { SocialPalette } from "./socialTypes";
+import LikeButton from "./LikeButton";
 
 type WorkoutFeedCardProps = {
   post: WorkoutFeedPost;
@@ -47,10 +48,13 @@ export default function WorkoutFeedCard({
   const durationLabel = formatDuration(post.duration);
 
   const [ postInfo, setPostInfo ] = useState<PostInfo | null>(null);
+  
+  const [ key, setKey ] = useState(0);
+  const refresh = () => setKey(k => k + 1);
 
   useEffect(() => {
     api.getPostInfo(post.post_id).then(setPostInfo);
-  }, [])
+  }, [ key ])
 
   return (
     <View
@@ -118,6 +122,20 @@ export default function WorkoutFeedCard({
           </Text>
         </View>
       ) : null}
+
+      {postInfo ? (
+        <LikeButton 
+          likes={postInfo.likes}
+          likePost={() => {
+            api.likePost(post.post_id)
+              .then(refresh);
+          }}
+          unlikePost={() => {
+            api.unlikePost(post.post_id)
+            .then(refresh);
+          }}
+        />
+      ) : <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>}
     </View>
   );
 }
