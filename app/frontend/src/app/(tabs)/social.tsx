@@ -155,12 +155,12 @@ export default function ProfilesTab() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [friendsWorkouts, setFriendsWorkouts] = useState<WorkoutFeedPost[]>([]);
-  const [friendsFeedLoading, setFriendsFeedLoading] = useState(false);
-  const [friendsFeedError, setFriendsFeedError] = useState("");
   const [gymWorkouts, setGymWorkouts] = useState<WorkoutFeedPost[]>([]);
   const [gymFeedLoading, setGymFeedLoading] = useState(false);
   const [gymFeedError, setGymFeedError] = useState("");
+  const [friendWorkouts, setFriendWorkouts] = useState<WorkoutFeedPost[]>([]);
+  const [friendFeedLoading, setFriendFeedLoading] = useState(false);
+  const [friendFeedError, setFriendFeedError] = useState("");
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
 
@@ -202,20 +202,6 @@ export default function ProfilesTab() {
     }
   };
 
-  const loadFriendsWorkoutFeed = useCallback(async () => {
-    try {
-      setFriendsFeedLoading(true);
-      setFriendsFeedError("");
-      const rows = await api.getFriendsWorkoutFeed();
-      setFriendsWorkouts(rows);
-    } catch (e) {
-      console.error(e);
-      setFriendsFeedError("Could not load friend workouts right now.");
-    } finally {
-      setFriendsFeedLoading(false);
-    }
-  }, []);
-
   const loadGymWorkoutFeed = useCallback(async () => {
     try {
       setGymFeedLoading(true);
@@ -230,24 +216,38 @@ export default function ProfilesTab() {
     }
   }, []);
 
+  const loadFriendsWorkoutFeed = useCallback(async () => {
+    try {
+      setFriendFeedLoading(true);
+      setFriendFeedError("");
+      const rows = await api.getFriendsWorkoutFeed();
+      setFriendWorkouts(rows);
+    } catch (e) {
+      console.error(e);
+      setFriendFeedError("Could not load friends' workouts right now.");
+    } finally {
+      setFriendFeedLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      if (activeSocialPanel === "friends") {
-        void loadFriendsWorkoutFeed();
-      } else if (activeSocialPanel === "gym") {
+      if (activeSocialPanel === "gym") {
         void loadGymWorkoutFeed();
+      } else if (activeSocialPanel === "friends") {
+        void loadFriendsWorkoutFeed();
       }
       return undefined;
-    }, [activeSocialPanel, loadFriendsWorkoutFeed, loadGymWorkoutFeed]),
+    }, [activeSocialPanel, loadGymWorkoutFeed, loadFriendsWorkoutFeed]),
   );
 
   useEffect(() => {
-    if (activeSocialPanel === "friends") {
-      void loadFriendsWorkoutFeed();
-    } else if (activeSocialPanel === "gym") {
+    if (activeSocialPanel === "gym") {
       void loadGymWorkoutFeed();
+    } else if (activeSocialPanel === "friends") {
+      void loadFriendsWorkoutFeed();
     }
-  }, [activeSocialPanel, loadFriendsWorkoutFeed, loadGymWorkoutFeed]);
+  }, [activeSocialPanel, loadGymWorkoutFeed, loadFriendsWorkoutFeed]);
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -507,83 +507,7 @@ export default function ProfilesTab() {
           onSelectPanel={setActiveSocialPanel}
         />
 
-        {activeSocialPanel === "friends" ? (
-          <View
-            style={[
-              styles.headerCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.border,
-                marginBottom: 16,
-              },
-            ]}
-          >
-            <Text style={[styles.eyebrow, { color: colors.orange }]}>
-              FRIENDS WORKOUT FEED
-            </Text>
-            <Text
-              style={[
-                styles.stateText,
-                { color: colors.muted, textAlign: "left" },
-              ]}
-            >
-              Recent workouts logged by users whose friend requests have been
-              accepted.
-            </Text>
-
-            {friendsFeedLoading ? (
-              <View
-                style={[
-                  styles.centerState,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.border,
-                    marginTop: 12,
-                  },
-                ]}
-              >
-                <ActivityIndicator size="small" />
-                <Text style={[styles.stateText, { color: colors.muted }]}>
-                  Loading friend posts...
-                </Text>
-              </View>
-            ) : friendsFeedError ? (
-              <Text style={[styles.errorText, { color: colors.red }]}>
-                {friendsFeedError}
-              </Text>
-            ) : friendsWorkouts.length === 0 ? (
-              <Text
-                style={[
-                  styles.stateText,
-                  { color: colors.muted, marginTop: 12, textAlign: "left" },
-                ]}
-              >
-                No workout posts from friends yet. Once an accepted friend logs
-                a workout, it will show up here.
-              </Text>
-            ) : (
-              <View style={styles.feedList}>
-                {friendsWorkouts.map((post) => (
-                  <WorkoutFeedCard
-                    key={`friend-${post.session_id}`}
-                    post={post}
-                    colors={{
-                      background: colors.cardBg,
-                      secondaryBackground: colors.soft,
-                      border: colors.border,
-                      text: colors.text,
-                      muted: colors.muted,
-                      tint: colors.orange,
-                      buttonBg: colors.buttonBg,
-                      buttonSecondaryBg: colors.buttonSecondaryBg,
-                      buttonText: colors.buttonText,
-                    }}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        ) : activeSocialPanel === "gym" ? (
+        {activeSocialPanel === "gym" ? (
           <View
             style={[
               styles.headerCard,
@@ -603,8 +527,8 @@ export default function ProfilesTab() {
                 { color: colors.muted, textAlign: "left" },
               ]}
             >
-              Recent workouts logged by people who selected the same gym
-              location as you.
+              Recent workout posts from users who selected the same gym location
+              as you.
             </Text>
 
             {gymFeedLoading ? (
@@ -634,14 +558,87 @@ export default function ProfilesTab() {
                   { color: colors.muted, marginTop: 12, textAlign: "left" },
                 ]}
               >
-                No workout posts yet for your gym. Once someone with the same
-                selected gym logs a workout, it will show up here.
+                No posted workouts yet for your gym.
               </Text>
             ) : (
               <View style={styles.feedList}>
                 {gymWorkouts.map((post) => (
                   <WorkoutFeedCard
-                    key={`gym-${post.session_id}`}
+                    key={`${post.session_id}-${post.profile_id}`}
+                    post={post}
+                    colors={{
+                      background: colors.cardBg,
+                      secondaryBackground: colors.soft,
+                      border: colors.border,
+                      text: colors.text,
+                      muted: colors.muted,
+                      tint: colors.orange,
+                      buttonBg: colors.buttonBg,
+                      buttonSecondaryBg: colors.buttonSecondaryBg,
+                      buttonText: colors.buttonText,
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : activeSocialPanel === "friends" ? (
+          <View
+            style={[
+              styles.headerCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            <Text style={[styles.eyebrow, { color: colors.orange }]}>
+              FRIENDS WORKOUT FEED
+            </Text>
+            <Text
+              style={[
+                styles.stateText,
+                { color: colors.muted, textAlign: "left" },
+              ]}
+            >
+              Posted workouts from your accepted friends.
+            </Text>
+
+            {friendFeedLoading ? (
+              <View
+                style={[
+                  styles.centerState,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
+                    marginTop: 12,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="small" />
+                <Text style={[styles.stateText, { color: colors.muted }]}>
+                  Loading friends posts...
+                </Text>
+              </View>
+            ) : friendFeedError ? (
+              <Text style={[styles.errorText, { color: colors.red }]}>
+                {friendFeedError}
+              </Text>
+            ) : friendWorkouts.length === 0 ? (
+              <Text
+                style={[
+                  styles.stateText,
+                  { color: colors.muted, marginTop: 12, textAlign: "left" },
+                ]}
+              >
+                No posted workouts yet from your accepted friends.
+              </Text>
+            ) : (
+              <View style={styles.feedList}>
+                {friendWorkouts.map((post) => (
+                  <WorkoutFeedCard
+                    key={`${post.session_id}-${post.profile_id}`}
                     post={post}
                     colors={{
                       background: colors.cardBg,

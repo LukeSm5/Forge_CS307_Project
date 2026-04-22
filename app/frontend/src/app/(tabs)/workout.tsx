@@ -1,19 +1,25 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useState, useMemo } from "react";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
-import ForgeButton from '@/components/ForgeButton';
-import { Text, View } from '@/components/Themed';
-import { api, SessionExerciseLog } from '@/core/api';
-import { useRouter } from 'expo-router';
-import CardioButton from '@/components/cardioSearch/CardioButton';
-import { AppModal } from '@/components/AppModal';
+import ForgeButton from "@/components/ForgeButton";
+import { Text, View } from "@/components/Themed";
+import { api, SessionExerciseLog } from "@/core/api";
+import { useRouter } from "expo-router";
+import CardioButton from "@/components/cardioSearch/CardioButton";
+import { AppModal } from "@/components/AppModal";
 
-import { useUnits } from '@/core/conversions';
-import { useAppColorScheme } from '@/core/accessibility';
-import ProgressionButton from '@/components/workoutProgression/ProgressButton';
-
+import { useUnits } from "@/core/conversions";
+import { useAppColorScheme } from "@/core/accessibility";
+import ProgressionButton from "@/components/workoutProgression/ProgressButton";
 
 type LoggedWorkout = {
   id: string;
@@ -48,24 +54,29 @@ export default function WorkoutTabScreen() {
 
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [savingLogId, setSavingLogId] = useState<string | null>(null);
+  const [postingLogId, setPostingLogId] = useState<string | null>(null);
+  const [postedSessionIds, setPostedSessionIds] = useState<Set<number>>(
+    new Set(),
+  );
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
-  const [deleteConfirmLog, setDeleteConfirmLog] = useState<LoggedWorkout | null>(null);
+  const [deleteConfirmLog, setDeleteConfirmLog] =
+    useState<LoggedWorkout | null>(null);
   const [editingLog, setEditingLog] = useState<LoggedWorkout | null>(null);
   const [exerciseDrafts, setExerciseDrafts] = useState<ExerciseDraft[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const { isImperial } = useUnits();
-  const scheme = useAppColorScheme() ?? 'light';
-  const isDark = scheme === 'dark';
+  const scheme = useAppColorScheme() ?? "light";
+  const isDark = scheme === "dark";
   const palette = {
-    background: isDark ? '#0b0f14' : '#ffffff',
-    surface: isDark ? '#131922' : '#f8fafc',
-    surfaceAlt: isDark ? '#111827' : '#ffffff',
-    border: isDark ? '#243041' : '#dbe3f0',
-    mutedBorder: isDark ? '#334155' : '#cbd5e1',
-    text: isDark ? '#f8fafc' : '#0f172a',
-    mutedText: isDark ? '#94a3b8' : '#64748b',
-    splitSurface: isDark ? '#0f172a' : '#eff6ff',
-    splitBorder: isDark ? '#1d4ed8' : '#93c5fd',
+    background: isDark ? "#0b0f14" : "#ffffff",
+    surface: isDark ? "#131922" : "#f8fafc",
+    surfaceAlt: isDark ? "#111827" : "#ffffff",
+    border: isDark ? "#243041" : "#dbe3f0",
+    mutedBorder: isDark ? "#334155" : "#cbd5e1",
+    text: isDark ? "#f8fafc" : "#0f172a",
+    mutedText: isDark ? "#94a3b8" : "#64748b",
+    splitSurface: isDark ? "#0f172a" : "#eff6ff",
+    splitBorder: isDark ? "#1d4ed8" : "#93c5fd",
   };
 
   const router = useRouter();
@@ -74,11 +85,10 @@ export default function WorkoutTabScreen() {
     void loadWorkoutHistory();
   }, []);
 
-
   useFocusEffect(
     useCallback(() => {
       void loadWorkoutHistory();
-    }, [])
+    }, []),
   );
 
   async function loadWorkoutHistory() {
@@ -91,17 +101,51 @@ export default function WorkoutTabScreen() {
         id: String(s.session_id),
         workoutId: s.workout_id,
         title: s.workout_name,
-        splitName: s.split_name ?? 'Unknown Split',
+        splitName: s.split_name ?? "Unknown Split",
         loggedAt: s.date,
         duration: s.duration,
         exercises: s.exercises,
       }));
       setWorkoutHistory(mapped);
+
+      try {
+        const postedIds = await api.getMyWorkoutPostedSessionIds();
+        setPostedSessionIds(new Set(postedIds));
+      } catch (postError) {
+        console.warn("Failed to load posted workout ids", postError);
+        setPostedSessionIds(new Set());
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load workout history.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load workout history.";
       setHistoryError(message);
     } finally {
       setLoadingHistory(false);
+    }
+  }
+
+  async function handlePostWorkout(log: LoggedWorkout) {
+    if (postingLogId || postedSessionIds.has(Number(log.id))) return;
+
+    setPostingLogId(log.id);
+    try {
+      const result = await api.createWorkoutPost(Number(log.id));
+      setPostedSessionIds((prev) => new Set([...prev, Number(log.id)]));
+      const wasCreated = result.created !== false;
+      Alert.alert(
+        wasCreated ? "Workout posted" : "Already posted",
+        wasCreated
+          ? "Your workout was saved as a post."
+          : "This workout has already been posted.",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to post workout.";
+      Alert.alert("Post failed", message);
+    } finally {
+      setPostingLogId(null);
     }
   }
 
@@ -117,7 +161,7 @@ export default function WorkoutTabScreen() {
     if (savingLogId) return;
     setSavingLogId(log.id);
     try {
-      const elapsed = 0
+      const elapsed = 0;
       const seen = new Set<number>();
       const exercises = log.exercises
         .filter((ex) => {
@@ -128,7 +172,8 @@ export default function WorkoutTabScreen() {
         .map((ex) => ({
           exercise_id: ex.exercise_id,
           machine_id: ex.machine_id,
-          sets: log.exercises.filter((e) => e.exercise_id === ex.exercise_id).length,
+          sets: log.exercises.filter((e) => e.exercise_id === ex.exercise_id)
+            .length,
           reps: ex.reps,
           weight: ex.weight,
         }));
@@ -140,11 +185,12 @@ export default function WorkoutTabScreen() {
         exercises,
       });
 
-      Alert.alert('Added to log', 'Session saved!');
+      Alert.alert("Added to log", "Session saved!");
       await loadWorkoutHistory();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add workout log.';
-      Alert.alert('Add to log failed', message);
+      const message =
+        error instanceof Error ? error.message : "Failed to add workout log.";
+      Alert.alert("Add to log failed", message);
     } finally {
       setSavingLogId(null);
     }
@@ -153,7 +199,7 @@ export default function WorkoutTabScreen() {
   function handleEditAndAdd(log: LoggedWorkout) {
     const uniqueExercises = log.exercises.filter(
       (exercise, index, arr) =>
-        arr.findIndex((e) => e.exercise_id === exercise.exercise_id) === index
+        arr.findIndex((e) => e.exercise_id === exercise.exercise_id) === index,
     );
 
     setEditingLog(log);
@@ -162,16 +208,21 @@ export default function WorkoutTabScreen() {
         exercise_id: exercise.exercise_id,
         machine_id: exercise.machine_id,
         exercise_name: exercise.exercise_name,
-        sets: String(log.exercises.filter((e) => e.exercise_id === exercise.exercise_id).length),
+        sets: String(
+          log.exercises.filter((e) => e.exercise_id === exercise.exercise_id)
+            .length,
+        ),
         reps: String(exercise.reps),
-        weight: exercise.weight != null ? String(exercise.weight) : '',
-        notes: '',
-      }))
+        weight: exercise.weight != null ? String(exercise.weight) : "",
+        notes: "",
+      })),
     );
   }
 
   function updateDraft(index: number, patch: Partial<ExerciseDraft>) {
-    setExerciseDrafts((prev) => prev.map((draft, i) => (i === index ? { ...draft, ...patch } : draft)));
+    setExerciseDrafts((prev) =>
+      prev.map((draft, i) => (i === index ? { ...draft, ...patch } : draft)),
+    );
   }
 
   async function submitEditedWorkout() {
@@ -181,8 +232,16 @@ export default function WorkoutTabScreen() {
     for (const exercise of exerciseDrafts) {
       const sets = Number(exercise.sets);
       const reps = Number(exercise.reps);
-      if (!Number.isFinite(sets) || sets < 1 || !Number.isFinite(reps) || reps < 1) {
-        Alert.alert('Invalid values', 'Sets and reps must be numbers greater than 0.');
+      if (
+        !Number.isFinite(sets) ||
+        sets < 1 ||
+        !Number.isFinite(reps) ||
+        reps < 1
+      ) {
+        Alert.alert(
+          "Invalid values",
+          "Sets and reps must be numbers greater than 0.",
+        );
         return;
       }
     }
@@ -206,11 +265,12 @@ export default function WorkoutTabScreen() {
 
       setEditingLog(null);
       setExerciseDrafts([]);
-      Alert.alert('Added to log', 'Session saved!');
+      Alert.alert("Added to log", "Session saved!");
       await loadWorkoutHistory();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add workout log.';
-      Alert.alert('Add failed', message);
+      const message =
+        error instanceof Error ? error.message : "Failed to add workout log.";
+      Alert.alert("Add failed", message);
     } finally {
       setSavingLogId(null);
     }
@@ -232,21 +292,22 @@ export default function WorkoutTabScreen() {
       setDeleteConfirmLog(null);
       await loadWorkoutHistory();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete workout.';
-      Alert.alert('Delete failed', message);
+      const message =
+        error instanceof Error ? error.message : "Failed to delete workout.";
+      Alert.alert("Delete failed", message);
     } finally {
       setDeletingLogId(null);
     }
   }
 
-
-
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredWorkoutHistory = workoutHistory.filter((log) => {
     if (!normalizedSearchQuery) return true;
-    const matchesTitle = log.title.toLowerCase().includes(normalizedSearchQuery);
+    const matchesTitle = log.title
+      .toLowerCase()
+      .includes(normalizedSearchQuery);
     const matchesExercise = log.exercises.some((exercise) =>
-      exercise.exercise_name.toLowerCase().includes(normalizedSearchQuery)
+      exercise.exercise_name.toLowerCase().includes(normalizedSearchQuery),
     );
     return matchesTitle || matchesExercise;
   });
@@ -268,11 +329,10 @@ export default function WorkoutTabScreen() {
     return Array.from(groups.values());
   }, [filteredWorkoutHistory]);
 
-
   function formatDisplayDate(iso: string): string {
     const d = new Date(iso);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
     const yyyy = String(d.getFullYear());
     return `${mm}/${dd}/${yyyy}`;
   }
@@ -283,7 +343,12 @@ export default function WorkoutTabScreen() {
         <Text style={styles.title}>My Workouts</Text>
       </View>
 
-      <View style={[styles.searchContainer, { borderColor: palette.border, backgroundColor: palette.surfaceAlt }]}>
+      <View
+        style={[
+          styles.searchContainer,
+          { borderColor: palette.border, backgroundColor: palette.surfaceAlt },
+        ]}
+      >
         <FontAwesome name="search" size={14} color={palette.mutedText} />
         <TextInput
           style={[styles.searchInput, { color: palette.text }]}
@@ -297,74 +362,174 @@ export default function WorkoutTabScreen() {
         />
       </View>
 
-      <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {loadingHistory && <Text style={styles.statusText}>Loading workout history...</Text>}
+      <ScrollView
+        style={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {loadingHistory && (
+          <Text style={styles.statusText}>Loading workout history...</Text>
+        )}
 
         {!loadingHistory && historyError && (
-          <Text style={styles.errorText}>Could not load workouts: {historyError}</Text>
+          <Text style={styles.errorText}>
+            Could not load workouts: {historyError}
+          </Text>
         )}
 
         {!loadingHistory && !historyError && workoutHistory.length === 0 && (
           <Text style={styles.statusText}>No workouts added</Text>
         )}
 
-        {!loadingHistory && !historyError && workoutHistory.length > 0 && filteredWorkoutHistory.length === 0 && (
-          <Text style={styles.statusText}>No workouts match "{searchQuery.trim()}".</Text>
-        )}
+        {!loadingHistory &&
+          !historyError &&
+          workoutHistory.length > 0 &&
+          filteredWorkoutHistory.length === 0 && (
+            <Text style={styles.statusText}>
+              No workouts match "{searchQuery.trim()}".
+            </Text>
+          )}
 
-        {!loadingHistory && !historyError && groupedWorkouts.map((group) => (
-          <View key={`${group.splitName}-${group.date}`} style={[styles.splitCard, { borderColor: palette.splitBorder, backgroundColor: palette.splitSurface }]}>
-            <Text style={[styles.splitTitle, { color: palette.text }]}>{group.splitName}</Text>
-            <Text style={[styles.splitDate, { color: palette.mutedText }]}>{group.date}</Text>
+        {!loadingHistory &&
+          !historyError &&
+          groupedWorkouts.map((group) => (
+            <View
+              key={`${group.splitName}-${group.date}`}
+              style={[
+                styles.splitCard,
+                {
+                  borderColor: palette.splitBorder,
+                  backgroundColor: palette.splitSurface,
+                },
+              ]}
+            >
+              <Text style={[styles.splitTitle, { color: palette.text }]}>
+                {group.splitName}
+              </Text>
+              <Text style={[styles.splitDate, { color: palette.mutedText }]}>
+                {group.date}
+              </Text>
 
-            {group.sessions.map((log) => {
-              const isExpanded = expandedLogId === log.id;
-              return (
-                <View key={log.id} style={[styles.logCard, { borderColor: palette.border, backgroundColor: palette.surface }]}>
-                  <Pressable style={styles.logHeaderRow} onPress={() => setExpandedLogId(isExpanded ? null : log.id)}>
-                    <View>
-                      <Text style={[styles.logTitle, { color: palette.text }]}>{log.title}</Text>
-                      <Text style={[styles.logDate, { color: palette.mutedText }]}>{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
-                    </View>
-                    <FontAwesome name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={palette.mutedText} />
-                  </Pressable>
-
-                  {isExpanded && (
-                    <View style={[styles.exerciseList, { borderTopColor: palette.border }]}>
-                      <Text style={[styles.exerciseHeading, { color: palette.text }]}>Exercises in this log</Text>
-                      {log.exercises.map((exercise, idx) => (<View key={`${exercise.exercise_id}-${exercise.machine_id}-${idx}`} style={styles.exerciseRow}>
+              {group.sessions.map((log) => {
+                const isExpanded = expandedLogId === log.id;
+                return (
+                  <View
+                    key={log.id}
+                    style={[
+                      styles.logCard,
+                      {
+                        borderColor: palette.border,
+                        backgroundColor: palette.surface,
+                      },
+                    ]}
+                  >
+                    <Pressable
+                      style={styles.logHeaderRow}
+                      onPress={() =>
+                        setExpandedLogId(isExpanded ? null : log.id)
+                      }
+                    >
+                      <View>
                         <Text
-                          key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
-                          style={[styles.exerciseItem, { color: palette.text }]}
+                          style={[styles.logTitle, { color: palette.text }]}
                         >
-                          - {formatExercise(exercise, isImperial)}
+                          {log.title}
                         </Text>
-                        <ProgressionButton exerciseId={exercise.exercise_name} />
-                      </View>))}
-                      <View style={styles.timerRow}>
-                        <ForgeButton
-                          text = "Upload"
-                        />
-                        <ForgeButton
-                          text={deletingLogId === log.id ? 'Deleting...' : 'Delete'}
-                          theme="danger"
-                          compact
-                          style={styles.deleteButton}
-                          onPress={() => void handleDeleteWorkout(log)}
-                          disabled={deletingLogId === log.id}
-                        />
+                        <Text
+                          style={[styles.logDate, { color: palette.mutedText }]}
+                        >{`${Math.floor(log.duration / 60)}m ${log.duration % 60}s`}</Text>
                       </View>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        ))}
+                      <FontAwesome
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={14}
+                        color={palette.mutedText}
+                      />
+                    </Pressable>
+
+                    {isExpanded && (
+                      <View
+                        style={[
+                          styles.exerciseList,
+                          { borderTopColor: palette.border },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.exerciseHeading,
+                            { color: palette.text },
+                          ]}
+                        >
+                          Exercises in this log
+                        </Text>
+                        {log.exercises.map((exercise, idx) => (
+                          <View
+                            key={`${exercise.exercise_id}-${exercise.machine_id}-${idx}`}
+                            style={styles.exerciseRow}
+                          >
+                            <Text
+                              key={`${log.id}-${exercise.exercise_id}-${exercise.machine_id}-${exercise.set_number}`}
+                              style={[
+                                styles.exerciseItem,
+                                { color: palette.text },
+                              ]}
+                            >
+                              - {formatExercise(exercise, isImperial)}
+                            </Text>
+                            <ProgressionButton
+                              exerciseId={exercise.exercise_name}
+                            />
+                          </View>
+                        ))}
+                        <View style={styles.timerRow}>
+                          <ForgeButton
+                            text={
+                              postedSessionIds.has(Number(log.id))
+                                ? "Posted"
+                                : postingLogId === log.id
+                                  ? "Posting..."
+                                  : "Post"
+                            }
+                            compact
+                            style={styles.postButton}
+                            color={
+                              postedSessionIds.has(Number(log.id))
+                                ? "#16a34a"
+                                : "#2563eb"
+                            }
+                            onPress={() => void handlePostWorkout(log)}
+                            disabled={
+                              postedSessionIds.has(Number(log.id)) ||
+                              postingLogId === log.id
+                            }
+                          />
+                          <ForgeButton
+                            text={
+                              deletingLogId === log.id
+                                ? "Deleting..."
+                                : "Delete"
+                            }
+                            compact
+                            style={styles.deleteButton}
+                            color={"#ef4444"}
+                            onPress={() => void handleDeleteWorkout(log)}
+                            disabled={deletingLogId === log.id}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
       </ScrollView>
 
       <View style={styles.actionsRow}>
-        <ForgeButton text="Log Workout" theme="primary" style={styles.actionButton} onPress={handleLogWorkout} />
+        <ForgeButton
+          text="Log Workout"
+          theme="primary"
+          style={styles.actionButton}
+          onPress={handleLogWorkout}
+        />
         <ForgeButton
           text="Generate Workout"
           theme="teal"
@@ -375,17 +540,22 @@ export default function WorkoutTabScreen() {
       <View style={styles.actionsRow}>
         <CardioButton />
       </View>
-      <AppModal 
-        visible ={!!editingLog}
+      <AppModal
+        visible={!!editingLog}
         scrollStyle={{ maxHeight: 420 }}
         onClose={() => setEditingLog(null)}
-        title = {editingLog?.title ?? ''}
+        title={editingLog?.title ?? ""}
         animationType="slide"
-        actions = {
+        actions={
           <>
-            <ForgeButton text = "Cancel" theme = "neutral" style = {styles.modalButton} onPress={() => setEditingLog(null)} />
             <ForgeButton
-              text={savingLogId ? 'Saving...' : 'Add'}
+              text="Cancel"
+              theme="neutral"
+              style={styles.modalButton}
+              onPress={() => setEditingLog(null)}
+            />
+            <ForgeButton
+              text={savingLogId ? "Saving..." : "Add"}
               theme="success"
               style={styles.modalButton}
               onPress={submitEditedWorkout}
@@ -394,17 +564,31 @@ export default function WorkoutTabScreen() {
           </>
         }
       >
-        <Text style = {[styles.modalSubtitle, {color: palette.mutedText}]}>Edit exercises, then add this workout log.</Text>
+        <Text style={[styles.modalSubtitle, { color: palette.mutedText }]}>
+          Edit exercises, then add this workout log.
+        </Text>
         {exerciseDrafts.map((draft, index) => (
           <View
             key={`${draft.exercise_id}-${draft.machine_id}-${index}`}
-            style={[styles.modalExerciseCard, { borderColor: palette.border, backgroundColor: palette.surface }]}
+            style={[
+              styles.modalExerciseCard,
+              { borderColor: palette.border, backgroundColor: palette.surface },
+            ]}
           >
-            <Text style={[styles.exerciseCardTitle, { color: palette.text }]}>{draft.exercise_name}</Text>
+            <Text style={[styles.exerciseCardTitle, { color: palette.text }]}>
+              {draft.exercise_name}
+            </Text>
 
             <View style={styles.twoCols}>
               <TextInput
-                style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: palette.mutedBorder,
+                    color: palette.text,
+                    backgroundColor: palette.background,
+                  },
+                ]}
                 keyboardType="number-pad"
                 value={draft.sets}
                 onChangeText={(value) => updateDraft(index, { sets: value })}
@@ -412,7 +596,14 @@ export default function WorkoutTabScreen() {
                 placeholderTextColor={palette.mutedText}
               />
               <TextInput
-                style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: palette.mutedBorder,
+                    color: palette.text,
+                    backgroundColor: palette.background,
+                  },
+                ]}
                 keyboardType="number-pad"
                 value={draft.reps}
                 onChangeText={(value) => updateDraft(index, { reps: value })}
@@ -422,7 +613,14 @@ export default function WorkoutTabScreen() {
             </View>
 
             <TextInput
-              style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: palette.mutedBorder,
+                  color: palette.text,
+                  backgroundColor: palette.background,
+                },
+              ]}
               keyboardType="numeric"
               value={draft.weight}
               onChangeText={(value) => updateDraft(index, { weight: value })}
@@ -430,7 +628,14 @@ export default function WorkoutTabScreen() {
               placeholderTextColor={palette.mutedText}
             />
             <TextInput
-              style={[styles.input, { borderColor: palette.mutedBorder, color: palette.text, backgroundColor: palette.background }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: palette.mutedBorder,
+                  color: palette.text,
+                  backgroundColor: palette.background,
+                },
+              ]}
               value={draft.notes}
               onChangeText={(value) => updateDraft(index, { notes: value })}
               placeholder="Notes (optional)"
@@ -442,12 +647,19 @@ export default function WorkoutTabScreen() {
 
       <Modal visible={!!deleteConfirmLog} animationType="fade" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.confirmCard, { backgroundColor: palette.surfaceAlt }]}>
-            <Text style={[styles.confirmTitle, { color: palette.text }]}>Delete workout?</Text>
+          <View
+            style={[
+              styles.confirmCard,
+              { backgroundColor: palette.surfaceAlt },
+            ]}
+          >
+            <Text style={[styles.confirmTitle, { color: palette.text }]}>
+              Delete workout?
+            </Text>
             <Text style={[styles.confirmText, { color: palette.mutedText }]}>
               {deleteConfirmLog
                 ? `Delete "${deleteConfirmLog.title}" from your workout history?`
-                : 'Delete this workout from your workout history?'}
+                : "Delete this workout from your workout history?"}
             </Text>
             <View style={styles.modalActions}>
               <ForgeButton
@@ -458,7 +670,7 @@ export default function WorkoutTabScreen() {
                 disabled={!!deletingLogId}
               />
               <ForgeButton
-                text={deletingLogId ? 'Deleting...' : 'Delete'}
+                text={deletingLogId ? "Deleting..." : "Delete"}
                 theme="danger"
                 style={styles.modalButton}
                 onPress={confirmDeleteWorkout}
@@ -479,30 +691,30 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
   title: {
     fontSize: 30,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   searchContainer: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#d5dee9',
+    borderColor: "#d5dee9",
     borderRadius: 12,
     paddingHorizontal: 10,
     height: 42,
-    backgroundColor: '#ffffff',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#ffffff",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#0f172a',
+    color: "#0f172a",
     paddingVertical: 0,
   },
   listContainer: {
@@ -511,45 +723,45 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 15,
-    color: '#64748b',
+    color: "#64748b",
     marginBottom: 8,
   },
   errorText: {
     fontSize: 15,
-    color: '#b91c1c',
+    color: "#b91c1c",
     marginBottom: 8,
   },
   logCard: {
     borderWidth: 1,
-    borderColor: '#dbe3f0',
+    borderColor: "#dbe3f0",
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
   },
   logHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   logTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   logDate: {
     marginTop: 2,
     fontSize: 13,
-    color: '#64748b',
+    color: "#64748b",
   },
   exerciseList: {
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: "#e2e8f0",
   },
   exerciseHeading: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 6,
   },
   exerciseItem: {
@@ -558,86 +770,86 @@ const styles = StyleSheet.create({
   },
   timerRow: {
     marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   deleteButton: {
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: '#ef4444',
+    backgroundColor: "#ef4444",
   },
   deleteButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   actionsRow: {
     marginTop: 20,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   actionButton: {
     flex: 1,
     borderRadius: 14,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   logButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: "#2563eb",
   },
   generateButton: {
-    backgroundColor: '#0f766e',
+    backgroundColor: "#0f766e",
   },
   actionText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
     padding: 16,
   },
   modalCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 14,
     padding: 14,
-    maxHeight: '85%',
+    maxHeight: "85%",
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   modalSubtitle: {
     marginTop: 4,
     marginBottom: 10,
-    color: '#64748b',
+    color: "#64748b",
   },
   modalScroll: {
     maxHeight: 420,
   },
   modalExerciseCard: {
     borderWidth: 1,
-    borderColor: '#dbe3f0',
+    borderColor: "#dbe3f0",
     borderRadius: 12,
     padding: 10,
     marginBottom: 10,
   },
   exerciseCardTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 8,
   },
   twoCols: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: "#cbd5e1",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -646,79 +858,81 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     marginTop: 8,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
   modalButton: {
     flex: 1,
     borderRadius: 10,
     paddingVertical: 11,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalCancelButton: {
-    backgroundColor: '#64748b',
+    backgroundColor: "#64748b",
   },
   modalAddButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: "#16a34a",
   },
   deleteConfirmButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: "#dc2626",
   },
   modalButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
+    color: "#ffffff",
+    fontWeight: "700",
   },
   confirmCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 14,
     padding: 16,
   },
   confirmTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   confirmText: {
     marginTop: 8,
     marginBottom: 14,
-    color: '#334155',
+    color: "#334155",
   },
   splitCard: {
     borderWidth: 1,
-    borderColor: '#93c5fd',
+    borderColor: "#93c5fd",
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
-    backgroundColor: '#eff6ff',
+    backgroundColor: "#eff6ff",
   },
   splitTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#1e3a5f',
+    fontWeight: "800",
+    color: "#1e3a5f",
   },
   splitDate: {
     fontSize: 13,
-    color: '#64748b',
+    color: "#64748b",
     marginBottom: 8,
   },
   exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 });
 
-
-function formatExercise(exercise: SessionExerciseLog, isImperial: boolean): string {
-  const weight = exercise.weight != null ? 
-    isImperial 
-      ? `${exercise.weight} lb`
-      : `${(exercise.weight * 0.453592).toFixed(0)} kg`
-    : null;
+function formatExercise(
+  exercise: SessionExerciseLog,
+  isImperial: boolean,
+): string {
+  const weight =
+    exercise.weight != null
+      ? isImperial
+        ? `${exercise.weight} lb`
+        : `${(exercise.weight * 0.453592).toFixed(0)} kg`
+      : null;
   const parts = [
     exercise.exercise_name,
     `Set ${exercise.set_number} · ${exercise.reps} reps`,
     weight,
   ].filter(Boolean);
-  return parts.join(' • ');
+  return parts.join(" • ");
 }
-

@@ -684,6 +684,15 @@ look pleasing on a graph.
     return get<WorkoutFeedPost[]>('/feed/workouts/friends');
   },
 
+  createWorkoutPost: async (sessionId: number): Promise<{ ok: boolean; created: boolean; detail?: string; post_id?: number }> => {
+    return post<{ ok: boolean; created: boolean; detail?: string; post_id?: number }>(`/posts/workouts/${sessionId}`, {});
+  },
+
+  getMyWorkoutPostedSessionIds: async (): Promise<number[]> => {
+    return get<number[]>('/posts/workouts/mine');
+  },
+
+
   acceptFriendRequest: async (requesterId: number): Promise<void> => {
     await post<{ ok: boolean }>('/friends/accept', { requester_id: requesterId });
   },

@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports
+from app.core.db import Accounts, InboxNotifications, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -1464,56 +1464,78 @@ def _blocked_user_ids(db: Session, user_id: int) -> set[int]:
     return blocked_ids
 
 
-def _accepted_friend_ids(db: Session, user_id: int) -> set[int]:
-    rows = (
-        db.query(Friendships)
-        .filter(Friendships.status == "accepted")
-        .filter(
-            or_(
-                Friendships.RequesterID == user_id,
-                Friendships.AddresseeID == user_id,
-            )
-        )
-        .all()
+WORKOUT_SESSION_MARKER_RE = re.compile(r"\[WORKOUT_SESSION:(\d+)\]")
+
+
+def _workout_post_caption(session_id: int, workout_name: str, split_name: Optional[str]) -> str:
+    title = (split_name or workout_name or "Workout").strip()
+    return f"[WORKOUT_SESSION:{session_id}] {title}"
+
+
+def _extract_session_id_from_post_caption(caption: Optional[str]) -> Optional[int]:
+    if not caption:
+        return None
+    match = WORKOUT_SESSION_MARKER_RE.search(caption)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _next_post_id(db: Session) -> int:
+    last = db.query(Posts).order_by(Posts.PostID.desc()).first()
+    return 1 if last is None else int(last.PostID) + 1
+
+
+def _fallback_machine_id(db: Session) -> int:
+    bodyweight = db.query(Machines).filter(Machines.name.ilike("body weight")).first()
+    if bodyweight:
+        return bodyweight.MachineID
+    first_machine = db.query(Machines).order_by(Machines.MachineID.asc()).first()
+    if not first_machine:
+        raise HTTPException(status_code=500, detail="No machines available for post creation")
+    return first_machine.MachineID
+
+
+def _build_feed_post_from_saved_post(db: Session, post_row: Posts) -> Optional[WorkoutFeedPostOut]:
+    session_id = _extract_session_id_from_post_caption(post_row.caption)
+    if session_id is None:
+        return None
+
+    session_row = (
+        db.query(session_workouts)
+        .filter(session_workouts.SessionID == session_id)
+        .first()
     )
+    if session_row is None:
+        return None
 
-    friend_ids: set[int] = set()
-    for row in rows:
-        if row.RequesterID == user_id:
-            friend_ids.add(row.AddresseeID)
-        else:
-            friend_ids.add(row.RequesterID)
-    return friend_ids
+    account = db.query(Accounts).filter(Accounts.UserID == session_row.ProfileID).first()
+    profile = db.query(Profiles).filter(Profiles.ProfileID == session_row.ProfileID).first()
+    workout = db.query(Workouts).filter(Workouts.WorkoutID == session_row.WorkoutID).first()
+    if account is None or workout is None:
+        return None
 
-
-def _build_workout_feed_posts(db: Session, rows) -> List[WorkoutFeedPostOut]:
     from app.core.db import Splits
 
-    result: List[WorkoutFeedPostOut] = []
-    for session_row, account, profile, workout in rows:
-        split = (
-            db.query(Splits)
-            .filter(Splits.SplitID == session_row.SplitID)
-            .first()
-            if session_row.SplitID
-            else None
-        )
-        result.append(
-            WorkoutFeedPostOut(
-                session_id=session_row.SessionID,
-                profile_id=session_row.ProfileID,
-                username=account.username,
-                gym_location=profile.gym_location,
-                workout_id=workout.WorkoutID,
-                workout_name=workout.name,
-                split_name=split.name if split else None,
-                date=str(session_row.date),
-                duration=session_row.duration,
-                exercises=_build_session_exercise_summary(db, session_row.SessionID),
-            )
-        )
+    split = None
+    if session_row.SplitID:
+        split = db.query(Splits).filter(Splits.SplitID == session_row.SplitID).first()
 
-    return result
+    return WorkoutFeedPostOut(
+        session_id=session_row.SessionID,
+        profile_id=session_row.ProfileID,
+        username=account.username,
+        gym_location=profile.gym_location if profile else None,
+        workout_id=workout.WorkoutID,
+        workout_name=workout.name,
+        split_name=split.name if split else None,
+        date=str(session_row.date),
+        duration=session_row.duration,
+        exercises=_build_session_exercise_summary(db, session_row.SessionID),
+    )
 
 
 @app.post("/sessions", response_model=SessionOut)
@@ -2128,6 +2150,117 @@ def recalibrate_calories(
 
     return RecalibrateCaloriesResponse(calorie_goal=new_goal)
 
+@app.get("/posts/workouts/mine", response_model=List[int])
+def get_my_workout_post_session_ids(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Posts).filter(Posts.ProfileID == me.UserID).all()
+    session_ids: List[int] = []
+    for row in rows:
+        session_id = _extract_session_id_from_post_caption(row.caption)
+        if session_id is not None:
+            session_ids.append(session_id)
+    return sorted(set(session_ids))
+
+
+@app.post("/posts/workouts/{session_id}")
+def create_workout_post(
+    session_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    session_row = (
+        db.query(session_workouts)
+        .filter(
+            session_workouts.SessionID == session_id,
+            session_workouts.ProfileID == me.UserID,
+        )
+        .first()
+    )
+    if session_row is None:
+        raise HTTPException(status_code=404, detail="Workout session not found")
+
+    existing_posts = db.query(Posts).filter(Posts.ProfileID == me.UserID).all()
+    for post_row in existing_posts:
+        if _extract_session_id_from_post_caption(post_row.caption) == session_id:
+            return {"ok": True, "created": False, "detail": "Workout already posted", "post_id": post_row.PostID}
+
+    first_session_exercise = (
+        db.query(session_exercises)
+        .filter(session_exercises.SessionID == session_id)
+        .order_by(session_exercises.set_number.asc())
+        .first()
+    )
+    if first_session_exercise is None:
+        raise HTTPException(status_code=400, detail="Cannot post a workout with no exercises")
+
+    workout = db.query(Workouts).filter(Workouts.WorkoutID == session_row.WorkoutID).first()
+    if workout is None:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    from app.core.db import Splits
+
+    split = None
+    if session_row.SplitID:
+        split = db.query(Splits).filter(Splits.SplitID == session_row.SplitID).first()
+
+    post_row = Posts(
+        PostID=_next_post_id(db),
+        ProfileID=me.UserID,
+        ExerciseID=first_session_exercise.ExerciseID,
+        WorkoutID=session_row.WorkoutID,
+        MachineID=first_session_exercise.MachineID or _fallback_machine_id(db),
+        caption=_workout_post_caption(session_id, workout.name, split.name if split else None),
+    )
+    db.add(post_row)
+    db.commit()
+    return {"ok": True, "created": True, "detail": "Workout posted", "post_id": post_row.PostID}
+
+
+@app.get("/feed/workouts/friends", response_model=List[WorkoutFeedPostOut])
+def get_friends_workout_feed(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    blocked_ids = _blocked_user_ids(db, me.UserID)
+
+    friendship_rows = (
+        db.query(Friendships)
+        .filter(
+            Friendships.status == "accepted",
+            or_(Friendships.RequesterID == me.UserID, Friendships.AddresseeID == me.UserID),
+        )
+        .all()
+    )
+
+    friend_ids: set[int] = set()
+    for row in friendship_rows:
+        friend_ids.add(row.AddresseeID if row.RequesterID == me.UserID else row.RequesterID)
+
+    friend_ids -= blocked_ids
+    if not friend_ids:
+        return []
+
+    post_rows = (
+        db.query(Posts)
+        .filter(Posts.ProfileID.in_(friend_ids))
+        .order_by(Posts.PostID.desc())
+        .limit(50)
+        .all()
+    )
+
+    result: List[WorkoutFeedPostOut] = []
+    seen_sessions: set[int] = set()
+    for post_row in post_rows:
+        feed_post = _build_feed_post_from_saved_post(db, post_row)
+        if feed_post is None or feed_post.session_id in seen_sessions:
+            continue
+        seen_sessions.add(feed_post.session_id)
+        result.append(feed_post)
+    return result
+
+
 @app.get("/feed/workouts/gym", response_model=List[WorkoutFeedPostOut])
 def get_same_gym_workout_feed(
     me: Accounts = Depends(get_current_account),
@@ -2141,48 +2274,28 @@ def get_same_gym_workout_feed(
 
     blocked_ids = _blocked_user_ids(db, me.UserID)
 
-    query = (
-        db.query(session_workouts, Accounts, Profiles, Workouts)
-        .join(Accounts, Accounts.UserID == session_workouts.ProfileID)
-        .join(Profiles, Profiles.ProfileID == session_workouts.ProfileID)
-        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
-        .filter(session_workouts.ProfileID != me.UserID)
+    post_rows = (
+        db.query(Posts)
+        .join(Profiles, Profiles.ProfileID == Posts.ProfileID)
+        .filter(Posts.ProfileID != me.UserID)
         .filter(Profiles.gym_location == gym_location)
-        .order_by(session_workouts.date.desc())
-    )
-
-    if blocked_ids:
-        query = query.filter(~session_workouts.ProfileID.in_(blocked_ids))
-
-    rows = query.limit(50).all()
-    return _build_workout_feed_posts(db, rows)
-
-
-@app.get("/feed/workouts/friends", response_model=List[WorkoutFeedPostOut])
-def get_friends_workout_feed(
-    me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),
-):
-    friend_ids = _accepted_friend_ids(db, me.UserID)
-    if not friend_ids:
-        return []
-
-    visible_friend_ids = friend_ids - _blocked_user_ids(db, me.UserID)
-    if not visible_friend_ids:
-        return []
-
-    rows = (
-        db.query(session_workouts, Accounts, Profiles, Workouts)
-        .join(Accounts, Accounts.UserID == session_workouts.ProfileID)
-        .join(Profiles, Profiles.ProfileID == session_workouts.ProfileID)
-        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
-        .filter(session_workouts.ProfileID.in_(visible_friend_ids))
-        .order_by(session_workouts.date.desc())
+        .order_by(Posts.PostID.desc())
         .limit(50)
         .all()
     )
 
-    return _build_workout_feed_posts(db, rows)
+    result: List[WorkoutFeedPostOut] = []
+    seen_sessions: set[int] = set()
+    for post_row in post_rows:
+        if post_row.ProfileID in blocked_ids:
+            continue
+        feed_post = _build_feed_post_from_saved_post(db, post_row)
+        if feed_post is None or feed_post.session_id in seen_sessions:
+            continue
+        seen_sessions.add(feed_post.session_id)
+        result.append(feed_post)
+
+    return result
 
 
 if __name__ == "__main__":
