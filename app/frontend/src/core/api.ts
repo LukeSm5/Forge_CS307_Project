@@ -631,6 +631,33 @@ look pleasing on a graph.
     }
   },
 
+  getPostInfo: async (postId: number): Promise<PostInfo> => {
+    const likes = await post<{ likes: { user_id: number, username: string}[] }>('/posts/likes', { post_id: postId });
+    const comments = await post<{ comments: { user_id: number, username: string, text: string, timestamp: string }[] }>('/posts/comments', { post_id: postId });
+    const reactions = await post<{ reactions: { user_id: number, username: string, reaction: string }[] }>('/posts/reactions', { post_id: postId });
+    return { likes: likes.likes, comments: comments.comments, reactions: reactions.reactions };
+  },
+
+  likePost: async (postId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/likePost', { post_id: postId });
+  },
+
+  unlikePost: async (postId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/unlikePost', { post_id: postId });
+  },
+
+  reactToPost: async (postId: number, reaction: string): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/reactPost', { post_id: postId, text: reaction });
+  },
+
+  unreactToPost: async (postId: number): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/unreactPost', { post_id: postId });
+  },
+
+  commentOnPost: async (postId: number, text: string): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/commentPost', { post_id: postId, text });
+  },
+
   reportUser: async (reportedId: number, description: string): Promise<void> => {
     await post<{ ok: boolean }>('/reports', {
       reported_id: reportedId,
@@ -1181,4 +1208,10 @@ export type SavedMealPost = {
   category?: string | null;
   meal_type?: string | null;
   saved_at: string;
+};
+
+export type PostInfo = {
+  likes: { user_id: number; username: string }[];
+  comments: { user_id: number; username: string; text: string; timestamp: string }[];
+  reactions: { user_id: number; username: string; reaction: string }[];
 };
