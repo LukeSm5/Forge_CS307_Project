@@ -82,6 +82,8 @@ def ensure_dev_schema() -> None:
 
 ensure_dev_schema()
 
+class PostWorkoutPayload(BaseModel):
+    session_id: int
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -2164,16 +2166,16 @@ def get_my_workout_post_session_ids(
     return sorted(set(session_ids))
 
 
-@app.post("/posts/workouts/{session_id}")
+@app.post("/posts/workouts/create")
 def create_workout_post(
-    session_id: int,
+    payload: PostWorkoutPayload,
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
     session_row = (
         db.query(session_workouts)
         .filter(
-            session_workouts.SessionID == session_id,
+            session_workouts.SessionID == payload.session_id,
             session_workouts.ProfileID == me.UserID,
         )
         .first()
@@ -2183,12 +2185,12 @@ def create_workout_post(
 
     existing_posts = db.query(Posts).filter(Posts.ProfileID == me.UserID).all()
     for post_row in existing_posts:
-        if _extract_session_id_from_post_caption(post_row.caption) == session_id:
+        if _extract_session_id_from_post_caption(post_row.caption) == payload.session_id:
             return {"ok": True, "created": False, "detail": "Workout already posted", "post_id": post_row.PostID}
 
     first_session_exercise = (
         db.query(session_exercises)
-        .filter(session_exercises.SessionID == session_id)
+        .filter(session_exercises.SessionID == payload.session_id)
         .order_by(session_exercises.set_number.asc())
         .first()
     )
@@ -2211,7 +2213,7 @@ def create_workout_post(
         ExerciseID=first_session_exercise.ExerciseID,
         WorkoutID=session_row.WorkoutID,
         MachineID=first_session_exercise.MachineID or _fallback_machine_id(db),
-        caption=_workout_post_caption(session_id, workout.name, split.name if split else None),
+        caption=_workout_post_caption(payload.session_id, workout.name, split.name if split else None),
     )
     db.add(post_row)
     db.commit()

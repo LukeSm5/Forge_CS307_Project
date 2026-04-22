@@ -685,7 +685,7 @@ look pleasing on a graph.
   },
 
   createWorkoutPost: async (sessionId: number): Promise<{ ok: boolean; created: boolean; detail?: string; post_id?: number }> => {
-    return post<{ ok: boolean; created: boolean; detail?: string; post_id?: number }>(`/posts/workouts/${sessionId}`, {});
+    return post<{ ok: boolean; created: boolean; detail?: string; post_id?: number }>(`/posts/workouts/create`, { session_id: sessionId });
   },
 
   getMyWorkoutPostedSessionIds: async (): Promise<number[]> => {

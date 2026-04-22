@@ -151,6 +151,12 @@ class Likes(Base):
     PostID = Column(Integer, primary_key=True, nullable=False)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), primary_key=True, nullable=False)
 
+class Reactions(Base):
+    __tablename__ = 'Reactions'
+    PostID = Column(Integer, primary_key=True, nullable=False)
+    ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), primary_key=True, nullable=False)
+    reaction_type = Column(Text, nullable=False)  # emoji
+
 class Comments(Base):
     __tablename__ = 'Comments'
     PostID = Column(Integer, primary_key=True, nullable=False)
