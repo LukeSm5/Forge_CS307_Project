@@ -162,6 +162,7 @@ class Comments(Base):
     PostID = Column(Integer, primary_key=True, nullable=False)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), primary_key=True, nullable=False)
     text = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # how exactly track nutrition from serving size ?

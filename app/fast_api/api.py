@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts
+from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -84,6 +84,13 @@ ensure_dev_schema()
 
 class PostWorkoutPayload(BaseModel):
     session_id: int
+
+class PostInfoPayload(BaseModel):
+    post_id: int
+
+class PostTextPayload(BaseModel):
+    post_id: int
+    text: str
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -2164,6 +2171,124 @@ def get_my_workout_post_session_ids(
         if session_id is not None:
             session_ids.append(session_id)
     return sorted(set(session_ids))
+
+
+@app.post("/posts/likes")
+def get_post_likes(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Likes).filter(Likes.PostID == payload.post_id).all()
+    return { "likes": [
+        {
+            "user_id": row.ProfileID,
+            "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username
+        }
+        for row in rows
+    ] }
+
+
+@app.post("/posts/reactions")
+def get_post_reactions(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Reactions).filter(Reactions.PostID == payload.post_id).all()
+    return { "reactions": [
+        {
+            "user_id": row.ProfileID,
+            "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
+            "reaction": row.reaction_type,
+        }
+        for row in rows
+    ] }
+
+@app.post("/posts/comments")
+def get_post_comments(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Comments).filter(Comments.PostID == payload.post_id).all()
+    return { "comments": [
+        {
+            "user_id": row.ProfileID,
+            "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
+            "text": row.text,
+            "timestamp": row.timestamp,
+        }
+        for row in rows
+    ] }
+
+
+@app.post("/feed/likePost")
+def like_post(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).first():
+        raise HTTPException(status_code=400, detail="Post already liked")
+    like = Likes(PostID=payload.post_id, ProfileID=me.UserID)
+    db.add(like)
+    db.commit()
+    return {"ok": True, "detail": "Post liked"}
+
+
+@app.post("/feed/unlikePost")
+def like_post(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if not db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).first():
+        raise HTTPException(status_code=400, detail="Post not liked")
+    db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).delete()
+    db.commit()
+    return {"ok": True, "detail": "Post unliked"}
+
+
+@app.post("/feed/reactPost")
+def react_post(
+    payload: PostTextPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    existing = db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).first()
+    if existing:
+        existing.reaction_type = payload.text
+    else:
+        reaction = Reactions(PostID=payload.post_id, ProfileID=me.UserID, reaction_type=payload.text)
+        db.add(reaction)
+    db.commit()
+    return {"ok": True, "detail": "Post reacted"}
+
+
+@app.post("/feed/unreactPost")
+def unreact_post(
+    payload: PostInfoPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if not db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).first():
+        raise HTTPException(status_code=400, detail="Post not reacted")
+    db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).delete()
+    db.commit()
+    return {"ok": True, "detail": "Post unreacted"}
+
+
+@app.post("/feed/commentPost")
+def comment_post(
+    payload: PostTextPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text)
+    db.add(comment)
+    db.commit()
+    return {"ok": True, "detail": "Post commented"}
 
 
 @app.post("/posts/workouts/create")
