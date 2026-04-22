@@ -2236,6 +2236,11 @@ def like_post(
     like = Likes(PostID=payload.post_id, ProfileID=me.UserID)
     db.add(like)
     db.commit()
+
+    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
+
+    add_notification(db, post.ProfileID, f"{me.username} liked your post")
+
     return {"ok": True, "detail": "Post liked"}
 
 
