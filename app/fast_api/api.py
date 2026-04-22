@@ -300,6 +300,7 @@ class WorkoutFeedExerciseOut(BaseModel):
 
 
 class WorkoutFeedPostOut(BaseModel):
+    post_id: int
     session_id: int
     profile_id: int
     username: str
@@ -1534,6 +1535,7 @@ def _build_feed_post_from_saved_post(db: Session, post_row: Posts) -> Optional[W
         split = db.query(Splits).filter(Splits.SplitID == session_row.SplitID).first()
 
     return WorkoutFeedPostOut(
+        post_id=post_row.PostID,
         session_id=session_row.SessionID,
         profile_id=session_row.ProfileID,
         username=account.username,

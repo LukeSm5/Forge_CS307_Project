@@ -1038,6 +1038,7 @@ export type WorkoutFeedExercise = {
 };
 
 export type WorkoutFeedPost = {
+  post_id: number;
   session_id: number;
   profile_id: number;
   username: string;

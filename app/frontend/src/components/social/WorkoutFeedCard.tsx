@@ -1,9 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/Themed";
-import { WorkoutFeedPost } from "@/core/api";
+import { WorkoutFeedPost, api, PostInfo } from "@/core/api";
 
 import { SocialPalette } from "./socialTypes";
 
@@ -45,6 +45,12 @@ export default function WorkoutFeedCard({
   );
   const title = post.split_name?.trim() || post.workout_name;
   const durationLabel = formatDuration(post.duration);
+
+  const [ postInfo, setPostInfo ] = useState<PostInfo | null>(null);
+
+  useEffect(() => {
+    api.getPostInfo(post.post_id).then(setPostInfo);
+  }, [])
 
   return (
     <View
