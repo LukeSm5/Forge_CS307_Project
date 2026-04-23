@@ -136,7 +136,7 @@ export default function SettingsScreen() {
             Settings are saved automatically and will persist after restarting
             the app.
           </Text>
-          <SectionHeader title="Notifications" />
+          <SectionHeader title="Preferences" />
           {notificationLoading && (
             <ActivityIndicator style={{ marginVertical: 8 }} color="#2f80ed" />
           )}
@@ -278,8 +278,7 @@ export default function SettingsScreen() {
             </>
           )}
           {/* Conversions from Metric to Imperial Units in UI */}
-          <SectionHeader title="Measuring Units" />
-          <Text style={styles.sectionTitle}>Preferred units</Text>
+          <Text style={styles.sectionTitle}>Measurement units</Text>
           <Text style={styles.helper}>
             Unit preferences will be applied across the app.
           </Text>
@@ -369,19 +368,6 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.accountSubsection}>
-              <Text style={styles.accountSubsectionTitle}>Session</Text>
-              <Text style={[styles.helper, { marginBottom: 10 }]}>
-                Log out of this account and return to the login screen.
-              </Text>
-              <ActionButton
-                label="Log Out"
-                onPress={doLogout}
-                disabled={loading}
-                variant="secondary"
-              />
-            </View>
-
             {user && (
               <View style={styles.accountSubsection}>
                 <Text style={styles.accountSubsectionTitle}>Danger Zone</Text>
@@ -399,6 +385,19 @@ export default function SettingsScreen() {
               </View>
             )}
           </View>
+
+            <View style={styles.accountSubsection}>
+              <SectionHeader title="Session" />
+              <Text style={[styles.helper, { marginBottom: 10 }]}>
+                Log out of this account and return to the login screen.
+              </Text>
+              <ActionButton
+                label="Log Out"
+                onPress={doLogout}
+                disabled={loading}
+                variant="secondary"
+              />
+            </View>
         </View>
       </ScrollView>
     </>

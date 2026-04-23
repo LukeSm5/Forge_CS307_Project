@@ -1285,7 +1285,6 @@ export type CreateGroupGoalRequest = {
   unit: GoalUnit;
 };
 
-};
 
 // change this after it works
 export type ReportData = {
