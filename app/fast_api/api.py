@@ -68,6 +68,8 @@ def ensure_dev_schema() -> None:
     except Exception:
         return
 
+    existing_tables = set(inspector.get_table_names())
+
     with engine.begin() as connection:
         if "calorie_goal" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN calorie_goal FLOAT'))
@@ -79,6 +81,31 @@ def ensure_dev_schema() -> None:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
         if "gym_location" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
+
+        if "group_goals" not in existing_tables:
+            connection.execute(text("""
+                CREATE TABLE group_goals (
+                    goal_id      SERIAL PRIMARY KEY,
+                    created_by   INTEGER NOT NULL REFERENCES "Accounts"("UserID") ON DELETE CASCADE,
+                    title        VARCHAR(255) NOT NULL,
+                    description  TEXT DEFAULT '',
+                    target_value FLOAT NOT NULL,
+                    unit         VARCHAR(50) NOT NULL,
+                    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    completed_at TIMESTAMP WITH TIME ZONE
+                )
+            """))
+
+        if "group_goal_members" not in existing_tables:
+            connection.execute(text("""
+                CREATE TABLE group_goal_members (
+                    goal_id    INTEGER NOT NULL REFERENCES group_goals(goal_id) ON DELETE CASCADE,
+                    profile_id INTEGER NOT NULL REFERENCES "Accounts"("UserID") ON DELETE CASCADE,
+                    progress   FLOAT NOT NULL DEFAULT 0,
+                    joined_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    PRIMARY KEY (goal_id, profile_id)
+                )
+            """))
 
 ensure_dev_schema()
 
@@ -2834,3 +2861,202 @@ def report_user(
     ))
     db.commit()
     return {"ok": True, "detail": "Report submitted"}
+
+#  GROUP GOALS
+
+class CreateGroupGoalRequest(BaseModel):
+    title: str
+    description: str = ""
+    targetValue: float
+    unit: str  # kg | lbs | km | miles | sessions | calories | steps | minutes
+
+
+class GroupGoalMemberOut(BaseModel):
+    profileId: int
+    username: str
+    progress: float
+    joinedAt: str
+
+
+class GroupGoalOut(BaseModel):
+    goalId: str
+    title: str
+    description: str
+    targetValue: float
+    unit: str
+    createdAt: str
+    createdBy: str
+    members: List[GroupGoalMemberOut]
+    completedAt: Optional[str] = None
+
+
+class LogGoalProgressRequest(BaseModel):
+    amount: float
+
+
+def _build_group_goal_out(db: Session, goal_row) -> GroupGoalOut:
+    creator = db.query(Accounts).filter(Accounts.UserID == goal_row["created_by"]).first()
+    creator_username = creator.username if creator else "unknown"
+
+    member_rows = db.execute(text("""
+        SELECT ggm.profile_id, ggm.progress, ggm.joined_at, a.username
+        FROM group_goal_members ggm
+        JOIN "Accounts" a ON a."UserID" = ggm.profile_id
+        WHERE ggm.goal_id = :gid
+        ORDER BY ggm.joined_at ASC
+    """), {"gid": goal_row["goal_id"]}).mappings().fetchall()
+
+    members = [
+        GroupGoalMemberOut(
+            profileId=r["profile_id"],
+            username=r["username"],
+            progress=r["progress"],
+            joinedAt=r["joined_at"].isoformat(),
+        )
+        for r in member_rows
+    ]
+
+    return GroupGoalOut(
+        goalId=str(goal_row["goal_id"]),
+        title=goal_row["title"],
+        description=goal_row["description"] or "",
+        targetValue=goal_row["target_value"],
+        unit=goal_row["unit"],
+        createdAt=goal_row["created_at"].isoformat(),
+        createdBy=creator_username,
+        members=members,
+        completedAt=goal_row["completed_at"].isoformat() if goal_row["completed_at"] else None,
+    )
+
+
+@app.post("/group-goals", response_model=GroupGoalOut, status_code=201)
+def create_group_goal(
+    payload: CreateGroupGoalRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """Create a new group goal. Creator is automatically added as the first member."""
+    if not payload.title.strip():
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    if payload.targetValue <= 0:
+        raise HTTPException(status_code=400, detail="Target value must be greater than 0")
+
+    goal_row = db.execute(text("""
+        INSERT INTO group_goals (created_by, title, description, target_value, unit)
+        VALUES (:uid, :title, :description, :target_value, :unit)
+        RETURNING *
+    """), {
+        "uid": me.UserID,
+        "title": payload.title.strip(),
+        "description": payload.description.strip(),
+        "target_value": payload.targetValue,
+        "unit": payload.unit,
+    }).mappings().first()
+
+    db.execute(text("""
+        INSERT INTO group_goal_members (goal_id, profile_id, progress)
+        VALUES (:gid, :uid, 0)
+    """), {"gid": goal_row["goal_id"], "uid": me.UserID})
+
+    db.commit()
+    return _build_group_goal_out(db, goal_row)
+
+
+@app.get("/group-goals", response_model=List[GroupGoalOut])
+def get_group_goals(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+  #  Return goals the current user is a member of, plus goals created
+   # by accepted friends they haven't joined yet.
+    friend_ids_rows = db.execute(text("""
+        SELECT CASE WHEN "RequesterID" = :uid THEN "AddresseeID"
+                    ELSE "RequesterID" END AS friend_id
+        FROM "Friendships"
+        WHERE status = 'accepted'
+          AND ("RequesterID" = :uid OR "AddresseeID" = :uid)
+    """), {"uid": me.UserID}).fetchall()
+
+    friend_ids = [r.friend_id for r in friend_ids_rows]
+    visible_creator_ids = [me.UserID] + friend_ids
+
+    goal_rows = db.execute(text("""
+        SELECT DISTINCT gg.*
+        FROM group_goals gg
+        LEFT JOIN group_goal_members ggm
+               ON ggm.goal_id = gg.goal_id AND ggm.profile_id = :uid
+        WHERE ggm.profile_id IS NOT NULL
+           OR gg.created_by = ANY(:creator_ids)
+        ORDER BY gg.created_at DESC
+    """), {"uid": me.UserID, "creator_ids": visible_creator_ids}).mappings().fetchall()
+
+    return [_build_group_goal_out(db, r) for r in goal_rows]
+
+
+@app.post("/group-goals/{goal_id}/progress", response_model=GroupGoalOut)
+def log_goal_progress(
+    goal_id: int,
+    payload: LogGoalProgressRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+   # Log progress toward a group goal. Auto-joins the user if not yet a member.
+   # Sets completed_at when total progress reaches target_value.
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+    goal_row = db.execute(
+        text("SELECT * FROM group_goals WHERE goal_id = :gid"),
+        {"gid": goal_id}
+    ).mappings().first()
+
+    if not goal_row:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    if goal_row["completed_at"]:
+        raise HTTPException(status_code=409, detail="Goal is already complete")
+
+    db.execute(text("""
+        INSERT INTO group_goal_members (goal_id, profile_id, progress)
+        VALUES (:gid, :uid, :amount)
+        ON CONFLICT (goal_id, profile_id)
+        DO UPDATE SET progress = group_goal_members.progress + :amount
+    """), {"gid": goal_id, "uid": me.UserID, "amount": payload.amount})
+
+    total_row = db.execute(text("""
+        SELECT COALESCE(SUM(progress), 0) AS total
+        FROM group_goal_members
+        WHERE goal_id = :gid
+    """), {"gid": goal_id}).first()
+
+    if total_row.total >= goal_row["target_value"]:
+        db.execute(text("""
+            UPDATE group_goals SET completed_at = NOW() WHERE goal_id = :gid
+        """), {"gid": goal_id})
+
+    db.commit()
+
+    updated_row = db.execute(
+        text("SELECT * FROM group_goals WHERE goal_id = :gid"),
+        {"gid": goal_id}
+    ).mappings().first()
+
+    return _build_group_goal_out(db, updated_row)
+
+
+@app.delete("/group-goals/{goal_id}/members")
+def leave_group_goal(
+    goal_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    row = db.execute(text("""
+        DELETE FROM group_goal_members
+        WHERE goal_id = :gid AND profile_id = :uid
+        RETURNING profile_id
+    """), {"gid": goal_id, "uid": me.UserID}).first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="You are not a member of this goal")
+
+    db.commit()
+    return {"ok": True}
