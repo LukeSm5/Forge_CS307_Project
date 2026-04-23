@@ -2307,6 +2307,9 @@ def react_post(
         reaction = Reactions(PostID=payload.post_id, ProfileID=me.UserID, reaction_type=payload.text)
         db.add(reaction)
     db.commit()
+
+    add_notification(db, payload.post_id, f"{me.username} reacted to your post with '{payload.text}'")
+
     return {"ok": True, "detail": "Post reacted"}
 
 
