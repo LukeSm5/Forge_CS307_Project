@@ -7,6 +7,7 @@ import { WorkoutFeedPost, api, PostInfo } from "@/core/api";
 
 import { SocialPalette } from "./socialTypes";
 import LikeButton from "./LikeButton";
+import ReactionButton from "./ReactionButton";
 
 type WorkoutFeedCardProps = {
   post: WorkoutFeedPost;
@@ -123,7 +124,7 @@ export default function WorkoutFeedCard({
         </View>
       ) : null}
 
-      {postInfo ? (
+      {postInfo ? (<View style={{ marginTop: 10, flexDirection: "row", gap: 12 }}>
         <LikeButton 
           likes={postInfo.likes}
           likePost={() => {
@@ -135,7 +136,24 @@ export default function WorkoutFeedCard({
             .then(refresh);
           }}
         />
-      ) : <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>}
+
+        {['🔥', '💪', '🙌'].map(reaction => (
+          <ReactionButton 
+            key={reaction}
+            reaction={reaction}
+            reactions={postInfo.reactions}
+            reactPost={(reaction: string) => {
+              api.reactToPost(post.post_id, reaction)
+                .then(refresh);
+            }}
+            unreactPost={() => {
+              api.unreactToPost(post.post_id)
+              .then(refresh);
+            }}
+          />
+        ))}
+        
+      </View>) : <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>}
     </View>
   );
 }
