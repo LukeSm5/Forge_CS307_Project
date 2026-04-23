@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 import re
 from datetime import timezone, datetime, timedelta, date
-from sqlalchemy import inspect, text, or_, and_, func
+from sqlalchemy import inspect, text, or_, and_
 from openai import OpenAI
 import os
 import json
@@ -70,6 +70,11 @@ def ensure_dev_schema() -> None:
 
     existing_tables = set(inspector.get_table_names())
 
+    try:
+        posts_columns = {column["name"] for column in inspector.get_columns("Posts")}
+    except Exception:
+        posts_columns = set()
+
     with engine.begin() as connection:
         if "calorie_goal" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN calorie_goal FLOAT'))
@@ -81,18 +86,22 @@ def ensure_dev_schema() -> None:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
         if "gym_location" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
+        # Make ExerciseID and WorkoutID nullable on Posts so meal posts don't require them
+        if "ExerciseID" in posts_columns:
+            try:
+                connection.execute(text('ALTER TABLE "Posts" ALTER COLUMN "ExerciseID" DROP NOT NULL'))
+            except Exception:
+                pass
+        if "WorkoutID" in posts_columns:
+            try:
+                connection.execute(text('ALTER TABLE "Posts" ALTER COLUMN "WorkoutID" DROP NOT NULL'))
+            except Exception:
+                pass
 
 ensure_dev_schema()
 
 class PostWorkoutPayload(BaseModel):
     session_id: int
-
-class ReportData(BaseModel):
-    workout_num: int
-    top_muscle: str
-    bottom_muscle: str
-    total_volume: int
-    bench_max: int
 
 class PostInfoPayload(BaseModel):
     post_id: int
@@ -470,6 +479,30 @@ class BlockPayload(BaseModel):
 class ReportPayload(BaseModel):
     reported_id: int
     description: str
+
+
+class PublishMealPostRequest(BaseModel):
+    source: str  # 'tagged' | 'restaurant'
+    name: str
+    calories: Optional[float] = None
+    protein: Optional[float] = None
+    carbs: Optional[float] = None
+    fat: Optional[float] = None
+    sugar: Optional[float] = None
+    fiber: Optional[float] = None
+    sodium: Optional[float] = None
+    cuisine: Optional[str] = None
+    goal: Optional[str] = None
+    complexity: Optional[str] = None
+    spice_level: Optional[str] = None
+    dietary: Optional[List[str]] = None
+    restaurant: Optional[str] = None
+    category: Optional[str] = None
+    meal_type: Optional[str] = None
+
+
+class SaveMealFromFeedRequest(BaseModel):
+    post_id: int
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -2473,6 +2506,208 @@ def get_friends_workout_feed(
     return result
 
 
+@app.post("/posts/meals")
+def publish_meal_post(
+    payload: PublishMealPostRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    if not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Meal name is required")
+
+    caption = json.dumps({
+        "type": "meal",
+        "source": payload.source,
+        "name": payload.name,
+        "calories": payload.calories,
+        "protein": payload.protein,
+        "carbs": payload.carbs,
+        "fat": payload.fat,
+        "sugar": payload.sugar,
+        "fiber": payload.fiber,
+        "sodium": payload.sodium,
+        "cuisine": payload.cuisine,
+        "goal": payload.goal,
+        "complexity": payload.complexity,
+        "spice_level": payload.spice_level,
+        "dietary": payload.dietary,
+        "restaurant": payload.restaurant,
+        "category": payload.category,
+        "meal_type": payload.meal_type,
+    })
+
+    post_row = Posts(
+        PostID=_next_post_id(db),
+        ProfileID=me.UserID,
+        caption=caption,
+        ExerciseID=None,
+        WorkoutID=None,
+        MachineID=_fallback_machine_id(db),
+    )
+    db.add(post_row)
+    db.commit()
+    db.refresh(post_row)
+
+    created_at_str = (
+        post_row.created_at.isoformat()
+        if hasattr(post_row, "created_at") and post_row.created_at is not None
+        else datetime.utcnow().isoformat()
+    )
+
+    return {
+        "post_id": post_row.PostID,
+        "created_at": created_at_str,
+        "source": payload.source,
+        "name": payload.name,
+        "calories": payload.calories,
+        "protein": payload.protein,
+        "carbs": payload.carbs,
+        "fat": payload.fat,
+        "sugar": payload.sugar,
+        "fiber": payload.fiber,
+        "sodium": payload.sodium,
+        "cuisine": payload.cuisine,
+        "goal": payload.goal,
+        "complexity": payload.complexity,
+        "spice_level": payload.spice_level,
+        "dietary": payload.dietary,
+        "restaurant": payload.restaurant,
+        "category": payload.category,
+        "meal_type": payload.meal_type,
+        "username": me.username,
+    }
+
+
+@app.delete("/posts/meals/{post_id}")
+def delete_meal_post(
+    post_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    post = db.query(Posts).filter(
+        Posts.PostID == post_id,
+        Posts.ProfileID == me.UserID,
+    ).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Meal post not found")
+
+    _delete_posts_and_related_rows(db, [post_id])
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/feed/meals")
+def get_meal_feed(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    blocked_ids = _blocked_user_ids(db, me.UserID)
+
+    all_posts = (
+        db.query(Posts)
+        .filter(Posts.caption.like('%"type": "meal"%'))
+        .order_by(Posts.PostID.desc())
+        .limit(50)
+        .all()
+    )
+
+    results = []
+    for post in all_posts:
+        if post.ProfileID in blocked_ids:
+            continue
+        try:
+            data = json.loads(post.caption)
+        except Exception:
+            continue
+        if data.get("type") != "meal":
+            continue
+        author = db.query(Accounts).filter(Accounts.UserID == post.ProfileID).first()
+        created_at_str = (
+            post.created_at.isoformat()
+            if hasattr(post, "created_at") and post.created_at is not None
+            else datetime.utcnow().isoformat()
+        )
+        results.append({
+            "post_id": post.PostID,
+            "created_at": created_at_str,
+            "source": data.get("source"),
+            "name": data.get("name"),
+            "calories": data.get("calories"),
+            "protein": data.get("protein"),
+            "carbs": data.get("carbs"),
+            "fat": data.get("fat"),
+            "sugar": data.get("sugar"),
+            "fiber": data.get("fiber"),
+            "sodium": data.get("sodium"),
+            "cuisine": data.get("cuisine"),
+            "goal": data.get("goal"),
+            "complexity": data.get("complexity"),
+            "spice_level": data.get("spice_level"),
+            "dietary": data.get("dietary"),
+            "restaurant": data.get("restaurant"),
+            "category": data.get("category"),
+            "meal_type": data.get("meal_type"),
+            "username": author.username if author else None,
+        })
+    return results
+
+
+@app.post("/session-meals/from-post", response_model=SessionMealOut, status_code=201)
+def save_meal_from_feed(
+    payload: SaveMealFromFeedRequest,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    try:
+        data = json.loads(post.caption)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Post is not a meal post")
+
+    if data.get("type") != "meal":
+        raise HTTPException(status_code=400, detail="Post is not a meal post")
+
+    meal_name = (data.get("name") or "Shared Meal").strip()
+    meal = Meals(name=meal_name)
+    db.add(meal)
+    db.flush()
+
+    macros_data = {
+        "calories": data.get("calories"),
+        "protein": data.get("protein"),
+        "fat": data.get("fat"),
+        "carbs": data.get("carbs"),
+        "sugar": data.get("sugar"),
+        "fiber": data.get("fiber"),
+        "sodium": data.get("sodium"),
+    }
+    if any(v is not None for v in macros_data.values()):
+        macros_row = meal_macros(MealID=meal.MealID, **macros_data)
+        db.add(macros_row)
+
+    source_label = data.get("source", "unknown")
+    note_parts = [f"Saved from meal feed (source: {source_label})"]
+    if data.get("restaurant"):
+        note_parts.append(f"Restaurant: {data['restaurant']}")
+    if data.get("meal_type"):
+        note_parts.append(f"Meal type: {data['meal_type']}")
+
+    entry = session_meals(
+        ProfileID=me.UserID,
+        MealID=meal.MealID,
+        date=datetime.utcnow(),
+        servings=1.0,
+        notes="\n".join(note_parts),
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return _build_session_meal_out(db, entry)
+
+
 @app.get("/feed/workouts/gym", response_model=List[WorkoutFeedPostOut])
 def get_same_gym_workout_feed(
     me: Accounts = Depends(get_current_account),
@@ -2843,8 +3078,6 @@ def report_user(
     db.commit()
     return {"ok": True, "detail": "Report submitted"}
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 #  group goals
 
 class CreateGroupGoalRequest(BaseModel):
@@ -3074,126 +3307,3 @@ def leave_group_goal(
     db.delete(member)
     db.commit()
     return {"ok": True}
-=======
-=======
->>>>>>> Stashed changes
-@app.get("/weeklyReport")
-def get_weekly_reports(me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),):
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    workout_count = db.query(session_workouts).filter(
-        session_workouts.ProfileID == me.UserID,
-        session_workouts.date >= seven_days_ago
-    ).count()
-    hardest_hit_query = (
-        db.query(
-            Workouts.name, 
-            func.count(session_workouts.SessionID).label('occurrence')
-        )
-        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
-        .filter(session_workouts.ProfileID == me.UserID)
-        .filter(session_workouts.date >= seven_days_ago)
-        .group_by(Workouts.name)
-        .order_by(func.count(session_workouts.SessionID).desc())
-        .first()
-    )
-    top_muscle = hardest_hit_query[0] if hardest_hit_query else "None"
-
-    max_bench = (
-        db.query(func.max(session_exercises.weight))
-        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
-        .filter(
-            session_workouts.ProfileID == me.UserID,
-            session_workouts.date >= seven_days_ago,
-            session_exercises.ExerciseID == 9
-        )
-        .scalar()
-    )
-    max_bench = max_bench if max_bench else 0
-    total_volume = 0
-    bottom_muscle = "None"
-
-
-    return ReportData(
-        workout_num= workout_count,
-        top_muscle = top_muscle,
-        bench_max = max_bench,
-        total_volume = total_volume,
-        bottom_muscle = bottom_muscle
-    )
-
-@app.get("/monthlyReports")
-def get_monthly_reports(me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),):
-<<<<<<< Updated upstream
-    return ReportData(message="It works!")
->>>>>>> Stashed changes
-=======
-    return ReportData(message="It works!")
->>>>>>> Stashed changes
-
-class ShareMealPayload(BaseModel):
-    meal_id: int
-
-class SaveMealFromPostPayload(BaseModel):
-    post_id: int
-
-@app.post("/posts/meals/create")
-def create_meal_post(
-    payload: ShareMealPayload,
-    me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),
-):
-    meal = db.query(Meals).filter(Meals.MealID == payload.meal_id).first()
-    if not meal:
-        raise HTTPException(status_code=404, detail="Meal not found")
-
-    post_row = Posts(
-        PostID=_next_post_id(db),
-        ProfileID=me.UserID,
-        caption=f"meal:{meal.MealID}",
-        # ExerciseID, WorkoutID, MachineID can be nullable or use fallbacks
-        ExerciseID=None,
-        WorkoutID=None,
-        MachineID=None,
-    )
-    db.add(post_row)
-    db.commit()
-    return {"ok": True, "post_id": post_row.PostID}
-
-
-@app.post("/session-meals/from-post", response_model=SessionMealOut, status_code=201)
-def save_meal_from_post(
-    payload: SaveMealFromPostPayload,
-    me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),
-):
-    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    # Extract meal_id from caption "meal:{id}"
-    meal_id = None
-    if post.caption and post.caption.startswith("meal:"):
-        try:
-            meal_id = int(post.caption.split(":")[1])
-        except (ValueError, IndexError):
-            pass
-
-    if meal_id is None:
-        raise HTTPException(status_code=400, detail="Post does not reference a meal")
-
-    meal = db.query(Meals).filter(Meals.MealID == meal_id).first()
-    if not meal:
-        raise HTTPException(status_code=404, detail="Meal not found")
-
-    entry = session_meals(
-        ProfileID=me.UserID,
-        MealID=meal.MealID,
-        date=datetime.utcnow(),
-        servings=1.0,
-    )
-    db.add(entry)
-    db.commit()
-    db.refresh(entry)
-    return _build_session_meal_out(db, entry)
