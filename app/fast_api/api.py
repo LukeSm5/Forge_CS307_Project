@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts
+from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -2694,6 +2694,19 @@ def accept_friend_request(
 
     row.status = "accepted"
     row.updated_at = datetime.now(timezone.utc)
+
+    user1_id, user2_id = sorted((payload.requester_id, me.UserID))
+    existing_thread = db.query(ChatThreads).filter(
+        ChatThreads.User1ID == user1_id,
+        ChatThreads.User2ID == user2_id,
+    ).first()
+
+    if not existing_thread:
+        db.add(ChatThreads(
+            User1ID=user1_id,
+            User2ID=user2_id,
+        ))
+
     db.commit()
     return {"ok": True, "status": "accepted"}
 
