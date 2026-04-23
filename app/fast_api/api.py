@@ -2533,7 +2533,6 @@ async def nearby_gyms(lat: float = Query(...), lng: float = Query(...), radius: 
         raise HTTPException(status_code=500, detail="Google API request failed")
 
     data = response.json()
-    print(GOOGLE_API_KEY, data)
     results = [
         {
             "name": place.get("name"),
