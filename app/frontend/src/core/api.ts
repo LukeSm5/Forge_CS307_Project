@@ -1257,8 +1257,6 @@ export type PostInfo = {
   reactions: { user_id: number; username: string; reaction: string }[];
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 export type GoalUnit = 'kg' | 'lbs' | 'km' | 'miles' | 'sessions' | 'calories' | 'steps' | 'minutes';
 
 export type GroupGoalMember = {
@@ -1285,9 +1283,8 @@ export type CreateGroupGoalRequest = {
   description: string;
   targetValue: number;
   unit: GoalUnit;
-=======
-=======
->>>>>>> Stashed changes
+};
+
 // change this after it works
 export type ReportData = {
   workout_num: number
@@ -1295,8 +1292,4 @@ export type ReportData = {
   bottom_muscle: string
   total_volume: number
   bench_max: number
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 };
