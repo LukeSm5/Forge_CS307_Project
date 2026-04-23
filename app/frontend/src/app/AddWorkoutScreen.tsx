@@ -801,7 +801,7 @@ export default function AddWorkoutScreen() {
                 }
               >
                 <Text style={styles.modalSubtitle}> Would you like to upload this workout?</Text>
-              </AppModal>
+            </AppModal>
           <ForgeButton
             text="Back"
             onPress={() => router.back()}
