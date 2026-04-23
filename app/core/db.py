@@ -1,5 +1,6 @@
 from sqlalchemy import (
-    Column, Integer, Text, ForeignKey, Float, DateTime, Boolean, CheckConstraint
+    Column, Integer, Text, ForeignKey, Float, DateTime, Boolean, CheckConstraint,
+    UniqueConstraint, Index,
 )
 from app.core.session import Base
 from datetime import datetime, timezone
@@ -145,6 +146,36 @@ class InboxNotifications(Base):
     message        = Column(Text, nullable=False)
     created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     data           = Column(Text, default="{\"type\": \"generic\"}")  # JSON blob for any additional data (e.g., PostID for a like notification)
+
+class ChatThreads(Base):
+    __tablename__ = "ChatThreads"
+    __table_args__ = (
+        CheckConstraint("User1ID <> User2ID", name="no_self_chat_thread"),
+        CheckConstraint("User1ID < User2ID", name="chat_thread_user_order"),
+        UniqueConstraint("User1ID", "User2ID", name="uq_chat_thread_pair"),
+    )
+
+    ThreadID = Column(Integer, primary_key=True, autoincrement=True)
+    User1ID = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False, index=True)
+    User2ID = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    last_message_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ChatMessages(Base):
+    __tablename__ = "ChatMessages"
+
+    MessageID = Column(Integer, primary_key=True, autoincrement=True)
+    ThreadID = Column(Integer, ForeignKey("ChatThreads.ThreadID"), nullable=False, index=True)
+    SenderID = Column(Integer, ForeignKey("Accounts.UserID"), nullable=False, index=True)
+    message_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+
+
+Index("ix_chat_messages_thread_created_at", ChatMessages.ThreadID, ChatMessages.created_at)
 
 class Likes(Base):
     __tablename__ = 'Likes'
