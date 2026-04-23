@@ -17,6 +17,7 @@ import ForgeTextBox from "@/components/ForgeTextBox";
 import AltMachButton from "@/components/machineAlternatives/AltMachButton";
 import ExerciseHelpInterface from "@/components/exerciseHelp/ExerciseHelpInterface";
 import { api, QuickWorkoutResponse } from "@/core/api";
+import { AppModal } from "@/components/AppModal";
 
 function normalizeExerciseName(name: string) {
   return name
@@ -59,6 +60,7 @@ const exerciseToMuscle: Record<string, string> = {
 export default function LogGeneratedWorkout() {
   const router = useRouter();
   const s = useScheme();
+  const [postSaveModalVisible, setPostSaveModalVisible] = useState(false);
   const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
         workout_name: string;
         exercises: string;
@@ -206,6 +208,7 @@ async function handleLogWorkout() {
     } catch (error) {
         Alert.alert("Workout did not log")
     }
+    setPostSaveModalVisible(true);
 }
 
     return (
@@ -315,8 +318,7 @@ async function handleLogWorkout() {
         <ForgeButton
           text="Log Generated Workout"
           onPress={() => {
-            handleLogWorkout();
-            router.push("/(tabs)/workout")}
+            handleLogWorkout();}
         }
         />
         <ForgeButton
@@ -324,6 +326,36 @@ async function handleLogWorkout() {
           onPress={() => router.push("/(tabs)/workout")}
         />
       </RNView>
+      <AppModal
+        visible={postSaveModalVisible}
+          onClose={() => {
+            setPostSaveModalVisible(false); 
+              router.push("/(tabs)/workout");
+            }}
+            title={"Post Workout"}
+            actions={
+              <>
+              <ForgeButton
+                text="Upload"
+                onPress={() => {
+                  setPostSaveModalVisible(false);
+                  router.push("/(tabs)/workout");
+                }}
+                color={s.buttonBg}
+              />
+                  <ForgeButton
+                    text="Not Now"
+                    onPress={() => {
+                      setPostSaveModalVisible(false);
+                      router.push("/(tabs)/workout");
+                    }}
+                    color={s.buttonBg}
+                  />
+              </>
+            }
+          >
+        <Text style={styles.modalSubtitle}> Would you like to upload this workout?</Text>
+      </AppModal>
 
       <ExerciseHelpInterface
         visible={helpVisible}
@@ -421,4 +453,9 @@ const styles = StyleSheet.create({
       padding: 16,
       backgroundColor: "#fff",
     },
+    modalSubtitle: {
+        fontSize: 16,
+        textAlign: "center",
+        marginBottom: 20,
+    }
 });
