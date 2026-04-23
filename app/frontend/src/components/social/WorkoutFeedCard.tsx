@@ -8,6 +8,7 @@ import { WorkoutFeedPost, api, PostInfo } from "@/core/api";
 import { SocialPalette } from "./socialTypes";
 import LikeButton from "./LikeButton";
 import ReactionButton from "./ReactionButton";
+import CommentsButton from "./comments/CommentsButton";
 
 type WorkoutFeedCardProps = {
   post: WorkoutFeedPost;
@@ -152,6 +153,11 @@ export default function WorkoutFeedCard({
             }}
           />
         ))}
+
+        <CommentsButton comments={postInfo.comments} postComment={(text) => {
+          api.commentOnPost(post.post_id, text)
+            .then(refresh);
+        }} />
         
       </View>) : <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>}
     </View>

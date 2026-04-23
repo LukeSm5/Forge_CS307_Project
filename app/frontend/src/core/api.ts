@@ -640,7 +640,7 @@ look pleasing on a graph.
 
   getPostInfo: async (postId: number): Promise<PostInfo> => {
     const likes = await post<{ likes: { user_id: number, username: string}[] }>('/posts/likes', { post_id: postId });
-    const comments = await post<{ comments: { user_id: number, username: string, text: string, timestamp: string }[] }>('/posts/comments', { post_id: postId });
+    const comments = await post<{ comments: { user_id: number, username: string, text: string, timestamp: number }[] }>('/posts/comments', { post_id: postId });
     const reactions = await post<{ reactions: { user_id: number, username: string, reaction: string }[] }>('/posts/reactions', { post_id: postId });
     return { likes: likes.likes, comments: comments.comments, reactions: reactions.reactions };
   },
@@ -1253,7 +1253,7 @@ export type SavedMealPost = {
 
 export type PostInfo = {
   likes: { user_id: number; username: string }[];
-  comments: { user_id: number; username: string; text: string; timestamp: string }[];
+  comments: { user_id: number; username: string; text: string; timestamp: number }[];
   reactions: { user_id: number; username: string; reaction: string }[];
 };
 
@@ -1285,6 +1285,9 @@ export type CreateGroupGoalRequest = {
   unit: GoalUnit;
 };
 
+};
+
+// change this after it works
 export type ReportData = {
   workout_num: number
   top_muscle: string
