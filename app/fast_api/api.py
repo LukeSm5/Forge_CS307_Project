@@ -2844,6 +2844,7 @@ def report_user(
     return {"ok": True, "detail": "Report submitted"}
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #  group goals
 
 class CreateGroupGoalRequest(BaseModel):
@@ -3074,6 +3075,8 @@ def leave_group_goal(
     db.commit()
     return {"ok": True}
 =======
+=======
+>>>>>>> Stashed changes
 @app.get("/weeklyReport")
 def get_weekly_reports(me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),):
@@ -3122,5 +3125,9 @@ def get_weekly_reports(me: Accounts = Depends(get_current_account),
 @app.get("/monthlyReports")
 def get_monthly_reports(me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),):
+<<<<<<< Updated upstream
+    return ReportData(message="It works!")
+>>>>>>> Stashed changes
+=======
     return ReportData(message="It works!")
 >>>>>>> Stashed changes
