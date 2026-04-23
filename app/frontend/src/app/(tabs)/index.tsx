@@ -22,6 +22,7 @@ import {
   rescheduleAppNotificationsAsync,
   saveCalendarEventsAsync,
 } from "@/core/notifications";
+import { api, ReportData } from "@/core/api";
 
 const INITIAL_DATA: Record<string, CalendarItem[]> = {
   "2026-02-22": [
@@ -135,6 +136,7 @@ export default function CalendarScreen() {
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -421,6 +423,17 @@ export default function CalendarScreen() {
     todayTextColor: s.buttonBg,
   }), [s]);
   
+  async function handleWeeklyReport() {
+    try {
+      const response: ReportData = await api.getWeeklyReport();
+      setReportData(response);
+    } catch (error) {
+      Alert.alert(`Failed to fetch weekly report.`);
+    }
+  }
+  async function handleMonthlyReport() {
+
+  }
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Calendar</Text>
@@ -446,7 +459,9 @@ export default function CalendarScreen() {
               isSmallScreen && styles.actionButtonSmall,
               { backgroundColor: s.buttonBg },
             ]}
-            onPress={() => setIsReportOpen(true)}
+            onPress={() => {setIsReportOpen(true);
+              handleWeeklyReport();
+            }}
           >
             <Text style={styles.addButtonText}>Generate Weekly Reports</Text>
           </Pressable>
@@ -458,7 +473,11 @@ export default function CalendarScreen() {
               isSmallScreen && styles.actionButtonSmall,
               { backgroundColor: s.buttonBg },
             ]}
-            onPress={() => setIsReportOpen(true)}
+            onPress={() => {
+              setIsReportOpen(true);
+              handleMonthlyReport();
+            }
+            }
           >
             <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
           </Pressable>
@@ -470,7 +489,7 @@ export default function CalendarScreen() {
               isSmallScreen && styles.actionButtonSmall,
               { backgroundColor: s.buttonBg },
             ]}
-            onPress={openAdd}
+            onPress={() => openAdd()}
           >
             <Text style={styles.addButtonText}>+ Add workout</Text>
           </Pressable>
@@ -841,11 +860,11 @@ export default function CalendarScreen() {
               Reports
             </Text>
             <ScrollView>
-              <Text {...modalTextProps}>Number of Lifts: 0</Text>
-              <Text {...modalTextProps}>Average Lift Duration: 0</Text>
-              <Text {...modalTextProps}>Max Weight Lifted: 0</Text>
-              <Text {...modalTextProps}>Hardest Hit Muscle Group: N/A</Text>
-              <Text {...modalTextProps}>Least Hit Muscle Group: N/A</Text>
+              <Text {...modalTextProps}>Number of Lifts: {reportData? reportData.workout_num: "Loading..."}</Text>
+              <Text {...modalTextProps}>Max Bench: {reportData? reportData.bench_max: "Loading..."}</Text>
+              <Text {...modalTextProps}>Total Weight Lifted: {reportData? reportData.total_volume: "Loading..."}</Text>
+              <Text {...modalTextProps}>Hardest Hit Muscle Group: {reportData? reportData.top_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>Least Hit Muscle Group: {reportData? reportData.bottom_muscle: "Loading..."}</Text>
               <Text {...modalTextProps}>Weekly Workout Streak: 0</Text>
             </ScrollView>
             <Pressable

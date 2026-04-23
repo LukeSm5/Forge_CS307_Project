@@ -546,6 +546,13 @@ look pleasing on a graph.
   getGymLocations: async (): Promise<string[]> => {
     return get<string[]>('/gym-locations');
   },
+  getWeeklyReport: async (): Promise<ReportData> => {
+    return get<ReportData>('/weeklyReport');
+  }, 
+
+  getMonthlyReport: async (): Promise<ReportData> => {
+    return get<ReportData>('/monthlyReport');
+  }, 
   
   searchProfiles: async (username: string): Promise<ProfileSearchResult[]> => {
     return get<ProfileSearchResult[]>(
@@ -1250,6 +1257,7 @@ export type PostInfo = {
   reactions: { user_id: number; username: string; reaction: string }[];
 };
 
+<<<<<<< Updated upstream
 export type GoalUnit = 'kg' | 'lbs' | 'km' | 'miles' | 'sessions' | 'calories' | 'steps' | 'minutes';
 
 export type GroupGoalMember = {
@@ -1276,4 +1284,13 @@ export type CreateGroupGoalRequest = {
   description: string;
   targetValue: number;
   unit: GoalUnit;
+=======
+// change this after it works
+export type ReportData = {
+  workout_num: number
+  top_muscle: string
+  bottom_muscle: string
+  total_volume: number
+  bench_max: number
+>>>>>>> Stashed changes
 };
