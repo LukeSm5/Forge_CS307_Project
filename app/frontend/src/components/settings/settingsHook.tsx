@@ -63,7 +63,7 @@ export function useSettings() {
    async function refreshGymLocations() {
     try {
       if (Platform.OS === 'web') {
-        setGymLocations(["Unknown Location"]);
+        setGymLocations(["Unknown Location", "CoRec"]);
         return;
       }
 
