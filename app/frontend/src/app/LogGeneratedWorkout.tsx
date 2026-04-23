@@ -85,6 +85,7 @@ export default function LogGeneratedWorkout() {
     index: number;
     sets: {weight : string, reps: string}[];
   } | null>(null);
+  const [savedLogId, setSavedLogId] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -191,25 +192,33 @@ export default function LogGeneratedWorkout() {
 
 async function handleLogWorkout() {
     try {
-        await api.addWorkoutLog({
+        const result = await api.addWorkoutLog({
             workout_id: getWorkoutID(),
             split_name: workout_name,
             duration: 0, 
             date: new Date().toISOString().split("T")[0],
             exercises:
-                exerciseList.map((ex) => ({
-                    exercise_id: exerciseMap[ex.exercise] ?? normalizedExerciseMap[normalizeExerciseName(ex.exercise)],
-                    machine_id: machineMap[ex.machine] ?? 0,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    weight: ex.weight,
-                }))
+              exerciseList.map((ex) => ({
+                exercise_id: exerciseMap[ex.exercise] ?? normalizedExerciseMap[normalizeExerciseName(ex.exercise)],
+                machine_id: machineMap[ex.machine] ?? 0,
+                sets: ex.sets,
+                reps: ex.reps,
+                weight: ex.weight,
+            }))
         })
+      setSavedLogId(result.workout_id);
     } catch (error) {
         Alert.alert("Workout did not log")
     }
     setPostSaveModalVisible(true);
-}
+  }
+  async function handleUploadPost(sessionId: number) {
+    try {
+      await api.createWorkoutPost(sessionId);
+    } catch (error) {
+      Alert.alert("Post failed.");
+    }
+  }
 
     return (
         <View style={styles.container}>
@@ -337,7 +346,14 @@ async function handleLogWorkout() {
               <>
               <ForgeButton
                 text="Upload"
-                onPress={() => {
+                onPress={async () => {
+                  if (savedLogId) {
+                    try {
+                      await handleUploadPost(savedLogId);
+                    } catch (error) {
+                      Alert.alert("Post failed.");
+                    }
+               }
                   setPostSaveModalVisible(false);
                   router.push("/(tabs)/workout");
                 }}
