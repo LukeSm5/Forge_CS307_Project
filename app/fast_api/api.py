@@ -3131,3 +3131,69 @@ def get_monthly_reports(me: Accounts = Depends(get_current_account),
 =======
     return ReportData(message="It works!")
 >>>>>>> Stashed changes
+
+class ShareMealPayload(BaseModel):
+    meal_id: int
+
+class SaveMealFromPostPayload(BaseModel):
+    post_id: int
+
+@app.post("/posts/meals/create")
+def create_meal_post(
+    payload: ShareMealPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    meal = db.query(Meals).filter(Meals.MealID == payload.meal_id).first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    post_row = Posts(
+        PostID=_next_post_id(db),
+        ProfileID=me.UserID,
+        caption=f"meal:{meal.MealID}",
+        # ExerciseID, WorkoutID, MachineID can be nullable or use fallbacks
+        ExerciseID=None,
+        WorkoutID=None,
+        MachineID=None,
+    )
+    db.add(post_row)
+    db.commit()
+    return {"ok": True, "post_id": post_row.PostID}
+
+
+@app.post("/session-meals/from-post", response_model=SessionMealOut, status_code=201)
+def save_meal_from_post(
+    payload: SaveMealFromPostPayload,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Extract meal_id from caption "meal:{id}"
+    meal_id = None
+    if post.caption and post.caption.startswith("meal:"):
+        try:
+            meal_id = int(post.caption.split(":")[1])
+        except (ValueError, IndexError):
+            pass
+
+    if meal_id is None:
+        raise HTTPException(status_code=400, detail="Post does not reference a meal")
+
+    meal = db.query(Meals).filter(Meals.MealID == meal_id).first()
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found")
+
+    entry = session_meals(
+        ProfileID=me.UserID,
+        MealID=meal.MealID,
+        date=datetime.utcnow(),
+        servings=1.0,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return _build_session_meal_out(db, entry)
