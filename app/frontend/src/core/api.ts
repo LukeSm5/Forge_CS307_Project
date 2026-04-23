@@ -731,6 +731,10 @@ look pleasing on a graph.
   dismissNotification: async (notificationId: number): Promise<void> => {
     await post<{ ok: boolean }>('/inbox/dismiss', { notification_id: notificationId });
   },
+
+  getNearbyGyms: async (lat: number, lng: number, radius = 3000): Promise<{ results: { name: string; lat: number; lng: number; vicinity: string; place_id: string }[] }> => {
+    return get(`/gyms?lat=${lat}&lng=${lng}&radius=${radius}`);
+  },
 };
 
 export type User = {

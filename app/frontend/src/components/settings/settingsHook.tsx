@@ -11,6 +11,8 @@ import { useState } from "react";
 import { Status } from "./StatusBanner";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/core/auth";
+import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 
 export type MealTimeField = "breakfastTime" | "lunchTime" | "dinnerTime";
 
@@ -60,10 +62,26 @@ export function useSettings() {
 
    async function refreshGymLocations() {
     try {
-      const locations = await api.getGymLocations();
-      const withDefault = locations.includes("Unknown Location")
-        ? locations
-        : ["Unknown Location", ...locations];
+      if (Platform.OS === 'web') {
+        setGymLocations(["Unknown Location"]);
+        return;
+      }
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setStatus({ type: 'err', msg: 'Location permission denied. Gym location set to Unknown.' });
+        setGymLocations(["Unknown Location"]);
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync();
+      const data = await api.getNearbyGyms(loc.coords.latitude, loc.coords.longitude);
+
+      const names = data.results.map((g) => g.name);
+      const withDefault = names.includes("Unknown Location")
+        ? names
+        : ["Unknown Location", ...names];
+
       setGymLocations(withDefault);
     } catch {
       setGymLocations(["Unknown Location"]);
