@@ -10,8 +10,10 @@ import {
   StyleSheet,
   TextInput,
   View,
+  Image,
 } from "react-native";
 
+import { useRouter } from "expo-router";
 import ForgeButton from "@/components/ForgeButton";
 import { Text, useScheme } from "@/components/Themed";
 import SocialActionButtons from "@/components/social/SocialActionButtons";
@@ -109,6 +111,7 @@ export default function ProfilesTab() {
     profile: null,
     action: null,
   });
+  const router = useRouter();
   const [profileDetailModal, setProfileDetailModal] =
     useState<ProfileDetailModalState>({
       visible: false,
@@ -836,6 +839,22 @@ export default function ProfilesTab() {
                         >
                           ⚑
                         </Text>
+                      </Pressable>
+                       <Pressable
+                       onPress = {() => router.push("../ProgressionScreen")}
+                        style={({ pressed }) => [
+                          styles.iconButton,
+                          {
+                            backgroundColor: colors.friendBg,
+                            borderColor: colors.friendBorder,
+                          },
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Image
+                        source = {require("../../../assets/images/Progression_Picture-removebg-preview.png")}
+                        style={{width: 20, height: 20}}
+                        />
                       </Pressable>
                     </View>
                   </View>
