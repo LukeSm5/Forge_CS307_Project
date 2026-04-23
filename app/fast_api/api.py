@@ -2258,7 +2258,7 @@ def get_post_comments(
             "user_id": row.ProfileID,
             "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
             "text": row.text,
-            "timestamp": row.timestamp,
+            "timestamp": row.timestamp.timestamp(),
         }
         for row in rows
     ] }
@@ -2334,7 +2334,7 @@ def comment_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text)
+    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text, timestamp=datetime.now(timezone.utc))
     db.add(comment)
     db.commit()
     return {"ok": True, "detail": "Post commented"}
