@@ -2337,6 +2337,9 @@ def comment_post(
     comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text, timestamp=datetime.now(timezone.utc))
     db.add(comment)
     db.commit()
+
+    add_notification(db, payload.post_id, f"{me.username} commented on your post: '{payload.text}'")
+
     return {"ok": True, "detail": "Post commented"}
 
 
