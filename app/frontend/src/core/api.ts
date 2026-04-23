@@ -735,6 +735,31 @@ look pleasing on a graph.
   getNearbyGyms: async (lat: number, lng: number, radius = 3000): Promise<{ results: { name: string; lat: number; lng: number; vicinity: string; place_id: string }[] }> => {
     return get(`/gyms?lat=${lat}&lng=${lng}&radius=${radius}`);
   },
+
+  /* ── Group Goals ── */
+
+  getGroupGoals: async (): Promise<GroupGoal[]> => {
+    return get<GroupGoal[]>('/group-goals');
+  },
+
+  createGroupGoal: async (payload: CreateGroupGoalRequest): Promise<GroupGoal> => {
+    return post<GroupGoal>('/group-goals', payload);
+  },
+
+  logGoalProgress: async (goalId: string, amount: number): Promise<GroupGoal> => {
+    return post<GroupGoal>(`/group-goals/${goalId}/progress`, { amount });
+  },
+
+  leaveGroupGoal: async (goalId: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/group-goals/${goalId}/members`, {
+      method: 'DELETE',
+      headers: headers(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
+    }
+  },
 };
 
 export type User = {
@@ -1223,4 +1248,32 @@ export type PostInfo = {
   likes: { user_id: number; username: string }[];
   comments: { user_id: number; username: string; text: string; timestamp: string }[];
   reactions: { user_id: number; username: string; reaction: string }[];
+};
+
+export type GoalUnit = 'kg' | 'lbs' | 'km' | 'miles' | 'sessions' | 'calories' | 'steps' | 'minutes';
+
+export type GroupGoalMember = {
+  profileId: number;
+  username: string;
+  progress: number;
+  joinedAt: string;
+};
+
+export type GroupGoal = {
+  goalId: string;
+  title: string;
+  description: string;
+  targetValue: number;
+  unit: GoalUnit;
+  createdAt: string;
+  createdBy: string;
+  members: GroupGoalMember[];
+  completedAt?: string | null;
+};
+
+export type CreateGroupGoalRequest = {
+  title: string;
+  description: string;
+  targetValue: number;
+  unit: GoalUnit;
 };
