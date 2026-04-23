@@ -354,3 +354,27 @@ class daily_tracker_logs(Base):
     ProfileID         = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False, index=True)
     log_date          = Column(DateTime, nullable=False, index=True)       # date only, but DateTime for SQLAlchemy compat
     tracker_data      = Column(Text, nullable=False)                       # JSON blob from _serialize_daily_log()
+
+
+class GroupGoals(Base):
+    __tablename__ = 'group_goals'
+    goal_id      = Column(Integer, primary_key=True, autoincrement=True)
+    created_by   = Column(Integer, ForeignKey('Accounts.UserID'), nullable=False, index=True)
+    title        = Column(Text, nullable=False)
+    description  = Column(Text, default='')
+    target_value = Column(Float, nullable=False)
+    unit         = Column(Text, nullable=False)          # kg | lbs | km | miles | sessions | calories | steps | minutes
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class GroupGoalMembers(Base):
+    __tablename__ = 'group_goal_members'
+    __table_args__ = (
+        UniqueConstraint('goal_id', 'profile_id', name='uq_group_goal_member'),
+    )
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    goal_id    = Column(Integer, ForeignKey('group_goals.goal_id'), nullable=False, index=True)
+    profile_id = Column(Integer, ForeignKey('Accounts.UserID'), nullable=False, index=True)
+    progress   = Column(Float, nullable=False, default=0.0)
+    joined_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
