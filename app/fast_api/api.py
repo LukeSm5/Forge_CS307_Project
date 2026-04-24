@@ -3419,14 +3419,28 @@ def calculate_statistics(me, db, days):
         .scalar() or 0  # .scalar() returns the single number; "or 0" handles empty weeks
     )
     total_volume = total_volume if total_volume else 0
-    bottom_muscle = "None"
+    least_hit_query = (
+        db.query(
+            Workouts.name, 
+            func.count(session_workouts.SessionID).label('occurrence')
+        )
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .group_by(Workouts.name)
+        .order_by(func.count(session_workouts.SessionID).asc()) # Changed to ASC
+        .first()
+    )
+
+    # Crucial: Use the "or 'None'" logic to prevent the Pydantic ValidationError
+    bottom_muscle_name = least_hit_query[0] if least_hit_query else "None"
 
     return ReportData(
         workout_num= workout_count,
         top_muscle = top_muscle,
         bench_max = max_bench,
         total_volume = total_volume,
-        bottom_muscle = bottom_muscle
+        bottom_muscle = bottom_muscle_name
     )
 @app.get("/weeklyReport")
 def get_weekly_reports(me: Accounts = Depends(get_current_account),
