@@ -3671,11 +3671,11 @@ def leave_group_goal(
     db.commit()
     return {"ok": True}
 
-@app.get("/profile-data")
-def profile_prompt(me : Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
+@app.get("/profile-data/{user_id}")
+def profile_prompt(user_id: int, me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
     profile = (
         db.query(Profiles)
-        .filter(Profiles.ProfileID == me.UserID)
+        .filter(Profiles.ProfileID == user_id)
         .first())
     return AccountMeResponse(
       age = profile.age,

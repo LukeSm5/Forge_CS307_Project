@@ -746,8 +746,8 @@ look pleasing on a graph.
     return get<number[]>('/posts/workouts/mine');
   },
 
-  profileData: async (): Promise<AccountMeResponse> => {
-    return get<AccountMeResponse>('/profile-data');
+  profileData: async (userId: number): Promise<AccountMeResponse> => {
+    return get<AccountMeResponse>(`/profile-data/${userId}`);
   },
 
   acceptFriendRequest: async (requesterId: number): Promise<void> => {
