@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
@@ -898,31 +899,29 @@ export default function Diet() {
     loadLoggedMenuMeals().catch(() => {});
   }, [isLoadingAuth]);
 
-  /* ─── load saved/downloaded meals into browse library ─── */
-  useEffect(() => {
-    if (isLoadingAuth) return;
-    api.getLoggedAtHomeMeals().then((meals) => {
-      const mapped: TaggedMeal[] = meals.map((m) => ({
-        id: m.session_meal_id,
-        name: m.meal_name,
-        tags: {
-          ...EMPTY_TAGS,
-          dietary: [],
-        },
-        macros: {
-          calories: m.calories ?? null,
-          protein: m.protein ?? null,
-          carbs: m.carbs ?? null,
-          fat: m.fat ?? null,
-          sugar: m.sugar ?? null,
-          fiber: m.fiber ?? null,
-          sodium: m.sodium ?? null,
-        },
-        ingredients: [],
-      }));
-      setSavedMeals(mapped);
-    }).catch(() => {});
-  }, [isLoadingAuth]);
+  /* ─── load saved/downloaded meals into browse library on focus ─── */
+  useFocusEffect(
+    useCallback(() => {
+      api.getLoggedAtHomeMeals().then((meals) => {
+        const mapped: TaggedMeal[] = meals.map((m) => ({
+          id: m.session_meal_id,
+          name: m.meal_name,
+          tags: { ...EMPTY_TAGS, dietary: [] },
+          macros: {
+            calories: m.calories ?? null,
+            protein: m.protein ?? null,
+            carbs: m.carbs ?? null,
+            fat: m.fat ?? null,
+            sugar: m.sugar ?? null,
+            fiber: m.fiber ?? null,
+            sodium: m.sodium ?? null,
+          },
+          ingredients: [],
+        }));
+        setSavedMeals(mapped);
+      }).catch(() => {});
+    }, [])
+  );
 
   /* ─── tag helpers ─── */
   const setSingleTag = <K extends keyof MealTagSet>(key: K, value: MealTagSet[K]) => {
