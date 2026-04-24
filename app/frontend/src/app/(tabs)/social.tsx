@@ -18,6 +18,7 @@ import ForgeButton from "@/components/ForgeButton";
 import { Text, useScheme } from "@/components/Themed";
 import SocialActionButtons from "@/components/social/SocialActionButtons";
 import SocialChatButton from "@/components/social/SocialChatButton";
+import SocialChatsOverlay from "@/components/social/chats";
 import SocialPreviewCard from "@/components/social/SocialPreviewCard";
 import WorkoutFeedCard from "@/components/social/WorkoutFeedCard";
 import { SocialPanel } from "@/components/social/socialTypes";
@@ -27,7 +28,13 @@ import {
   removeSharedMeal,
   refreshFeed,
 } from "@/core/sharedMealsStore";
-import { api, SavedMealPost, WorkoutFeedPost, GroupGoal as ApiGroupGoal, CreateGroupGoalRequest } from "@/core/api";
+import {
+  api,
+  SavedMealPost,
+  WorkoutFeedPost,
+  GroupGoal as ApiGroupGoal,
+  CreateGroupGoalRequest,
+} from "@/core/api";
 
 type ProfileSearchResult = {
   id: number | string;
@@ -74,7 +81,15 @@ type FlagModalState = {
 
 /* ─── Group Goal types ─── */
 
-type GoalUnit = 'kg' | 'lbs' | 'km' | 'miles' | 'sessions' | 'calories' | 'steps' | 'minutes';
+type GoalUnit =
+  | "kg"
+  | "lbs"
+  | "km"
+  | "miles"
+  | "sessions"
+  | "calories"
+  | "steps"
+  | "minutes";
 
 type GroupGoalMember = {
   profileId: number;
@@ -195,7 +210,16 @@ export default function ProfilesTab() {
   };
 
   /* ─── Group Goals ─── */
-  const GOAL_UNITS: GoalUnit[] = ['kg', 'lbs', 'km', 'miles', 'sessions', 'calories', 'steps', 'minutes'];
+  const GOAL_UNITS: GoalUnit[] = [
+    "kg",
+    "lbs",
+    "km",
+    "miles",
+    "sessions",
+    "calories",
+    "steps",
+    "minutes",
+  ];
 
   const [groupGoals, setGroupGoals] = useState<GroupGoal[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
@@ -203,27 +227,41 @@ export default function ProfilesTab() {
   const [createGoalModal, setCreateGoalModal] = useState<CreateGoalModalState>({
     visible: false,
     loading: false,
-    title: '',
-    description: '',
-    targetValue: '',
-    unit: 'sessions',
+    title: "",
+    description: "",
+    targetValue: "",
+    unit: "sessions",
   });
-  const [logProgressModal, setLogProgressModal] = useState<LogProgressModalState>({
-    visible: false,
-    loading: false,
-    goal: null,
-    amount: '',
-  });
+  const [logProgressModal, setLogProgressModal] =
+    useState<LogProgressModalState>({
+      visible: false,
+      loading: false,
+      goal: null,
+      amount: "",
+    });
 
   const closeCreateGoalModal = () =>
-    setCreateGoalModal({ visible: false, loading: false, title: '', description: '', targetValue: '', unit: 'sessions' });
+    setCreateGoalModal({
+      visible: false,
+      loading: false,
+      title: "",
+      description: "",
+      targetValue: "",
+      unit: "sessions",
+    });
 
   const closeLogProgressModal = () =>
-    setLogProgressModal({ visible: false, loading: false, goal: null, amount: '' });
+    setLogProgressModal({
+      visible: false,
+      loading: false,
+      goal: null,
+      amount: "",
+    });
 
   useEffect(() => {
     setGoalsLoading(true);
-    api.getGroupGoals()
+    api
+      .getGroupGoals()
       .then((data) => setGroupGoals(data as unknown as GroupGoal[]))
       .catch((e) => console.error(e))
       .finally(() => setGoalsLoading(false));
@@ -231,17 +269,28 @@ export default function ProfilesTab() {
 
   const handleCreateGoal = async () => {
     const { title, description, targetValue, unit } = createGoalModal;
-    if (!title.trim()) { Alert.alert('Missing info', 'Please enter a goal title.'); return; }
+    if (!title.trim()) {
+      Alert.alert("Missing info", "Please enter a goal title.");
+      return;
+    }
     const target = parseFloat(targetValue);
-    if (isNaN(target) || target <= 0) { Alert.alert('Missing info', 'Please enter a valid target value.'); return; }
+    if (isNaN(target) || target <= 0) {
+      Alert.alert("Missing info", "Please enter a valid target value.");
+      return;
+    }
     setCreateGoalModal((prev) => ({ ...prev, loading: true }));
     try {
-      const newGoal = await api.createGroupGoal({ title: title.trim(), description: description.trim(), targetValue: target, unit } as CreateGroupGoalRequest) as unknown as GroupGoal;
+      const newGoal = (await api.createGroupGoal({
+        title: title.trim(),
+        description: description.trim(),
+        targetValue: target,
+        unit,
+      } as CreateGroupGoalRequest)) as unknown as GroupGoal;
       setGroupGoals((prev) => [newGoal, ...prev]);
       closeCreateGoalModal();
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Could not create goal. Please try again.');
+      Alert.alert("Error", "Could not create goal. Please try again.");
       setCreateGoalModal((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -249,42 +298,56 @@ export default function ProfilesTab() {
   const handleLogProgress = async () => {
     if (!logProgressModal.goal) return;
     const amount = parseFloat(logProgressModal.amount);
-    if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid amount', 'Please enter a number greater than 0.'); return; }
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid amount", "Please enter a number greater than 0.");
+      return;
+    }
     setLogProgressModal((prev) => ({ ...prev, loading: true }));
     try {
-      const updated = await api.logGoalProgress(logProgressModal.goal.goalId, amount) as unknown as GroupGoal;
+      const updated = (await api.logGoalProgress(
+        logProgressModal.goal.goalId,
+        amount,
+      )) as unknown as GroupGoal;
       const wasComplete = !!logProgressModal.goal.completedAt;
-      setGroupGoals((prev) => prev.map((g) => g.goalId === updated.goalId ? updated : g));
+      setGroupGoals((prev) =>
+        prev.map((g) => (g.goalId === updated.goalId ? updated : g)),
+      );
       closeLogProgressModal();
       if (updated.completedAt && !wasComplete) {
-        Alert.alert('🎉 Goal Complete!', `"${updated.title}" has been completed by the group!`);
+        Alert.alert(
+          "🎉 Goal Complete!",
+          `"${updated.title}" has been completed by the group!`,
+        );
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Could not log progress. Please try again.');
+      Alert.alert("Error", "Could not log progress. Please try again.");
       setLogProgressModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
   const handleLeaveGoal = (goal: GroupGoal) => {
     Alert.alert(
-      'Leave Goal',
+      "Leave Goal",
       `Leave "${goal.title}"? Your progress will be removed.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Leave', style: 'destructive',
+          text: "Leave",
+          style: "destructive",
           onPress: async () => {
             try {
               await api.leaveGroupGoal(goal.goalId);
-              setGroupGoals((prev) => prev.filter((g) => g.goalId !== goal.goalId));
+              setGroupGoals((prev) =>
+                prev.filter((g) => g.goalId !== goal.goalId),
+              );
             } catch (e) {
               console.error(e);
-              Alert.alert('Error', 'Could not leave goal. Please try again.');
+              Alert.alert("Error", "Could not leave goal. Please try again.");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -306,6 +369,7 @@ export default function ProfilesTab() {
   const [friendFeedError, setFriendFeedError] = useState("");
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
+  const [chatsOverlayVisible, setChatsOverlayVisible] = useState(false);
 
   useEffect(() => {
     return subscribeToSharedMeals(setSharedMeals);
@@ -980,8 +1044,8 @@ export default function ProfilesTab() {
                           ⚑
                         </Text>
                       </Pressable>
-                       <Pressable
-                       onPress = {() => router.push("../ProgressionScreen")}
+                      <Pressable
+                        onPress={() => router.push("../ProgressionScreen")}
                         style={({ pressed }) => [
                           styles.iconButton,
                           {
@@ -992,8 +1056,8 @@ export default function ProfilesTab() {
                         ]}
                       >
                         <Image
-                        source = {require("../../../assets/images/Progression_Picture-removebg-preview.png")}
-                        style={{width: 20, height: 20}}
+                          source={require("../../../assets/images/Progression_Picture-removebg-preview.png")}
+                          style={{ width: 20, height: 20 }}
                         />
                       </Pressable>
                     </View>
@@ -1008,15 +1072,26 @@ export default function ProfilesTab() {
         <View
           style={[
             styles.headerCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 16 },
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: colors.border,
+              marginTop: 16,
+            },
           ]}
         >
           <View style={styles.goalHeaderRow}>
-            <Text style={[styles.eyebrow, { color: colors.orange, marginBottom: 0 }]}>
+            <Text
+              style={[
+                styles.eyebrow,
+                { color: colors.orange, marginBottom: 0 },
+              ]}
+            >
               GROUP GOALS
             </Text>
             <Pressable
-              onPress={() => setCreateGoalModal((prev) => ({ ...prev, visible: true }))}
+              onPress={() =>
+                setCreateGoalModal((prev) => ({ ...prev, visible: true }))
+              }
               style={({ pressed }) => [
                 styles.createGoalBtn,
                 { backgroundColor: colors.orange, borderColor: colors.orange },
@@ -1030,7 +1105,12 @@ export default function ProfilesTab() {
           {goalsLoading ? (
             <ActivityIndicator style={{ marginTop: 12 }} />
           ) : groupGoals.length === 0 ? (
-            <Text style={[styles.stateText, { color: colors.muted, marginTop: 10, textAlign: 'left' }]}>
+            <Text
+              style={[
+                styles.stateText,
+                { color: colors.muted, marginTop: 10, textAlign: "left" },
+              ]}
+            >
               No group goals yet. Create one to get started!
             </Text>
           ) : (
@@ -1048,43 +1128,69 @@ export default function ProfilesTab() {
                       {
                         backgroundColor: colors.soft,
                         borderColor: isComplete ? colors.orange : colors.border,
-                        flexDirection: 'column',
-                        alignItems: 'stretch',
+                        flexDirection: "column",
+                        alignItems: "stretch",
                         gap: 10,
                       },
                     ]}
                   >
                     <Pressable
-                      onPress={() => setExpandedGoalId(isExpanded ? null : goal.goalId)}
-                      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                      onPress={() =>
+                        setExpandedGoalId(isExpanded ? null : goal.goalId)
+                      }
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.usernameText, { color: colors.text }]}>
-                          {goal.title}{isComplete ? '  ✓' : ''}
+                        <Text
+                          style={[styles.usernameText, { color: colors.text }]}
+                        >
+                          {goal.title}
+                          {isComplete ? "  ✓" : ""}
                         </Text>
                         <Text style={[styles.bioText, { color: colors.muted }]}>
-                          by @{goal.createdBy} · {goal.members.length} member{goal.members.length !== 1 ? 's' : ''}
+                          by @{goal.createdBy} · {goal.members.length} member
+                          {goal.members.length !== 1 ? "s" : ""}
                         </Text>
                       </View>
                       <Text style={[styles.bioText, { color: colors.orange }]}>
-                        {isExpanded ? '▲' : '▼'}
+                        {isExpanded ? "▲" : "▼"}
                       </Text>
                     </Pressable>
 
                     <View>
-                      <View style={[styles.goalBarTrack, { backgroundColor: colors.border }]}>
+                      <View
+                        style={[
+                          styles.goalBarTrack,
+                          { backgroundColor: colors.border },
+                        ]}
+                      >
                         <View
                           style={[
                             styles.goalBarFill,
-                            { width: `${Math.round(pct * 100)}%` as any, backgroundColor: colors.orange },
+                            {
+                              width: `${Math.round(pct * 100)}%` as any,
+                              backgroundColor: colors.orange,
+                            },
                           ]}
                         />
                       </View>
                       <View style={styles.goalBarLabelRow}>
-                        <Text style={[styles.goalBarLabel, { color: colors.muted }]}>
-                          {total % 1 === 0 ? total : total.toFixed(1)} / {goal.targetValue} {goal.unit}
+                        <Text
+                          style={[styles.goalBarLabel, { color: colors.muted }]}
+                        >
+                          {total % 1 === 0 ? total : total.toFixed(1)} /{" "}
+                          {goal.targetValue} {goal.unit}
                         </Text>
-                        <Text style={[styles.goalBarLabel, { color: colors.orange }]}>
+                        <Text
+                          style={[
+                            styles.goalBarLabel,
+                            { color: colors.orange },
+                          ]}
+                        >
                           {Math.round(pct * 100)}%
                         </Text>
                       </View>
@@ -1093,7 +1199,9 @@ export default function ProfilesTab() {
                     {isExpanded && (
                       <>
                         {goal.description ? (
-                          <Text style={[styles.bioText, { color: colors.muted }]}>
+                          <Text
+                            style={[styles.bioText, { color: colors.muted }]}
+                          >
                             {goal.description}
                           </Text>
                         ) : null}
@@ -1101,13 +1209,29 @@ export default function ProfilesTab() {
                           {goal.members.map((member) => (
                             <View
                               key={member.profileId}
-                              style={[styles.goalMemberRow, { borderColor: colors.border }]}
+                              style={[
+                                styles.goalMemberRow,
+                                { borderColor: colors.border },
+                              ]}
                             >
-                              <Text style={[styles.locationText, { color: colors.text, marginTop: 0 }]}>
+                              <Text
+                                style={[
+                                  styles.locationText,
+                                  { color: colors.text, marginTop: 0 },
+                                ]}
+                              >
                                 @{member.username}
                               </Text>
-                              <Text style={[styles.goalBarLabel, { color: colors.orange }]}>
-                                {member.progress % 1 === 0 ? member.progress : member.progress.toFixed(1)} {goal.unit}
+                              <Text
+                                style={[
+                                  styles.goalBarLabel,
+                                  { color: colors.orange },
+                                ]}
+                              >
+                                {member.progress % 1 === 0
+                                  ? member.progress
+                                  : member.progress.toFixed(1)}{" "}
+                                {goal.unit}
                               </Text>
                             </View>
                           ))}
@@ -1115,14 +1239,29 @@ export default function ProfilesTab() {
                         {!isComplete && (
                           <View style={styles.goalActionRow}>
                             <Pressable
-                              onPress={() => setLogProgressModal({ visible: true, loading: false, goal, amount: '' })}
+                              onPress={() =>
+                                setLogProgressModal({
+                                  visible: true,
+                                  loading: false,
+                                  goal,
+                                  amount: "",
+                                })
+                              }
                               style={({ pressed }) => [
                                 styles.goalActionBtn,
-                                { backgroundColor: colors.friendBg, borderColor: colors.friendBorder },
+                                {
+                                  backgroundColor: colors.friendBg,
+                                  borderColor: colors.friendBorder,
+                                },
                                 pressed && styles.pressed,
                               ]}
                             >
-                              <Text style={[styles.goalActionBtnText, { color: colors.orange }]}>
+                              <Text
+                                style={[
+                                  styles.goalActionBtnText,
+                                  { color: colors.orange },
+                                ]}
+                              >
                                 Log progress
                               </Text>
                             </Pressable>
@@ -1130,11 +1269,19 @@ export default function ProfilesTab() {
                               onPress={() => handleLeaveGoal(goal)}
                               style={({ pressed }) => [
                                 styles.goalActionBtn,
-                                { backgroundColor: colors.flagBg, borderColor: colors.flagBorder },
+                                {
+                                  backgroundColor: colors.flagBg,
+                                  borderColor: colors.flagBorder,
+                                },
                                 pressed && styles.pressed,
                               ]}
                             >
-                              <Text style={[styles.goalActionBtnText, { color: colors.red }]}>
+                              <Text
+                                style={[
+                                  styles.goalActionBtnText,
+                                  { color: colors.red },
+                                ]}
+                              >
                                 Leave
                               </Text>
                             </Pressable>
@@ -1387,7 +1534,12 @@ export default function ProfilesTab() {
           buttonSecondaryBg: colors.buttonSecondaryBg,
           buttonText: colors.buttonText,
         }}
-        onPress={() => setActiveSocialPanel("chats")}
+        onPress={() => setChatsOverlayVisible(true)}
+      />
+
+      <SocialChatsOverlay
+        visible={chatsOverlayVisible}
+        onClose={() => setChatsOverlayVisible(false)}
       />
 
       <Modal
@@ -1839,69 +1991,159 @@ export default function ProfilesTab() {
         animationType="fade"
         onRequestClose={closeCreateGoalModal}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.modalBackdrop }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.modalCardBg, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: colors.modalBackdrop },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.modalCardBg,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             {createGoalModal.loading ? (
               <View style={styles.modalLoadingWrap}>
                 <ActivityIndicator size="small" />
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>Creating goal...</Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  Creating goal...
+                </Text>
               </View>
             ) : (
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Create Group Goal</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Create Group Goal
+                </Text>
 
-                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>Title</Text>
+                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>
+                  Title
+                </Text>
                 <TextInput
                   value={createGoalModal.title}
-                  onChangeText={(t) => setCreateGoalModal((prev) => ({ ...prev, title: t }))}
+                  onChangeText={(t) =>
+                    setCreateGoalModal((prev) => ({ ...prev, title: t }))
+                  }
                   placeholder="e.g. Run 50km together"
                   placeholderTextColor={colors.placeholder}
                   keyboardAppearance={scheme.keyboard}
-                  style={[styles.goalInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                  style={[
+                    styles.goalInput,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
                 />
 
-                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>Description (optional)</Text>
+                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>
+                  Description (optional)
+                </Text>
                 <TextInput
                   value={createGoalModal.description}
-                  onChangeText={(t) => setCreateGoalModal((prev) => ({ ...prev, description: t }))}
+                  onChangeText={(t) =>
+                    setCreateGoalModal((prev) => ({ ...prev, description: t }))
+                  }
                   placeholder="What are you working toward?"
                   placeholderTextColor={colors.placeholder}
                   multiline
                   numberOfLines={2}
                   keyboardAppearance={scheme.keyboard}
-                  style={[styles.goalInput, styles.goalInputMulti, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                  style={[
+                    styles.goalInput,
+                    styles.goalInputMulti,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
                 />
 
                 <View style={styles.goalTargetRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>Target</Text>
+                    <Text
+                      style={[styles.goalFieldLabel, { color: colors.muted }]}
+                    >
+                      Target
+                    </Text>
                     <TextInput
                       value={createGoalModal.targetValue}
-                      onChangeText={(t) => setCreateGoalModal((prev) => ({ ...prev, targetValue: t }))}
+                      onChangeText={(t) =>
+                        setCreateGoalModal((prev) => ({
+                          ...prev,
+                          targetValue: t,
+                        }))
+                      }
                       placeholder="100"
                       placeholderTextColor={colors.placeholder}
                       keyboardType="numeric"
                       keyboardAppearance={scheme.keyboard}
-                      style={[styles.goalInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                      style={[
+                        styles.goalInput,
+                        {
+                          color: colors.text,
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>Unit</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
+                    <Text
+                      style={[styles.goalFieldLabel, { color: colors.muted }]}
+                    >
+                      Unit
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 6,
+                          paddingVertical: 4,
+                        }}
+                      >
                         {GOAL_UNITS.map((u) => (
                           <Pressable
                             key={u}
-                            onPress={() => setCreateGoalModal((prev) => ({ ...prev, unit: u }))}
+                            onPress={() =>
+                              setCreateGoalModal((prev) => ({
+                                ...prev,
+                                unit: u,
+                              }))
+                            }
                             style={[
                               styles.unitPill,
                               {
-                                backgroundColor: createGoalModal.unit === u ? colors.orange : colors.soft,
-                                borderColor: createGoalModal.unit === u ? colors.orange : colors.border,
+                                backgroundColor:
+                                  createGoalModal.unit === u
+                                    ? colors.orange
+                                    : colors.soft,
+                                borderColor:
+                                  createGoalModal.unit === u
+                                    ? colors.orange
+                                    : colors.border,
                               },
                             ]}
                           >
-                            <Text style={[styles.unitPillText, { color: createGoalModal.unit === u ? colors.buttonText : colors.muted }]}>
+                            <Text
+                              style={[
+                                styles.unitPillText,
+                                {
+                                  color:
+                                    createGoalModal.unit === u
+                                      ? colors.buttonText
+                                      : colors.muted,
+                                },
+                              ]}
+                            >
                               {u}
                             </Text>
                           </Pressable>
@@ -1916,17 +2158,30 @@ export default function ProfilesTab() {
                     onPress={closeCreateGoalModal}
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Cancel</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      Cancel
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={handleCreateGoal}
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.orange, borderColor: colors.orange },
+                      {
+                        backgroundColor: colors.orange,
+                        borderColor: colors.orange,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
@@ -1946,48 +2201,92 @@ export default function ProfilesTab() {
         animationType="fade"
         onRequestClose={closeLogProgressModal}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.modalBackdrop }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.modalCardBg, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: colors.modalBackdrop },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.modalCardBg,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             {logProgressModal.loading ? (
               <View style={styles.modalLoadingWrap}>
                 <ActivityIndicator size="small" />
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>Saving progress...</Text>
+                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                  Saving progress...
+                </Text>
               </View>
             ) : (
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Log Progress</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Log Progress
+                </Text>
                 <Text style={[styles.modalBodyText, { color: colors.muted }]}>
                   {logProgressModal.goal?.title}
                 </Text>
-                <Text style={[styles.goalFieldLabel, { color: colors.muted, marginTop: 14 }]}>
+                <Text
+                  style={[
+                    styles.goalFieldLabel,
+                    { color: colors.muted, marginTop: 14 },
+                  ]}
+                >
                   Amount ({logProgressModal.goal?.unit})
                 </Text>
                 <TextInput
                   value={logProgressModal.amount}
-                  onChangeText={(t) => setLogProgressModal((prev) => ({ ...prev, amount: t }))}
+                  onChangeText={(t) =>
+                    setLogProgressModal((prev) => ({ ...prev, amount: t }))
+                  }
                   placeholder="e.g. 5"
                   placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
                   keyboardAppearance={scheme.keyboard}
                   autoFocus
-                  style={[styles.goalInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                  style={[
+                    styles.goalInput,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
                 />
                 <View style={styles.modalButtonRow}>
                   <Pressable
                     onPress={closeLogProgressModal}
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.modalSecondaryBg, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: colors.text }]}>Cancel</Text>
+                    <Text
+                      style={[
+                        styles.modalSecondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
+                      Cancel
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={handleLogProgress}
                     style={({ pressed }) => [
                       styles.modalButton,
-                      { backgroundColor: colors.orange, borderColor: colors.orange },
+                      {
+                        backgroundColor: colors.orange,
+                        borderColor: colors.orange,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
@@ -2291,9 +2590,9 @@ const styles = StyleSheet.create({
 
   /* ─── Group Goal styles ─── */
   goalHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 4,
   },
   createGoalBtn: {
@@ -2304,13 +2603,13 @@ const styles = StyleSheet.create({
   },
   createGoalBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
+    fontWeight: "700",
+    color: "#fff",
   },
   goalBarTrack: {
     height: 6,
     borderRadius: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 4,
   },
   goalBarFill: {
@@ -2318,24 +2617,24 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   goalBarLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   goalBarLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   goalMemberRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 5,
     paddingHorizontal: 8,
     borderWidth: 1,
     borderRadius: 8,
   },
   goalActionRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   goalActionBtn: {
@@ -2343,18 +2642,18 @@ const styles = StyleSheet.create({
     minHeight: 36,
     borderRadius: 10,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 10,
   },
   goalActionBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   goalFieldLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 6,
     marginTop: 12,
@@ -2368,13 +2667,13 @@ const styles = StyleSheet.create({
   },
   goalInputMulti: {
     height: 72,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     paddingTop: 10,
   },
   goalTargetRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   unitPill: {
     paddingHorizontal: 12,
@@ -2384,6 +2683,6 @@ const styles = StyleSheet.create({
   },
   unitPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
