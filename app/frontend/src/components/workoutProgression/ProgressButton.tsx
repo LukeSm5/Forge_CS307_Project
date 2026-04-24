@@ -5,8 +5,10 @@ import ForgeButton from "../ForgeButton";
 
 export default function ProgressionButton({
   exerciseId,
+  userId
 }: {
   exerciseId: string;
+  userId?: number | null;
 }) {
   const [isOpen, setOpen] = useState(false);
 
@@ -19,6 +21,7 @@ export default function ProgressionButton({
           exerciseId={exerciseId}
           visible={isOpen}
           setVisible={setOpen}
+          userId={userId}
         />
       ) : null}
     </>

@@ -11,10 +11,12 @@ export default function ProgressionInterface({
   exerciseId,
   visible,
   setVisible,
+  userId,
 }: {
   exerciseId: string;
   visible: boolean;
   setVisible: (visible: boolean) => void;
+  userId?: number | null;
 }) {
   const [progression, setProgression] = useState<WeightProgression[]>();
 
@@ -22,8 +24,11 @@ export default function ProgressionInterface({
     if (!visible || progression) return;
 
     api
-      .promptWeightProgression(exerciseId)
-      .then(setProgression)
+      .promptWeightProgression(exerciseId, userId || null)
+      .then(p => {
+        setProgression(p);
+        getLineData(p);
+      })
       .catch((error) => {
         const message =
           error instanceof Error
@@ -34,33 +39,44 @@ export default function ProgressionInterface({
       });
   }, [exerciseId, visible, progression, setVisible]);
 
-  function getLineData(): lineDataItem[] {
-    const lineData: lineDataItem[] = [];
-    console.log(progression);
-    const [present, future] = progression;
+  const [lineData, setLineData] = useState<{
+    x: number;
+    weight: number;
+    label: string;
+    segment: string
+  }[]>([]);
+
+  function getLineData(p: WeightProgression[]) {
+    const nLineData = [];
+    const [present, future] = p;
 
     for (
       let i = Math.max(0, present.time.length - 5);
       i < present.time.length;
       i++
     )
-      lineData.push({
-        value: present.weight[i],
-        dataPointText: `${present.weight[i]}lbs`,
+      nLineData.push({
+        x: present.time[i],
+        weight: present.weight[i],
+        label: `${present.weight[i]}lbs`,
+        segment: "present",
       });
 
     for (let i = 0; i < Math.min(future.time.length, 3); i++)
-      lineData.push({
-        value: future.weight[i],
-        dataPointText: `${future.weight[i]}lbs?`,
+      nLineData.push({
+        x: future.time[i],
+        weight: future.weight[i],
+        label: `${future.weight[i]}lbs?`,
+        segment: "future",
       });
 
-    return lineData;
+    setLineData(nLineData);
   }
+
+  const s = useScheme();
 
   if (!visible || !progression) return <></>;
 
-  const s = useScheme();
   return (
     <Modal style={{ backgroundColor: s.backdrop }}>
       <View style={styles.container}>
@@ -80,7 +96,7 @@ export default function ProgressionInterface({
                   disableScroll
                   initialSpacing={20}
                   endSpacing={10}
-                  data={getLineData()}
+                  data={lineData}
                   lineSegments={[
                     {
                       startIndex: 0,

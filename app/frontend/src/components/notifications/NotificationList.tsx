@@ -45,11 +45,11 @@ export default function NotificationList({
           style,
         ]}
       >
-        {[...(notifications ?? [])]
+        {(notifications ?? []).length > 0 ? [...(notifications ?? [])]
           .sort((a, b) => b.timestamp - a.timestamp)
           .map((notification: Notification, idx: number) => (
             <NotificationComponent key={idx} notification={notification} dismiss={refresh} />
-          ))}
+          )) : <Text>No notifications!</Text>}
       </ScrollView>
     </>
   );

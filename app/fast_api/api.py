@@ -2131,6 +2131,47 @@ def get_exercise_progression_history(
 
     return ProgressionHistory(time=[ t for t, _ in historyArr ], weight=[ w for _, w in historyArr ])
 
+
+@app.get("/exercise_progression_history_user/{user_id}/{exercise_name}", response_model=ProgressionHistory)
+def get_exercise_progression_history(
+    user_id: int,
+    exercise_name: str,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    exercise_id = db.query(Exercises.ExerciseID).filter(Exercises.name == exercise_name).first()
+    if not exercise_id:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    
+    exercise_id = exercise_id[0]
+
+    # get all of users sessions
+    # then filter all exercises that match the exercise_id and one of the session IDs
+    sessions = db.query(session_workouts).filter(session_workouts.ProfileID == user_id).all()
+    session_ids = [s.SessionID for s in sessions]
+    rows = (
+        db.query(session_exercises)
+        .filter(
+            session_exercises.ExerciseID == exercise_id,
+            session_exercises.SessionID.in_(session_ids)
+        )
+        .all()
+    )
+
+    history = {}
+    for r in rows:
+        session = db.query(session_workouts).filter(session_workouts.SessionID == r.SessionID).first()
+        time = session.date.timestamp()
+        if time in history:
+            history[time] = max(history[time], r.weight)
+        else:
+            history[time] = r.weight
+    
+    historyArr = [(t, w) for t, w in history.items()]
+    historyArr.sort(key=lambda x: x[0])  # sort by timestamp ascending
+
+    return ProgressionHistory(time=[ t for t, _ in historyArr ], weight=[ w for _, w in historyArr ])
+
 @app.get("/session-menu-meals", response_model=List[SessionMenuMealOut])
 def get_session_menu_meals(
     me: Accounts = Depends(get_current_account),

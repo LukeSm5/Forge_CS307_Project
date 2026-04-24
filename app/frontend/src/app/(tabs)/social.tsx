@@ -1022,7 +1022,10 @@ export default function ProfilesTab() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => router.push("../ProgressionScreen")}
+                        onPress={() => router.push({
+                          pathname: "../ProgressionScreen",
+                          params: { userId: profile.id }
+                        })}
                         style={({ pressed }) => [
                           styles.iconButton,
                           {

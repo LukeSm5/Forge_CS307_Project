@@ -25,8 +25,6 @@ export function useThemeColor(
   const theme = useAppColorScheme() ?? "light";
   const colorFromProps = props[theme];
 
-
-  console.log(Schemes[theme][colorName]);
   if (colorFromProps) return colorFromProps;
   return Schemes[theme][colorName];
 }

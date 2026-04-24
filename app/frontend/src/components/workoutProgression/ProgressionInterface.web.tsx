@@ -19,10 +19,12 @@ export default function ProgressionInterface({
   exerciseId,
   visible,
   setVisible,
+  userId
 }: {
   exerciseId: string;
   visible: boolean;
   setVisible: (visible: boolean) => void;
+  userId?: number | null;
 }) {
   const [progression, setProgression] = useState<WeightProgression[]>();
 
@@ -30,8 +32,11 @@ export default function ProgressionInterface({
     if (!visible || progression) return;
 
     api
-      .promptWeightProgression(exerciseId)
-      .then(setProgression)
+      .promptWeightProgression(exerciseId, userId || null)
+      .then(p => {
+        setProgression(p);
+        getLineData(p);
+      })
       .catch((error) => {
         const message =
           error instanceof Error
@@ -42,16 +47,23 @@ export default function ProgressionInterface({
       });
   }, [exerciseId, visible, progression, setVisible]);
 
-  function getLineData() {
-    const lineData = [];
-    const [present, future] = progression;
+  const [lineData, setLineData] = useState<{
+    x: number;
+    weight: number;
+    label: string;
+    segment: string
+  }[]>([]);
+
+  function getLineData(p: WeightProgression[]) {
+    const nLineData = [];
+    const [present, future] = p;
 
     for (
       let i = Math.max(0, present.time.length - 5);
       i < present.time.length;
       i++
     )
-      lineData.push({
+      nLineData.push({
         x: present.time[i],
         weight: present.weight[i],
         label: `${present.weight[i]}lbs`,
@@ -59,22 +71,20 @@ export default function ProgressionInterface({
       });
 
     for (let i = 0; i < Math.min(future.time.length, 3); i++)
-      lineData.push({
+      nLineData.push({
         x: future.time[i],
         weight: future.weight[i],
         label: `${future.weight[i]}lbs?`,
         segment: "future",
       });
 
-    return lineData;
+    setLineData(nLineData);
   }
+
+  const s = useScheme();
 
   if (!visible || !progression) return <></>;
 
-  const data = getLineData();
-  console.log(data);
-
-  const s = useScheme();
   return (
     <Modal style={{ backgroundColor: s.backdrop }}>
       <View style={styles.container}>
@@ -90,7 +100,7 @@ export default function ProgressionInterface({
                   overflow: "visible",
                 }}
               >
-                <LineChart data={data} width={320} height={240}>
+                <LineChart data={lineData} width={320} height={240}>
                   <CartesianGrid stroke={s.neutralColor} />
 
                   <XAxis
@@ -117,7 +127,7 @@ export default function ProgressionInterface({
                     dot={{ r: 4 }}
                     isAnimationActive={false}
                     connectNulls
-                    data={data.map((d) =>
+                    data={lineData.map((d) =>
                       d.segment === "present" ? d : { ...d, weight: null },
                     )}
                   />
@@ -131,7 +141,7 @@ export default function ProgressionInterface({
                     dot={{ r: 4 }}
                     isAnimationActive={false}
                     connectNulls
-                    data={data.map((d) =>
+                    data={lineData.map((d) =>
                       d.segment === "future" ? d : { ...d, weight: null },
                     )}
                   />

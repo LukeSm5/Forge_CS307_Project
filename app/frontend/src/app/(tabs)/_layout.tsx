@@ -6,6 +6,7 @@ import { Schemes } from '@/constants/Colors';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useAppColorScheme } from '@/core/accessibility';
 import { loadToken } from '@/core/api';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
@@ -98,6 +99,20 @@ export default function TabLayout() {
           title: 'Social',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+          ),
+          headerRight: () => (
+            <Link href="/notifications" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <AntDesign 
+                    name="bell" 
+                    size={24} 
+                    color={Schemes[colorScheme ?? 'light'].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }} 
+                  />
+                )}
+              </Pressable>
+            </Link>
           ),
         }}
       />

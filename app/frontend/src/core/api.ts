@@ -31,7 +31,6 @@ export function setToken(t: string | null) {
 }
 
 function headers() {
-  console.log("AUTH TOKEN:", token);
 
   return {
     "Content-Type": "application/json",
@@ -484,12 +483,14 @@ ${e.prompt}
     return api.genericPrompt({ prompt });
   },
 
-  getWeightProgression: async (exerciseId: string): Promise<WeightProgression> => {
+  getWeightProgression: async (exerciseId: string, userId: number | null): Promise<WeightProgression> => {
+    if (userId !== null)
+      return get<WeightProgression>(`/exercise_progression_history_user/${userId}/${exerciseId}`);
     return get<WeightProgression>(`/exercise_progression_history/${exerciseId}`);
   },
 
-  promptWeightProgression: async (exerciseId: string): Promise<WeightProgression[]> => {
-    const present = await api.getWeightProgression(exerciseId);
+  promptWeightProgression: async (exerciseId: string, userId: number | null): Promise<WeightProgression[]> => {
+    const present = await api.getWeightProgression(exerciseId, userId);
     console.log(present);
     console.log("mega bummer");
     const res = await api.mePrompt({ prompt: `
