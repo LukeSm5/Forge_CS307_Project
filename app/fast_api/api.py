@@ -2298,7 +2298,7 @@ def get_post_comments(
             "user_id": row.ProfileID,
             "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
             "text": row.text,
-            "timestamp": row.timestamp.timestamp(),
+            "timestamp": row.timestamp,
         }
         for row in rows
     ] }
@@ -2374,12 +2374,9 @@ def comment_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text, timestamp=datetime.now(timezone.utc))
+    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text)
     db.add(comment)
     db.commit()
-
-    add_notification(db, payload.post_id, f"{me.username} commented on your post: '{payload.text}'")
-
     return {"ok": True, "detail": "Post commented"}
 
 
@@ -2509,7 +2506,7 @@ def get_friends_workout_feed(
     return result
 
 
-@app.post("/posts/meals")
+@app.post("/feed/posts")
 def publish_meal_post(
     payload: PublishMealPostRequest,
     me: Accounts = Depends(get_current_account),
@@ -2581,7 +2578,7 @@ def publish_meal_post(
     }
 
 
-@app.delete("/posts/meals/{post_id}")
+@app.delete("/feed/posts/{post_id}")
 def delete_meal_post(
     post_id: int,
     me: Accounts = Depends(get_current_account),
@@ -2599,10 +2596,12 @@ def delete_meal_post(
     return {"ok": True}
 
 
-@app.get("/feed/meals")
+@app.get("/feed/posts")
 def get_meal_feed(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
     blocked_ids = _blocked_user_ids(db, me.UserID)
 
@@ -2610,7 +2609,8 @@ def get_meal_feed(
         db.query(Posts)
         .filter(Posts.caption.like('%"type": "meal"%'))
         .order_by(Posts.PostID.desc())
-        .limit(50)
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
@@ -2655,13 +2655,13 @@ def get_meal_feed(
     return results
 
 
-@app.post("/session-meals/from-post", response_model=SessionMealOut, status_code=201)
+@app.post("/feed/posts/{post_id}/save", response_model=SessionMealOut, status_code=201)
 def save_meal_from_feed(
-    payload: SaveMealFromFeedRequest,
+    post_id: int,
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
+    post = db.query(Posts).filter(Posts.PostID == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
