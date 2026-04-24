@@ -2576,34 +2576,26 @@ def publish_meal_post(
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Meal name is required")
 
-    caption = json.dumps({
-        "type": "meal",
-        "source": payload.source,
-        "name": payload.name,
-        "calories": payload.calories,
-        "protein": payload.protein,
-        "carbs": payload.carbs,
-        "fat": payload.fat,
-        "sugar": payload.sugar,
-        "fiber": payload.fiber,
-        "sodium": payload.sodium,
-        "cuisine": payload.cuisine,
-        "goal": payload.goal,
-        "complexity": payload.complexity,
-        "spice_level": payload.spice_level,
-        "dietary": payload.dietary,
-        "restaurant": payload.restaurant,
-        "category": payload.category,
-        "meal_type": payload.meal_type,
-    })
-
-    post_row = Posts(
+    post_row = MealPosts(
         PostID=_next_post_id(db),
         ProfileID=me.UserID,
-        caption=caption,
-        ExerciseID=None,
-        WorkoutID=None,
-        MachineID=_fallback_machine_id(db),
+        source=payload.source,
+        name=payload.name,
+        calories=payload.calories,
+        protein=payload.protein,
+        carbs=payload.carbs,
+        fat=payload.fat,
+        sugar=payload.sugar,
+        fiber=payload.fiber,
+        sodium=payload.sodium,
+        cuisine=payload.cuisine,
+        goal=payload.goal,
+        complexity=payload.complexity,
+        spice_level=payload.spice_level,
+        dietary=payload.dietary,
+        restaurant=payload.restaurant,
+        category=payload.category,
+        meal_type=payload.meal_type,
     )
     db.add(post_row)
     db.commit()
@@ -2645,14 +2637,10 @@ def delete_meal_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(Posts).filter(
-        Posts.PostID == post_id,
-        Posts.ProfileID == me.UserID,
-    ).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Meal post not found")
-
-    _delete_posts_and_related_rows(db, [post_id])
+    db.query(MealPosts).filter(
+        MealPosts.PostID == post_id,
+        MealPosts.ProfileID == me.UserID,
+    ).delete()
     db.commit()
     return {"ok": True}
 
@@ -2722,42 +2710,34 @@ def save_meal_from_feed(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(Posts).filter(Posts.PostID == post_id).first()
+    post = db.query(MealPosts).filter(MealPosts.PostID == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    try:
-        data = json.loads(post.caption)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Post is not a meal post")
-
-    if data.get("type") != "meal":
-        raise HTTPException(status_code=400, detail="Post is not a meal post")
-
-    meal_name = (data.get("name") or "Shared Meal").strip()
+    meal_name = post.name.strip()
     meal = Meals(name=meal_name)
     db.add(meal)
     db.flush()
 
     macros_data = {
-        "calories": data.get("calories"),
-        "protein": data.get("protein"),
-        "fat": data.get("fat"),
-        "carbs": data.get("carbs"),
-        "sugar": data.get("sugar"),
-        "fiber": data.get("fiber"),
-        "sodium": data.get("sodium"),
+        "calories": post.calories,
+        "protein": post.protein,
+        "fat": post.fat,
+        "carbs": post.carbs,
+        "sugar": post.sugar,
+        "fiber": post.fiber,
+        "sodium": post.sodium,
     }
     if any(v is not None for v in macros_data.values()):
         macros_row = meal_macros(MealID=meal.MealID, **macros_data)
         db.add(macros_row)
 
-    source_label = data.get("source", "unknown")
+    source_label = post.source
     note_parts = [f"Saved from meal feed (source: {source_label})"]
-    if data.get("restaurant"):
-        note_parts.append(f"Restaurant: {data['restaurant']}")
-    if data.get("meal_type"):
-        note_parts.append(f"Meal type: {data['meal_type']}")
+    if post.restaurant:
+        note_parts.append(f"Restaurant: {post.restaurant}")
+    if post.meal_type:
+        note_parts.append(f"Meal type: {post.meal_type}")
 
     entry = session_meals(
         ProfileID=me.UserID,
