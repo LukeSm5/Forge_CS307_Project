@@ -55,7 +55,7 @@ export default function WorkoutFeedCard({
   const refresh = () => setKey((k) => k + 1);
 
   useEffect(() => {
-    api.getPostInfo(post.post_id, true).then(setPostInfo);
+    api.getPostInfo(post.post_id, false).then(setPostInfo);
   }, [key]);
 
   return (
