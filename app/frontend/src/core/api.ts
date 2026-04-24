@@ -746,6 +746,9 @@ look pleasing on a graph.
     return get<number[]>('/posts/workouts/mine');
   },
 
+  profileData: async (): Promise<AccountMeResponse> => {
+    return get<AccountMeResponse>('/profile-data');
+  },
 
   acceptFriendRequest: async (requesterId: number): Promise<void> => {
     await post<{ ok: boolean }>('/friends/accept', { requester_id: requesterId });
@@ -799,6 +802,13 @@ export type User = {
   calorie_goal?: number,
 };
 
+export type AccountMeResponse = {
+  age: number,
+  weight: number,
+  height: number,
+  gender: string,
+  health_goals: string,
+}
 export type ApiEvent = any;
 
 export type SubmitOnboardingEvent = {
@@ -1327,7 +1337,6 @@ export type CreateGroupGoalRequest = {
 };
 
 
-// change this after it works
 export type ReportData = {
   workout_num: number
   top_muscle: string
@@ -1335,3 +1344,12 @@ export type ReportData = {
   total_volume: number
   bench_max: number
 };
+
+export type UserProfile = {
+  age: number;
+  weight: number;
+  height: number;
+  gender: string;
+  health_goals: string;
+  bio: string;
+}

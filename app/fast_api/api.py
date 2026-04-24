@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 import re
 from datetime import timezone, datetime, timedelta, date
-from sqlalchemy import inspect, text, or_, and_
+from sqlalchemy import inspect, text, or_, and_, func
 from openai import OpenAI
 import os
 import json
@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, MealPosts, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, ChatMessages, GroupGoals, GroupGoalMembers
+from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, ChatMessages, GroupGoals, GroupGoalMembers, MealPosts
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -252,9 +252,9 @@ class AccountUpdateResponse(BaseModel):
     message: str
 
 class AccountMeResponse(BaseModel):
-    profile_id: int
-    email: str
-    username: str
+    profile_id: Optional[int] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
     bio: Optional[str] = None
     gym_location: Optional[str] = None
     age: Optional[float] = None
@@ -551,6 +551,13 @@ class PublishMealPostRequest(BaseModel):
 
 class SaveMealFromFeedRequest(BaseModel):
     post_id: int
+
+class ReportData(BaseModel):
+    workout_num: int
+    top_muscle: str
+    bench_max: float
+    total_volume: float
+    bottom_muscle: str
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -3466,6 +3473,79 @@ def create_group_goal(
 
     return _build_group_goal_out(db, goal)
 
+def calculate_statistics(me, db, days):
+    since_date = datetime.now(timezone.utc) - timedelta(days=days)
+    workout_count = db.query(session_workouts).filter(
+        session_workouts.ProfileID == me.UserID,
+        session_workouts.date >= since_date
+    ).count()
+    hardest_hit_query = (
+        db.query(
+            Workouts.name, 
+            func.count(session_workouts.SessionID).label('occurrence')
+        )
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .group_by(Workouts.name)
+        .order_by(func.count(session_workouts.SessionID).desc())
+        .first()
+    )
+    top_muscle = hardest_hit_query[0] if hardest_hit_query else "None"
+
+    max_bench = (
+        db.query(func.max(session_exercises.weight))
+        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
+        .filter(
+            session_workouts.ProfileID == me.UserID,
+            session_workouts.date >= since_date,
+            session_exercises.ExerciseID == 9
+        )
+        .scalar()
+    )
+    max_bench = max_bench if max_bench else 0
+    total_volume = (
+        db.query(func.sum(session_exercises.reps * session_exercises.weight))
+        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .scalar() or 0  # .scalar() returns the single number; "or 0" handles empty weeks
+    )
+    total_volume = total_volume if total_volume else 0
+    bottom_muscle = "None"
+    least_hit_query = (
+        db.query(
+            Workouts.name, 
+            func.count(session_workouts.SessionID).label('occurrence')
+        )
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .group_by(Workouts.name)
+        .order_by(func.count(session_workouts.SessionID).asc()) # Changed to ASC
+        .first()
+    )
+
+    # Crucial: Use the "or 'None'" logic to prevent the Pydantic ValidationError
+    bottom_muscle_name = least_hit_query[0] if least_hit_query else "None"
+
+    return ReportData(
+        workout_num= workout_count,
+        top_muscle = top_muscle,
+        bench_max = max_bench,
+        total_volume = total_volume,
+        bottom_muscle = bottom_muscle_name
+    )
+@app.get("/weeklyReport")
+def get_weekly_reports(me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),):
+    return calculate_statistics(me, db, 7)
+
+@app.get("/monthlyReport")
+def get_monthly_reports(me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),):
+    return calculate_statistics(me, db, 30)
+
 
 @app.get("/group-goals", response_model=List[GroupGoalOut])
 def get_group_goals(
@@ -3590,3 +3670,17 @@ def leave_group_goal(
     db.delete(member)
     db.commit()
     return {"ok": True}
+
+@app.get("/profile-data")
+def profile_prompt(me : Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
+    profile = (
+        db.query(Profiles)
+        .filter(Profiles.ProfileID == me.UserID)
+        .first())
+    return AccountMeResponse(
+      age = profile.age,
+      weight = profile.weight,
+      height = profile.height_in,
+      gender = profile.gender,
+      health_goals = profile.health_goals,
+   )
