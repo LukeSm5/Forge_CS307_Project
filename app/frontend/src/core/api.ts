@@ -623,6 +623,16 @@ look pleasing on a graph.
     return get<ChatListItem[]>('/chats');
   },
 
+  getChatMessages: async (threadId: number): Promise<ChatMessage[]> => {
+    return get<ChatMessage[]>(`/chats/${threadId}/messages`);
+  },
+
+  sendChatMessage: async (threadId: number, messageText: string): Promise<ChatMessage> => {
+    return post<ChatMessage>(`/chats/${threadId}/messages`, {
+      message_text: messageText,
+    });
+  },
+
   checkBlock: async (otherId: number): Promise<BlockStatus> => {
     return get<BlockStatus>(`/blocks/status?other_id=${otherId}`);
   },
@@ -1139,6 +1149,19 @@ export type ChatListItem = {
   created_at: string;
   updated_at: string;
   last_message_at?: string | null;
+  last_message_text?: string | null;
+  last_sender_id?: number | null;
+};
+
+export type ChatMessage = {
+  message_id: number;
+  thread_id: number;
+  sender_id: number;
+  sender_username: string;
+  message_text: string;
+  created_at: string;
+  read_at?: string | null;
+  is_mine: boolean;
 };
 
 export type FriendshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted';
@@ -1302,6 +1325,8 @@ export type CreateGroupGoalRequest = {
   unit: GoalUnit;
 };
 
+
+// change this after it works
 export type ReportData = {
   workout_num: number
   top_muscle: string
