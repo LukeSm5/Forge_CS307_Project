@@ -12,12 +12,11 @@ import {
 
 import { MacroRange, 
   BrowseFilterState, 
-  MacroFilterKey, 
   TagTab, 
   RestaurantMeal, 
   ProteinFilter, 
   LoggedMenuMeal, 
-  MealTypeOption, GoalDirection, OverlayMode, TrackerState} from '../dietTypes';
+  MealTypeOption, GoalDirection, OverlayMode, TrackerState} from '../diet/dietTypes';
 import { useAuth } from '@/core/auth';
 
 import { 
@@ -44,6 +43,7 @@ import {
   TaggedMeal,
   MealTagSet,
   MealMacros,
+  MacroFilterKey,
   Ingredient,
   IngredientUnit,
   Dietary,
@@ -71,11 +71,10 @@ import {
   EMPTY_TAGS,
   EMPTY_MACROS,
   C,
-} from '../mealTypes';
+} from '../diet/mealTypes';
 
 import { api } from '../../core/api';
 import { shareMeal } from '@/core/sharedMealsStore';
-
 
 /** Build a partial MealMacros from a restaurant RestaurantMeal / LoggedMenuMeal row */
 function restaurantMealToMacros(meal: {
@@ -290,8 +289,8 @@ function BrowseMealCard({
   onToggle: () => void;
 }) {
   const t = meal.tags;
-  const m = meal.macros;
-  const hasMacros = m && MACRO_DISPLAY.some(({ key }) => m[key] !== null && m[key] !== undefined);
+  const m = meal.macros as MealMacros;
+  const hasMacros = m && MACRO_DISPLAY.some(({ key }) => m[key as keyof MealMacros] !== null && m[key as keyof MealMacros] !== undefined);
   const hasIngredients = meal.ingredients && meal.ingredients.length > 0;
 
   return (
@@ -374,7 +373,7 @@ function BrowseMealCard({
               <Text style={styles.browseSubheading}>Macros · per serving</Text>
               <View style={styles.chipGroup}>
                 {MACRO_DISPLAY.map(({ key, label, unit, color }) => {
-                  const val = m![key];
+                  const val = m![key as keyof MealMacros];
                   if (val === null || val === undefined) return null;
                   return <MacroBadge key={key} label={label} value={val} unit={unit} color={color} />;
                 })}
@@ -426,7 +425,7 @@ function BrowseMealCard({
               <Text style={styles.browseExpandHeading}>Macros · per serving</Text>
               <View style={styles.chipGroup}>
                 {MACRO_DISPLAY.map(({ key, label, unit, color }) => {
-                  const val = m![key];
+                  const val = m![key as keyof MealMacros];
                   if (val === null || val === undefined) return null;
                   return <MacroBadge key={key} label={label} value={val} unit={unit} color={color} />;
                 })}
@@ -863,7 +862,7 @@ export default function Diet() {
 
   /* ─── macro tracker state ─── */
   const [trackers, setTrackers] = useState<TrackerState[]>(
-    ALL_TRACKERS.map((t) => ({ ...t, value: 0 }))
+    ALL_TRACKERS.map((t) => ({ ...t, value: 0, goal: null, direction: 'under' as GoalDirection }))
   );
   const [trackerSlots, setTrackerSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
@@ -1048,7 +1047,7 @@ export default function Diet() {
       cuisine: meal.tags.cuisine,
       goal: meal.tags.goal,
       complexity: meal.tags.complexity,
-      spice_level: meal.tags.spiceLevel,
+      spiceLevel: meal.tags.spiceLevel,
       dietary: meal.tags.dietary,
     });
     Alert.alert('Shared!', `"${meal.name}" has been shared to the Social tab.`);
@@ -1122,9 +1121,9 @@ export default function Diet() {
       if (browseFilter.cookTime && t.cookTime !== browseFilter.cookTime) return false;
       if (browseFilter.dietary.length > 0 && !browseFilter.dietary.every((d) => t.dietary.includes(d))) return false;
       for (const { key } of MACRO_FILTER_FIELDS) {
-        const range = browseFilter[key] as MacroRange;
+        const range = browseFilter[key as keyof BrowseFilterState] as MacroRange;
         if (range.min === null && range.max === null) continue;
-        const val = meal.macros?.[key] ?? null;
+        const val = meal.macros?.[key as keyof MealMacros] ?? null;
         if (val === null) return false;
         if (range.min !== null && val < range.min) return false;
         if (range.max !== null && val > range.max) return false;
@@ -1706,7 +1705,7 @@ export default function Diet() {
         >
           <Text style={styles.sectionLabel}>Macro Ranges (per serving)</Text>
           {MACRO_FILTER_FIELDS.map(({ key, label, unit }) => (
-            <MacroRangeFilterRow key={key} filterKey={key} label={label} unit={unit} range={browseFilter[key] as MacroRange} isOpen={browseOpenSection === `macro_${key}`} isActive={macroRangeActive(key)} onToggleOpen={() => setBrowseOpenSection(browseOpenSection === `macro_${key}` ? null : `macro_${key}`)} onChangeMin={(val) => setBrowseMacroRange(key, 'min', val)} onChangeMax={(val) => setBrowseMacroRange(key, 'max', val)} />
+            <MacroRangeFilterRow key={key} filterKey={key} label={label} unit={unit} range={browseFilter[key as keyof BrowseFilterState] as MacroRange} isOpen={browseOpenSection === `macro_${key}`} isActive={macroRangeActive(key)} onToggleOpen={() => setBrowseOpenSection(browseOpenSection === `macro_${key}` ? null : `macro_${key}`)} onChangeMin={(val) => setBrowseMacroRange(key, 'min', val)} onChangeMax={(val) => setBrowseMacroRange(key, 'max', val)} />
           ))}
         </CollapsibleSection>
 

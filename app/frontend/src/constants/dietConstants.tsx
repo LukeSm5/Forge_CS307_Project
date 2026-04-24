@@ -1,5 +1,5 @@
-import { MacroRange, BrowseFilterState, MacroFilterKey, TrackerState, GoalDirection } from '../app/dietTypes';
-import { MealMacros, C } from '@/app/mealTypes';
+import { MacroRange, BrowseFilterState, TrackerState, GoalDirection } from '../app/diet/dietTypes';
+import { MacroFilterKey, MealMacros, C } from '@/app/diet/mealTypes';
 
 /* ----------------- constants -----------------*/
 export const EMPTY_RANGE: MacroRange = { min: null, max: null };

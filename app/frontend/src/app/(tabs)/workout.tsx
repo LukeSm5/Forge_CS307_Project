@@ -581,13 +581,11 @@ export default function WorkoutTabScreen() {
       <View style={styles.actionsRow}>
         <ForgeButton
           text="Log Workout"
-          theme="primary"
           style={styles.actionButton}
           onPress={handleLogWorkout}
         />
         <ForgeButton
           text="Generate Workout"
-          theme="teal"
           style={styles.actionButton}
           onPress={handleGenerateWorkout}
         />
@@ -605,13 +603,11 @@ export default function WorkoutTabScreen() {
           <>
             <ForgeButton
               text="Cancel"
-              theme="neutral"
               style={styles.modalButton}
               onPress={() => setEditingLog(null)}
             />
             <ForgeButton
               text={savingLogId ? "Saving..." : "Add"}
-              theme="success"
               style={styles.modalButton}
               onPress={submitEditedWorkout}
               disabled={!!savingLogId}
@@ -719,14 +715,12 @@ export default function WorkoutTabScreen() {
             <View style={styles.modalActions}>
               <ForgeButton
                 text="Cancel"
-                theme="neutral"
                 style={styles.modalButton}
                 onPress={() => setDeleteConfirmLog(null)}
                 disabled={!!deletingLogId}
               />
               <ForgeButton
                 text={deletingLogId ? "Deleting..." : "Delete"}
-                theme="danger"
                 style={styles.modalButton}
                 onPress={confirmDeleteWorkout}
                 disabled={!!deletingLogId}

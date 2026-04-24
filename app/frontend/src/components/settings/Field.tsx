@@ -1,5 +1,5 @@
 import { View, Text, } from "@/components/Themed";
-import { styles } from "@/app/settings.Style";
+import { styles } from "@/app/profile/settings.Style";
 import { TextInput } from "react-native";
 import { useAppColorScheme } from "@/core/accessibility";
 import { Schemes } from "@/constants/Colors";

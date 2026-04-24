@@ -1,6 +1,6 @@
 import React from "react";
-import LoginButton from "../components/ForgeButton";
-import LoginTextBox from "../components/ForgeTextBox";
+import LoginButton from "@/components/ForgeButton";
+import LoginTextBox from "@/components/ForgeTextBox";
 import { StyleSheet, View, Text } from "react-native";
 import { useRouter } from "expo-router/build/exports";
 import Constants from "expo-constants";
@@ -131,7 +131,7 @@ const CreateAccountScreen = () => {
           username,
         });
         setLoggedIn(true);
-        router.replace("/onboarding");
+        router.replace("./onboarding");
       }
     } catch (error) {
       console.log("Full error:", error);
@@ -263,7 +263,7 @@ const CreateAccountScreen = () => {
         style={styles.temporaryButton}
       />
       <LoginButton
-        onPress={() => router.replace("/loginScreen")}
+        onPress={() => router.replace("./loginScreen")}
         text="Back to Login"
         disabled={isSubmitting}
       />

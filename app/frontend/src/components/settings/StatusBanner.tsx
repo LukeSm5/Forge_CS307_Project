@@ -1,4 +1,4 @@
-import { styles } from "@/app/settings.Style";
+import { styles } from "@/app/profile/settings.Style";
 import { View, Text} from "@/components/Themed";
 
 export type Status = { type: "ok" | "err"; msg: string } | null;

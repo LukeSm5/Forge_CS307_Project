@@ -1,4 +1,4 @@
-import { MealTagSet, Dietary } from "./mealTypes";
+import { MealTagSet, Dietary } from "../diet/mealTypes";
 
 export type MacroRange = { min: number | null; max: number | null };
 
@@ -13,7 +13,6 @@ export type BrowseFilterState = Partial<Omit<MealTagSet, 'dietary'>> & {
   sodium: MacroRange;
 };
 
-export type MacroFilterKey = 'calories' | 'protein' | 'fat' | 'carbs' | 'sugar' | 'fiber' | 'sodium';
 
 export type RestaurantMeal = {
   id: number;

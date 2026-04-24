@@ -134,7 +134,7 @@ function RootLayoutNav() {
         <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
-      {!isLoggedIn && !isPublicAuthRoute && <Redirect href="/loginScreen" />}
+      {!isLoggedIn && !isPublicAuthRoute && <Redirect href="auth/loginScreen" />}
     </ThemeProvider>
   );
 }

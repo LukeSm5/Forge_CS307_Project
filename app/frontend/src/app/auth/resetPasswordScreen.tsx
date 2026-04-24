@@ -3,8 +3,8 @@ import { StyleSheet, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router/build/exports';
 import Constants from 'expo-constants';
 
-import LoginButton from '../components/ForgeButton';
-import LoginTextBox from '../components/ForgeTextBox';
+import LoginButton from '@/components/ForgeButton';
+import LoginTextBox from '@/components/ForgeTextBox';
 import { Text, View } from '@/components/Themed';
 
 const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
@@ -63,7 +63,7 @@ const ResetPasswordScreen = () => {
       Alert.alert('Success', 'Password reset successfully.', [
         {
           text: 'OK',
-          onPress: () => router.push('/loginScreen'),
+          onPress: () => router.push('./loginScreen'),
         },
       ]);
     } catch (error) {
@@ -99,7 +99,7 @@ const ResetPasswordScreen = () => {
       />
 
       <LoginButton onPress={handleResetPassword} text="Reset Password" />
-      <LoginButton onPress={() => router.push('/loginScreen')} text="Cancel" />
+      <LoginButton onPress={() => router.push('./loginScreen')} text="Cancel" />
     </View>
   );
 };

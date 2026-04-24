@@ -6,7 +6,7 @@ import {
   SPICE_COLOR, SPICE_ICON, GOAL_COLOR, GOAL_ICON, COMPLEXITY_COLOR, TIME_COLOR, TIME_ICON,
   INGREDIENT_UNITS, COMMON_INGREDIENTS, INGREDIENT_CATEGORIES,
   EMPTY_TAGS, EMPTY_MACROS, C, sectionLabel, Pill, TagSection, GLOBAL_STYLES,
-} from "./mealTypes";
+} from "../diet/mealTypes";
 
 export interface TagMealScreenProps {
   editing:   TaggedMeal | null;

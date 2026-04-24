@@ -6,6 +6,7 @@ export type Complexity = "simple" | "moderate" | "complex";
 export type Goal       = "fat_loss" | "muscle_gain" | "maintenance";
 export type TimeLabel  = "quick" | "medium" | "long";
 export type Dietary    = "vegetarian" | "vegan" | "gluten_free" | "dairy_free" | "nut_free" | "halal" | "kosher" | "low_carb" | "high_protein";
+export type MacroFilterKey = 'calories' | 'protein' | 'fat' | 'carbs' | 'sugar' | 'fiber' | 'sodium';
 
 export type IngredientUnit =
   | "g" | "kg" | "oz" | "lb"
@@ -152,7 +153,7 @@ export interface MealTagSet {
   dietary:    Dietary[];
 }
 
-export interface MealMacros {
+/* export interface MealMacros {
   calories: number | null;
   protein:  number | null;
   fat:      number | null;
@@ -160,7 +161,9 @@ export interface MealMacros {
   sugar:    number | null;
   fiber:    number | null;
   sodium:   number | null;
-}
+} */
+
+export type MealMacros = Record<MacroFilterKey, number | null>;
 
 export interface TaggedMeal {
   id:          number;

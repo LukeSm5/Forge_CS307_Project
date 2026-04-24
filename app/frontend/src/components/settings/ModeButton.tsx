@@ -1,5 +1,5 @@
 import { Pressable } from "react-native";
-import { styles } from "../../app/settings.Style"
+import { styles } from "../../app/profile/settings.Style"
 import { Text } from "@/components/Themed"
 
 export function ModeButton({

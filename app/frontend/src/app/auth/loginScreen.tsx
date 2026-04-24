@@ -1,6 +1,6 @@
 import React from "react";
-import LoginButton from "../components/ForgeButton";
-import LoginTextBox from "../components/ForgeTextBox";
+import LoginButton from "@/components/ForgeButton";
+import LoginTextBox from "@/components/ForgeTextBox";
 import { StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router/build/exports";
 import Constants from "expo-constants";
@@ -295,12 +295,12 @@ const LoginScreen = () => {
 
       <LoginButton onPress={handleLogin} text="Login" disabled={isSubmitting} />
       <LoginButton
-        onPress={() => router.push("/createAccountScreen")}
+        onPress={() => router.push("./createAccountScreen")}
         text="Create Account"
         disabled={isSubmitting}
       />
       <LoginButton
-        onPress={() => router.push("/resetPasswordScreen")}
+        onPress={() => router.push("./resetPasswordScreen")}
         text="Reset Password"
         disabled={isSubmitting}
       />

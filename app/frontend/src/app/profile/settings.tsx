@@ -18,7 +18,7 @@ import DeleteAccountButton from "@/components/deleteAccount/DeleteAccountButton"
 import { Field } from "@/components/settings/Field";
 import { ModeButton } from "@/components/settings/ModeButton";
 import { useSettings, MealTimeField } from "@/components/settings/settingsHook";
-import { styles } from "@/app/settings.Style"
+import { styles } from "@/app/profile/settings.Style"
 import { StatusBanner } from "@/components/settings/StatusBanner";
 import Slider from "@react-native-community/slider";
 import { View, Text } from "@/components/Themed";
