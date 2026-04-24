@@ -114,6 +114,30 @@ class Posts(Base):
     MachineID = Column(Integer, ForeignKey('Machines.MachineID'), nullable=False)
     caption = Column(Text)
     
+class MealPosts(Base):
+    __tablename__ = 'MealPosts'
+    PostID      = Column(Integer, primary_key=True, autoincrement=True)
+    ProfileID   = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False, index=True)
+    source      = Column(Text, nullable=False)           # 'tagged' | 'restaurant'
+    name        = Column(Text, nullable=False)
+    calories    = Column(Float, nullable=True)
+    protein     = Column(Float, nullable=True)
+    carbs       = Column(Float, nullable=True)
+    fat         = Column(Float, nullable=True)
+    sugar       = Column(Float, nullable=True)
+    fiber       = Column(Float, nullable=True)
+    sodium      = Column(Float, nullable=True)
+    cuisine     = Column(Text, nullable=True)
+    goal        = Column(Text, nullable=True)
+    complexity  = Column(Text, nullable=True)
+    spice_level = Column(Text, nullable=True)
+    dietary     = Column(Text, nullable=True)    # JSON-encoded list e.g. '["vegan","gluten-free"]'
+    restaurant  = Column(Text, nullable=True)
+    category    = Column(Text, nullable=True)
+    meal_type   = Column(Text, nullable=True)
+    created_at  = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
 class Friendships(Base):
     __tablename__ = "Friendships"
     __table_args__ = (CheckConstraint("RequesterID <> AddresseeID", name="no_self_friend"),)

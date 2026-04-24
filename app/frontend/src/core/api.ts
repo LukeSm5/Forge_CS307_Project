@@ -618,6 +618,11 @@ look pleasing on a graph.
   },
 
 
+
+  getChats: async (): Promise<ChatListItem[]> => {
+    return get<ChatListItem[]>('/chats');
+  },
+
   checkBlock: async (otherId: number): Promise<BlockStatus> => {
     return get<BlockStatus>(`/blocks/status?other_id=${otherId}`);
   },
@@ -1123,6 +1128,18 @@ export type QuickWorkoutResponse = {
 export type quickMuscleEvent = {
   muscles: string[];
 }
+
+
+export type ChatListItem = {
+  thread_id: number;
+  friend_id: number;
+  friend_username: string;
+  friend_bio?: string | null;
+  friend_gym_location?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_message_at?: string | null;
+};
 
 export type FriendshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted';
 

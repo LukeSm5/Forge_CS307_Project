@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, GroupGoals, GroupGoalMembers
+from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, GroupGoals, GroupGoalMembers, MealPosts
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -466,6 +466,17 @@ class FriendAcceptPayload(BaseModel):
 
 class DismissNotificationPayload(BaseModel):
     notification_id: int
+
+class ChatListItemOut(BaseModel):
+    thread_id: int
+    friend_id: int
+    friend_username: str
+    friend_bio: Optional[str] = None
+    friend_gym_location: Optional[str] = None
+    created_at: str
+    updated_at: str
+    last_message_at: Optional[str] = None
+
 
 class StreakResponse(BaseModel):
     profile_id: int
@@ -2522,65 +2533,50 @@ def publish_meal_post(
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Meal name is required")
 
-    caption = json.dumps({
-        "type": "meal",
-        "source": payload.source,
-        "name": payload.name,
-        "calories": payload.calories,
-        "protein": payload.protein,
-        "carbs": payload.carbs,
-        "fat": payload.fat,
-        "sugar": payload.sugar,
-        "fiber": payload.fiber,
-        "sodium": payload.sodium,
-        "cuisine": payload.cuisine,
-        "goal": payload.goal,
-        "complexity": payload.complexity,
-        "spice_level": payload.spice_level,
-        "dietary": payload.dietary,
-        "restaurant": payload.restaurant,
-        "category": payload.category,
-        "meal_type": payload.meal_type,
-    })
-
-    post_row = Posts(
-        PostID=_next_post_id(db),
+    post_row = MealPosts(
         ProfileID=me.UserID,
-        caption=caption,
-        ExerciseID=None,
-        WorkoutID=None,
-        MachineID=_fallback_machine_id(db),
+        source=payload.source,
+        name=payload.name,
+        calories=payload.calories,
+        protein=payload.protein,
+        carbs=payload.carbs,
+        fat=payload.fat,
+        sugar=payload.sugar,
+        fiber=payload.fiber,
+        sodium=payload.sodium,
+        cuisine=payload.cuisine,
+        goal=payload.goal,
+        complexity=payload.complexity,
+        spice_level=payload.spice_level,
+        dietary=json.dumps(payload.dietary) if payload.dietary is not None else None,
+        restaurant=payload.restaurant,
+        category=payload.category,
+        meal_type=payload.meal_type,
     )
     db.add(post_row)
     db.commit()
     db.refresh(post_row)
 
-    created_at_str = (
-        post_row.created_at.isoformat()
-        if hasattr(post_row, "created_at") and post_row.created_at is not None
-        else datetime.utcnow().isoformat()
-    )
-
     return {
         "post_id": post_row.PostID,
-        "created_at": created_at_str,
-        "source": payload.source,
-        "name": payload.name,
-        "calories": payload.calories,
-        "protein": payload.protein,
-        "carbs": payload.carbs,
-        "fat": payload.fat,
-        "sugar": payload.sugar,
-        "fiber": payload.fiber,
-        "sodium": payload.sodium,
-        "cuisine": payload.cuisine,
-        "goal": payload.goal,
-        "complexity": payload.complexity,
-        "spice_level": payload.spice_level,
-        "dietary": payload.dietary,
-        "restaurant": payload.restaurant,
-        "category": payload.category,
-        "meal_type": payload.meal_type,
+        "created_at": post_row.created_at.isoformat(),
+        "source": post_row.source,
+        "name": post_row.name,
+        "calories": post_row.calories,
+        "protein": post_row.protein,
+        "carbs": post_row.carbs,
+        "fat": post_row.fat,
+        "sugar": post_row.sugar,
+        "fiber": post_row.fiber,
+        "sodium": post_row.sodium,
+        "cuisine": post_row.cuisine,
+        "goal": post_row.goal,
+        "complexity": post_row.complexity,
+        "spice_level": post_row.spice_level,
+        "dietary": json.loads(post_row.dietary) if post_row.dietary else [],
+        "restaurant": post_row.restaurant,
+        "category": post_row.category,
+        "meal_type": post_row.meal_type,
         "username": me.username,
     }
 
@@ -2591,14 +2587,14 @@ def delete_meal_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(Posts).filter(
-        Posts.PostID == post_id,
-        Posts.ProfileID == me.UserID,
+    post = db.query(MealPosts).filter(
+        MealPosts.PostID == post_id,
+        MealPosts.ProfileID == me.UserID,
     ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Meal post not found")
 
-    _delete_posts_and_related_rows(db, [post_id])
+    db.delete(post)
     db.commit()
     return {"ok": True}
 
@@ -2613,9 +2609,9 @@ def get_meal_feed(
     blocked_ids = _blocked_user_ids(db, me.UserID)
 
     all_posts = (
-        db.query(Posts)
-        .filter(Posts.caption.like('%"type": "meal"%'))
-        .order_by(Posts.PostID.desc())
+        db.query(MealPosts)
+        .filter(MealPosts.ProfileID.notin_(blocked_ids) if blocked_ids else True)
+        .order_by(MealPosts.PostID.desc())
         .offset(offset)
         .limit(limit)
         .all()
@@ -2623,40 +2619,27 @@ def get_meal_feed(
 
     results = []
     for post in all_posts:
-        if post.ProfileID in blocked_ids:
-            continue
-        try:
-            data = json.loads(post.caption)
-        except Exception:
-            continue
-        if data.get("type") != "meal":
-            continue
         author = db.query(Accounts).filter(Accounts.UserID == post.ProfileID).first()
-        created_at_str = (
-            post.created_at.isoformat()
-            if hasattr(post, "created_at") and post.created_at is not None
-            else datetime.utcnow().isoformat()
-        )
         results.append({
             "post_id": post.PostID,
-            "created_at": created_at_str,
-            "source": data.get("source"),
-            "name": data.get("name"),
-            "calories": data.get("calories"),
-            "protein": data.get("protein"),
-            "carbs": data.get("carbs"),
-            "fat": data.get("fat"),
-            "sugar": data.get("sugar"),
-            "fiber": data.get("fiber"),
-            "sodium": data.get("sodium"),
-            "cuisine": data.get("cuisine"),
-            "goal": data.get("goal"),
-            "complexity": data.get("complexity"),
-            "spice_level": data.get("spice_level"),
-            "dietary": data.get("dietary"),
-            "restaurant": data.get("restaurant"),
-            "category": data.get("category"),
-            "meal_type": data.get("meal_type"),
+            "created_at": post.created_at.isoformat(),
+            "source": post.source,
+            "name": post.name,
+            "calories": post.calories,
+            "protein": post.protein,
+            "carbs": post.carbs,
+            "fat": post.fat,
+            "sugar": post.sugar,
+            "fiber": post.fiber,
+            "sodium": post.sodium,
+            "cuisine": post.cuisine,
+            "goal": post.goal,
+            "complexity": post.complexity,
+            "spice_level": post.spice_level,
+            "dietary": json.loads(post.dietary) if post.dietary else [],
+            "restaurant": post.restaurant,
+            "category": post.category,
+            "meal_type": post.meal_type,
             "username": author.username if author else None,
         })
     return results
@@ -2668,42 +2651,33 @@ def save_meal_from_feed(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(Posts).filter(Posts.PostID == post_id).first()
+    post = db.query(MealPosts).filter(MealPosts.PostID == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    try:
-        data = json.loads(post.caption)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Post is not a meal post")
-
-    if data.get("type") != "meal":
-        raise HTTPException(status_code=400, detail="Post is not a meal post")
-
-    meal_name = (data.get("name") or "Shared Meal").strip()
+    meal_name = (post.name or "Shared Meal").strip()
     meal = Meals(name=meal_name)
     db.add(meal)
     db.flush()
 
     macros_data = {
-        "calories": data.get("calories"),
-        "protein": data.get("protein"),
-        "fat": data.get("fat"),
-        "carbs": data.get("carbs"),
-        "sugar": data.get("sugar"),
-        "fiber": data.get("fiber"),
-        "sodium": data.get("sodium"),
+        "calories": post.calories,
+        "protein": post.protein,
+        "fat": post.fat,
+        "carbs": post.carbs,
+        "sugar": post.sugar,
+        "fiber": post.fiber,
+        "sodium": post.sodium,
     }
     if any(v is not None for v in macros_data.values()):
         macros_row = meal_macros(MealID=meal.MealID, **macros_data)
         db.add(macros_row)
 
-    source_label = data.get("source", "unknown")
-    note_parts = [f"Saved from meal feed (source: {source_label})"]
-    if data.get("restaurant"):
-        note_parts.append(f"Restaurant: {data['restaurant']}")
-    if data.get("meal_type"):
-        note_parts.append(f"Meal type: {data['meal_type']}")
+    note_parts = [f"Saved from meal feed (source: {post.source or 'unknown'})"]
+    if post.restaurant:
+        note_parts.append(f"Restaurant: {post.restaurant}")
+    if post.meal_type:
+        note_parts.append(f"Meal type: {post.meal_type}")
 
     entry = session_meals(
         ProfileID=me.UserID,
@@ -2962,6 +2936,94 @@ def accept_friend_request(
 
     db.commit()
     return {"ok": True, "status": "accepted"}
+
+
+
+@app.get("/chats", response_model=List[ChatListItemOut])
+def list_chats(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    Return one chat row for each accepted friend.
+
+    The chat thread is created when a friend request is accepted. This endpoint
+    also creates any missing thread for older accepted friendships, so users who
+    became friends before the chat feature was added still show up in the chat
+    list.
+    """
+    accepted_friendships = db.query(Friendships).filter(
+        Friendships.status == "accepted",
+        or_(
+            Friendships.RequesterID == me.UserID,
+            Friendships.AddresseeID == me.UserID,
+        ),
+    ).all()
+
+    created_missing_thread = False
+    chat_items = []
+
+    for friendship in accepted_friendships:
+        friend_id = (
+            friendship.AddresseeID
+            if friendship.RequesterID == me.UserID
+            else friendship.RequesterID
+        )
+
+        user1_id, user2_id = sorted((me.UserID, friend_id))
+        thread = db.query(ChatThreads).filter(
+            ChatThreads.User1ID == user1_id,
+            ChatThreads.User2ID == user2_id,
+        ).first()
+
+        if not thread:
+            thread = ChatThreads(User1ID=user1_id, User2ID=user2_id)
+            db.add(thread)
+            db.flush()
+            created_missing_thread = True
+
+        friend_account = db.query(Accounts).filter(
+            Accounts.UserID == friend_id
+        ).first()
+
+        if not friend_account:
+            continue
+
+        friend_profile = db.query(Profiles).filter(
+            Profiles.ProfileID == friend_id
+        ).first()
+
+        chat_items.append((thread, friend_account, friend_profile))
+
+    if created_missing_thread:
+        db.commit()
+
+    chat_items.sort(
+        key=lambda item: item[0].last_message_at or item[0].updated_at or item[0].created_at,
+        reverse=True,
+    )
+
+    results = []
+    for thread, friend_account, friend_profile in chat_items:
+        created_at = thread.created_at or datetime.now(timezone.utc)
+        updated_at = thread.updated_at or created_at
+
+        results.append(
+            ChatListItemOut(
+                thread_id=thread.ThreadID,
+                friend_id=friend_account.UserID,
+                friend_username=friend_account.username,
+                friend_bio=friend_account.bio,
+                friend_gym_location=friend_profile.gym_location if friend_profile else None,
+                created_at=created_at.isoformat(),
+                updated_at=updated_at.isoformat(),
+                last_message_at=thread.last_message_at.isoformat()
+                if thread.last_message_at
+                else None,
+            )
+        )
+
+    return results
 
 
 @app.delete("/friends")
