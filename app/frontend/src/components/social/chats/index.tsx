@@ -1,11 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +22,12 @@ type SocialChatsOverlayProps = {
   refreshKey?: number;
 };
 
+type LocalMessage = {
+  id: string;
+  text: string;
+  created_at: string;
+};
+
 function getInitials(username: string) {
   return (
     username
@@ -30,14 +39,29 @@ function getInitials(username: string) {
   );
 }
 
+function formatMessageTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function SocialChatsOverlay({
   visible,
   onClose,
   refreshKey = 0,
 }: SocialChatsOverlayProps) {
   const scheme = useScheme();
+  const scrollRef = useRef<ScrollView | null>(null);
   const [chats, setChats] = useState<ChatListItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatListItem | null>(null);
+  const [localMessagesByThread, setLocalMessagesByThread] = useState<
+    Record<string, LocalMessage[]>
+  >({});
+  const [draftMessage, setDraftMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,14 +84,49 @@ export default function SocialChatsOverlay({
       loadChats();
     } else {
       setSelectedChat(null);
+      setDraftMessage("");
     }
   }, [visible, refreshKey, loadChats]);
+
+  useEffect(() => {
+    setDraftMessage("");
+  }, [selectedChat?.thread_id]);
+
+  const sendLocalMessage = useCallback(() => {
+    if (!selectedChat) return;
+
+    const trimmed = draftMessage.trim();
+    if (!trimmed) return;
+
+    const threadKey = String(selectedChat.thread_id);
+    const newMessage: LocalMessage = {
+      id: `${threadKey}-${Date.now()}`,
+      text: trimmed,
+      created_at: new Date().toISOString(),
+    };
+
+    setLocalMessagesByThread((current) => ({
+      ...current,
+      [threadKey]: [...(current[threadKey] ?? []), newMessage],
+    }));
+    setDraftMessage("");
+
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [draftMessage, selectedChat]);
 
   const renderChatRoom = () => {
     if (!selectedChat) return null;
 
+    const threadKey = String(selectedChat.thread_id);
+    const messages = localMessagesByThread[threadKey] ?? [];
+
     return (
-      <View style={styles.chatRoomContainer}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.chatRoomContainer}
+      >
         <View style={styles.chatRoomHeader}>
           <Pressable
             accessibilityRole="button"
@@ -109,28 +168,118 @@ export default function SocialChatsOverlay({
 
         <View
           style={[
-            styles.messagesPlaceholder,
+            styles.messagesPanel,
             {
               backgroundColor: scheme.secondaryBackground,
               borderColor: scheme.neutralColor,
             },
           ]}
         >
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={44}
-            color={scheme.buttonBg}
-          />
-          <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
-            No messages yet
-          </Text>
-          <Text
-            style={[styles.placeholderText, { color: scheme.secondaryText }]}
-          >
-            Sending and loading messages will be added next.
-          </Text>
+          {messages.length === 0 ? (
+            <View style={styles.emptyMessagesWrap}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={44}
+                color={scheme.buttonBg}
+              />
+              <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
+                No messages yet
+              </Text>
+              <Text
+                style={[
+                  styles.placeholderText,
+                  { color: scheme.secondaryText },
+                ]}
+              >
+                Type a message below to add it to this chat log.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              ref={scrollRef}
+              contentContainerStyle={styles.messagesList}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() =>
+                scrollRef.current?.scrollToEnd({ animated: true })
+              }
+            >
+              {messages.map((message) => (
+                <View key={message.id} style={styles.sentMessageRow}>
+                  <View
+                    style={[
+                      styles.sentMessageBubble,
+                      { backgroundColor: scheme.buttonBg },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sentMessageText,
+                        { color: scheme.buttonText },
+                      ]}
+                    >
+                      {message.text}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.sentMessageTime,
+                        { color: scheme.buttonText },
+                      ]}
+                    >
+                      {formatMessageTime(message.created_at)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
         </View>
-      </View>
+
+        <View
+          style={[
+            styles.composer,
+            {
+              backgroundColor: scheme.secondaryBackground,
+              borderColor: scheme.neutralColor,
+            },
+          ]}
+        >
+          <TextInput
+            value={draftMessage}
+            onChangeText={setDraftMessage}
+            placeholder="Type a message..."
+            placeholderTextColor={scheme.secondaryText}
+            multiline
+            style={[
+              styles.messageInput,
+              {
+                color: scheme.text,
+                backgroundColor: scheme.background,
+                borderColor: scheme.neutralColor,
+              },
+            ]}
+            returnKeyType="default"
+          />
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            onPress={sendLocalMessage}
+            disabled={!draftMessage.trim()}
+            style={({ pressed }) => [
+              styles.sendButton,
+              {
+                backgroundColor: draftMessage.trim()
+                  ? scheme.buttonBg
+                  : scheme.neutralColor,
+              },
+              pressed && draftMessage.trim() && styles.pressed,
+            ]}
+          >
+            <Ionicons name="send" size={18} color={scheme.buttonText} />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     );
   };
 
@@ -471,14 +620,73 @@ const styles = StyleSheet.create({
   chatRoomSubtitle: {
     fontSize: 12,
   },
-  messagesPlaceholder: {
+  messagesPanel: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 18,
+    overflow: "hidden",
+  },
+  emptyMessagesWrap: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 22,
     gap: 10,
+  },
+  messagesList: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
+    padding: 12,
+    gap: 10,
+  },
+  sentMessageRow: {
+    width: "100%",
+    alignItems: "flex-end",
+  },
+  sentMessageBubble: {
+    maxWidth: "82%",
+    borderRadius: 18,
+    borderBottomRightRadius: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  sentMessageText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  sentMessageTime: {
+    fontSize: 10,
+    fontWeight: "700",
+    opacity: 0.75,
+    marginTop: 4,
+    textAlign: "right",
+  },
+  composer: {
+    borderWidth: 1,
+    borderRadius: 18,
+    marginTop: 12,
+    padding: 8,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  messageInput: {
+    flex: 1,
+    minHeight: 42,
+    maxHeight: 110,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 15,
+  },
+  sendButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pressed: {
     opacity: 0.8,
