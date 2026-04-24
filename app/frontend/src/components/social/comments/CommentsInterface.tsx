@@ -53,8 +53,6 @@ export default function CommentsInterface({ visible, setVisible, postComment, co
                 </View>
 
                 <Separator />
-                <Text style={styles.title}>Comments</Text>
-                <Separator />
                 {searchComponent}
 
 
