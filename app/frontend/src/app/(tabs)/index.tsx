@@ -135,8 +135,10 @@ export default function CalendarScreen() {
   const [extraExercises, setExtraExercises] = useState<ExerciseItem[]>([]);
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [isWeeklyReportOpen, setIsWeeklyReportOpen] = useState(false);
+  const [weeklyReportData, setWeeklyReportData] = useState<ReportData | null>(null);
+  const [monthlyReportData, setMonthlyReportData] = useState<ReportData | null>(null);
+  const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -426,12 +428,18 @@ export default function CalendarScreen() {
   async function handleWeeklyReport() {
     try {
       const response: ReportData = await api.getWeeklyReport();
-      setReportData(response);
+      setWeeklyReportData(response);
     } catch (error) {
       Alert.alert(`Failed to fetch weekly report.`);
     }
   }
   async function handleMonthlyReport() {
+    try {
+      const response: ReportData = await api.getMonthlyReport();
+      setMonthlyReportData(response);
+    } catch (error) {
+      Alert.alert("Failed to fetch weekly report")
+    }
 
   }
   return (
@@ -459,7 +467,7 @@ export default function CalendarScreen() {
               isSmallScreen && styles.actionButtonSmall,
               { backgroundColor: s.buttonBg },
             ]}
-            onPress={() => {setIsReportOpen(true);
+            onPress={() => {setIsWeeklyReportOpen(true);
               handleWeeklyReport();
             }}
           >
@@ -474,7 +482,7 @@ export default function CalendarScreen() {
               { backgroundColor: s.buttonBg },
             ]}
             onPress={() => {
-              setIsReportOpen(true);
+              setIsMonthlyReportOpen(true);
               handleMonthlyReport();
             }
             }
@@ -853,23 +861,45 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
-      <Modal visible={isReportOpen} transparent animationType="fade">
+      <Modal visible={isWeeklyReportOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: modalColors.bg }]}>
             <Text {...modalTextProps} style={styles.modalTitle}>
-              Reports
+              Weekly Reports
             </Text>
             <ScrollView>
-              <Text {...modalTextProps}>Number of Lifts: {reportData? reportData.workout_num: "Loading..."}</Text>
-              <Text {...modalTextProps}>Max Bench: {reportData? reportData.bench_max: "Loading..."}</Text>
-              <Text {...modalTextProps}>Total Weight Lifted: {reportData? reportData.total_volume: "Loading..."}</Text>
-              <Text {...modalTextProps}>Hardest Hit Muscle Group: {reportData? reportData.top_muscle: "Loading..."}</Text>
-              <Text {...modalTextProps}>Least Hit Muscle Group: {reportData? reportData.bottom_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>Number of Lifts: {weeklyReportData? weeklyReportData.workout_num: "Loading..."}</Text>
+              <Text {...modalTextProps}>Max Bench: {weeklyReportData? weeklyReportData.bench_max: "Loading..."}</Text>
+              <Text {...modalTextProps}>Total Weight Lifted: {weeklyReportData? weeklyReportData.total_volume: "Loading..."}</Text>
+              <Text {...modalTextProps}>Hardest Hit Muscle Group: {weeklyReportData? weeklyReportData.top_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>Least Hit Muscle Group: {weeklyReportData? weeklyReportData.bottom_muscle: "Loading..."}</Text>
+            </ScrollView>
+            <Pressable
+              style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
+              onPress={() => setIsWeeklyReportOpen(false)}
+            >
+              <Text style={styles.saveText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={isMonthlyReportOpen} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: modalColors.bg }]}>
+            <Text {...modalTextProps} style={styles.modalTitle}>
+              Monthly Reports
+            </Text>
+            <ScrollView>
+              <Text {...modalTextProps}>Number of Lifts: {monthlyReportData? monthlyReportData.workout_num: "Loading..."}</Text>
+              <Text {...modalTextProps}>Max Bench: {monthlyReportData? monthlyReportData.bench_max: "Loading..."}</Text>
+              <Text {...modalTextProps}>Total Weight Lifted: {monthlyReportData? monthlyReportData.total_volume: "Loading..."}</Text>
+              <Text {...modalTextProps}>Hardest Hit Muscle Group: {monthlyReportData? monthlyReportData.top_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>Least Hit Muscle Group: {monthlyReportData? monthlyReportData.bottom_muscle: "Loading..."}</Text>
               <Text {...modalTextProps}>Weekly Workout Streak: 0</Text>
             </ScrollView>
             <Pressable
               style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
-              onPress={() => setIsReportOpen(false)}
+              onPress={() => setIsMonthlyReportOpen(false)}
             >
               <Text style={styles.saveText}>Close</Text>
             </Pressable>

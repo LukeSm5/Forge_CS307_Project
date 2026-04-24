@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 import re
 from datetime import timezone, datetime, timedelta, date
-from sqlalchemy import inspect, text, or_, and_
+from sqlalchemy import inspect, text, or_, and_, func
 from openai import OpenAI
 import os
 import json
@@ -503,6 +503,13 @@ class PublishMealPostRequest(BaseModel):
 
 class SaveMealFromFeedRequest(BaseModel):
     post_id: int
+
+class ReportData(BaseModel):
+    workout_num: int
+    top_muscle: str
+    bottom_muscle: str
+    total_volume: int
+    bench_max: int
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -3310,3 +3317,56 @@ def leave_group_goal(
     db.delete(member)
     db.commit()
     return {"ok": True}
+
+def calculate_statistics(me, db, days):
+    since_date = datetime.now(timezone.utc) - timedelta(days=days)
+    workout_count = db.query(session_workouts).filter(
+        session_workouts.ProfileID == me.UserID,
+        session_workouts.date >= since_date
+    ).count()
+    hardest_hit_query = (
+        db.query(
+            Workouts.name, 
+            func.count(session_workouts.SessionID).label('occurrence')
+        )
+        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .group_by(Workouts.name)
+        .order_by(func.count(session_workouts.SessionID).desc())
+        .first()
+    )
+    top_muscle = hardest_hit_query[0] if hardest_hit_query else "None"
+
+    max_bench = (
+        db.query(func.max(session_exercises.weight))
+        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
+        .filter(
+            session_workouts.ProfileID == me.UserID,
+            session_workouts.date >= since_date,
+            session_exercises.ExerciseID == 9
+        )
+        .scalar()
+    )
+    max_bench = max_bench if max_bench else 0
+    total_volume = 0
+    bottom_muscle = "None"
+
+    return ReportData(
+        workout_num= workout_count,
+        top_muscle = top_muscle,
+        bench_max = max_bench,
+        total_volume = total_volume,
+        bottom_muscle = bottom_muscle
+    )
+@app.get("/weeklyReport")
+def get_weekly_reports(me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),):
+    return calculate_statistics(me, db, 7)
+
+@app.get("/monthlyReport")
+def get_monthly_reports(me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),):
+    return calculate_statistics(me, db, 30)
+
+
