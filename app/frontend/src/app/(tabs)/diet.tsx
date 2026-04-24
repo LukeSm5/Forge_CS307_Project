@@ -1048,7 +1048,7 @@ export default function Diet() {
       cuisine: meal.tags.cuisine,
       goal: meal.tags.goal,
       complexity: meal.tags.complexity,
-      spiceLevel: meal.tags.spiceLevel,
+      spice_level: meal.tags.spiceLevel,
       dietary: meal.tags.dietary,
     });
     Alert.alert('Shared!', `"${meal.name}" has been shared to the Social tab.`);
