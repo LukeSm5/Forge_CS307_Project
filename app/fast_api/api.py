@@ -2703,9 +2703,8 @@ def get_meal_feed(
     blocked_ids = _blocked_user_ids(db, me.UserID)
 
     all_posts = (
-        db.query(Posts)
-        .filter(Posts.caption.like('%"type": "meal"%'))
-        .order_by(Posts.PostID.desc())
+        db.query(MealPosts)
+        .order_by(MealPosts.created_at.timestamp())
         .offset(offset)
         .limit(limit)
         .all()
@@ -2715,12 +2714,7 @@ def get_meal_feed(
     for post in all_posts:
         if post.ProfileID in blocked_ids:
             continue
-        try:
-            data = json.loads(post.caption)
-        except Exception:
-            continue
-        if data.get("type") != "meal":
-            continue
+        
         author = db.query(Accounts).filter(Accounts.UserID == post.ProfileID).first()
         created_at_str = (
             post.created_at.isoformat()
@@ -2730,23 +2724,23 @@ def get_meal_feed(
         results.append({
             "post_id": post.PostID,
             "created_at": created_at_str,
-            "source": data.get("source"),
-            "name": data.get("name"),
-            "calories": data.get("calories"),
-            "protein": data.get("protein"),
-            "carbs": data.get("carbs"),
-            "fat": data.get("fat"),
-            "sugar": data.get("sugar"),
-            "fiber": data.get("fiber"),
-            "sodium": data.get("sodium"),
-            "cuisine": data.get("cuisine"),
-            "goal": data.get("goal"),
-            "complexity": data.get("complexity"),
-            "spice_level": data.get("spice_level"),
-            "dietary": data.get("dietary"),
-            "restaurant": data.get("restaurant"),
-            "category": data.get("category"),
-            "meal_type": data.get("meal_type"),
+            "source": post.source,
+            "name": post.name,
+            "calories": post.calories,
+            "protein": post.protein,
+            "carbs": post.carbs,
+            "fat": post.fat,
+            "sugar": post.sugar,
+            "fiber": post.fiber,
+            "sodium": post.sodium,
+            "cuisine": post.cuisine,
+            "goal": post.goal,
+            "complexity": post.complexity,
+            "spice_level": post.spice_level,
+            "dietary": post.dietary,
+            "restaurant": post.restaurant,
+            "category": post.category,
+            "meal_type": post.meal_type,
             "username": author.username if author else None,
         })
     return results
