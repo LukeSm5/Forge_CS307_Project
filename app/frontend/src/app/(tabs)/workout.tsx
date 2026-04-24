@@ -502,7 +502,7 @@ export default function WorkoutTabScreen() {
                       <View
                         style={[
                           styles.exerciseList,
-                          { borderTopColor: palette.border, flexWrap: "wrap" },
+                          { borderTopColor: palette.border },
                         ]}
                       >
                         <Text
