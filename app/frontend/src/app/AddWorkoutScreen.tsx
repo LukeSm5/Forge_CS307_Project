@@ -100,6 +100,8 @@ export default function AddWorkoutScreen() {
   const [showSplitSuggestions, setShowSplitSuggestions] = useState(false);
   const { isImperial } = useUnits();
   const [postSaveModalVisible, setPostSaveModalVisible] = useState(false);
+  const [savedSessionId, setSavedSessionId] = useState<number | null>(null);
+  const [postingSavedWorkout, setPostingSavedWorkout] = useState(false);
 
   // moving timer from workout
   const [timerRunning, setTimerRunning] = useState(false);
@@ -371,7 +373,7 @@ export default function AddWorkoutScreen() {
         return;
       }
 
-      await api.addWorkoutLog({
+      const savedSession = await api.addWorkoutLog({
         workout_id: selectedWorkoutId,
         duration: parsedDuration,
         date: apiDate,
@@ -385,7 +387,7 @@ export default function AddWorkoutScreen() {
         })),
       });
 
-      Alert.alert("Workout logged", "Workout saved successfully.");
+      setSavedSessionId(savedSession.session_id);
       setPostSaveModalVisible(true);
     } catch (error) {
       const message =
@@ -456,6 +458,36 @@ export default function AddWorkoutScreen() {
     const remainingSecs = elapsedSeconds % 60;
     setDurationMinutes(String(totalMins));
     setDurationSeconds(String(remainingSecs));
+  }
+
+  function closePostSaveModal() {
+    setPostSaveModalVisible(false);
+    setSavedSessionId(null);
+    router.replace("/(tabs)/workout");
+  }
+
+  async function handleUploadSavedWorkout() {
+    if (!savedSessionId || postingSavedWorkout) return;
+
+    setPostingSavedWorkout(true);
+    try {
+      const result = await api.createWorkoutPost(savedSessionId);
+      setPostSaveModalVisible(false);
+      setSavedSessionId(null);
+      Alert.alert(
+        result.created === false ? "Already posted" : "Workout posted",
+        result.created === false
+          ? "This workout has already been posted."
+          : "Your workout was saved as a post.",
+      );
+      router.replace("/(tabs)/workout");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to post workout.";
+      Alert.alert("Post failed", message);
+    } finally {
+      setPostingSavedWorkout(false);
+    }
   }
 
   const s = useScheme();
@@ -770,38 +802,38 @@ export default function AddWorkoutScreen() {
             text={saving ? "Saving..." : "Log Workout"}
             color={s.buttonBg}
             disabled={saving}
-            onPress={() => { void handleSave(); }}
+            onPress={() => {
+              void handleSave();
+            }}
           />
           <AppModal
             visible={postSaveModalVisible}
-                onClose={() => {
-                  setPostSaveModalVisible(false); 
-                  router.push("/(tabs)/workout");
-                }}
-                title={"Post Workout"}
-                actions={
-                  <>
-                    <ForgeButton
-                      text="Upload"
-                      onPress={() => {
-                        setPostSaveModalVisible(false);
-                        router.push("/(tabs)/workout");
-                      }}
-                      color={s.buttonBg}
-                    />
-                    <ForgeButton
-                      text="Not Now"
-                      onPress={() => {
-                        setPostSaveModalVisible(false);
-                        router.push("/(tabs)/workout");
-                      }}
-                      color={s.buttonBg}
-                    />
-                  </>
-                }
-              >
-                <Text style={styles.modalSubtitle}> Would you like to upload this workout?</Text>
-            </AppModal>
+            onClose={closePostSaveModal}
+            title={"Post Workout"}
+            actions={
+              <>
+                <ForgeButton
+                  text={postingSavedWorkout ? "Uploading..." : "Upload"}
+                  onPress={() => {
+                    void handleUploadSavedWorkout();
+                  }}
+                  color={s.buttonBg}
+                  disabled={postingSavedWorkout || savedSessionId == null}
+                />
+                <ForgeButton
+                  text="Not Now"
+                  onPress={closePostSaveModal}
+                  color={s.buttonBg}
+                  disabled={postingSavedWorkout}
+                />
+              </>
+            }
+          >
+            <Text style={styles.modalSubtitle}>
+              {" "}
+              Would you like to upload this workout?
+            </Text>
+          </AppModal>
           <ForgeButton
             text="Back"
             onPress={() => router.back()}

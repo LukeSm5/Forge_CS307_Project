@@ -6,10 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View as RNView,
-  Modal
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-
 
 import { Text, View, useScheme } from "@/components/Themed";
 import ForgeButton from "@/components/ForgeButton";
@@ -30,12 +29,12 @@ function normalizeExerciseName(name: string) {
 const exerciseToMuscle: Record<string, string> = {
   "pull up": "back",
   "lateral pull down": "back",
-  "row": "back",
+  row: "back",
   "face pull": "back",
   "bicep curl": "bicep",
   "preacher curl": "bicep",
   "hammer curl": "bicep",
-  "straight-bar curl": "bicep",
+  "straight bar curl": "bicep",
   "bench press": "chest",
   "incline bench press": "chest",
   "cable fly": "chest",
@@ -45,16 +44,35 @@ const exerciseToMuscle: Record<string, string> = {
   "tricep push down": "tricep",
   "shoulder press": "shoulder",
   "shoulder raise": "shoulder",
-  "shrug": "shoulder",
+  shrug: "shoulder",
   "bulgarian split squat": "quad",
   "romanian deadlift": "hamstring",
   "power clean": "full body",
-  "burpee": "full body",
+  burpee: "full body",
   "sled push": "full body",
   "sled pull": "full body",
   "russian twist": "ab",
   "box jump": "quad",
-  "cardio": "cardio",
+  cardio: "cardio",
+};
+
+const exerciseAliases: Record<string, string> = {
+  pullups: "pull up",
+  "pull ups": "pull up",
+  "lat pulldown": "lateral pull down",
+  "lat pull down": "lateral pull down",
+  "lateral pulldown": "lateral pull down",
+  "tricep pushdown": "tricep push down",
+};
+
+const machineAliases: Record<string, string> = {
+  bodyweight: "body weight",
+  "bodyweight exercise": "body weight",
+  stairmaster: "stair master",
+  "stair climber": "stair master",
+  "rowing machine": "row",
+  "exercise bike": "bike",
+  "stationary bike": "bike",
 };
 
 export default function LogGeneratedWorkout() {
@@ -62,13 +80,13 @@ export default function LogGeneratedWorkout() {
   const s = useScheme();
   const [postSaveModalVisible, setPostSaveModalVisible] = useState(false);
   const { workout_name, exercises: exercisesJson } = useLocalSearchParams<{
-        workout_name: string;
-        exercises: string;
+    workout_name: string;
+    exercises: string;
   }>();
 
   const exercises: QuickWorkoutResponse["exercises"] = exercisesJson
-        ? JSON.parse(exercisesJson) 
-        : [];
+    ? JSON.parse(exercisesJson)
+    : [];
 
   const [exerciseList, setExerciseList] = useState(exercises);
   const [exerciseMap, setExerciseMap] = useState<Record<string, number>>({});
@@ -83,9 +101,11 @@ export default function LogGeneratedWorkout() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingExercise, setEditingExercise] = useState<{
     index: number;
-    sets: {weight : string, reps: string}[];
+    sets: { weight: string; reps: string }[];
   } | null>(null);
   const [savedLogId, setSavedLogId] = useState<number | null>(null);
+  const [loggingWorkout, setLoggingWorkout] = useState(false);
+  const [postingSavedWorkout, setPostingSavedWorkout] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,17 +122,20 @@ export default function LogGeneratedWorkout() {
           setExerciseMap(lookup);
         }
         const machineMap: Record<string, number> = {};
-        machineRows.forEach((machine) => {machineMap[machine.name] = machine.machine_id});
+        machineRows.forEach((machine) => {
+          machineMap[machine.name] = machine.machine_id;
+        });
         setMachineMap(machineMap);
         const workoutMap: Record<string, number> = {};
-        workoutRows.forEach((workout) => {workoutMap[workout.name.toLowerCase()] = workout.workout_id});
+        workoutRows.forEach((workout) => {
+          workoutMap[workout.name.toLowerCase()] = workout.workout_id;
+        });
         setWorkoutMap(workoutMap);
-
       } catch {
         if (isMounted) {
           setExerciseMap({});
         }
-        } finally {
+      } finally {
         if (isMounted) {
           setExerciseMapLoading(false);
         }
@@ -143,6 +166,16 @@ export default function LogGeneratedWorkout() {
     return map;
   }, [exerciseMap]);
 
+  const normalizedMachineMap = useMemo(() => {
+    const map: Record<string, number> = {};
+
+    Object.entries(machineMap).forEach(([name, id]) => {
+      map[normalizeExerciseName(name)] = Number(id);
+    });
+
+    return map;
+  }, [machineMap]);
+
   function openExerciseHelp(exerciseName: string) {
     const directId = exerciseMap[exerciseName];
     const normalizedId =
@@ -164,65 +197,158 @@ export default function LogGeneratedWorkout() {
 
   function handleSaveEdit() {
     if (!editingExercise) {
-        return;
+      return;
     }
     const updatedExercises = [...exerciseList];
     const firstSet = editingExercise.sets[0];
     updatedExercises[editingExercise.index] = {
-        ...updatedExercises[editingExercise.index],
-        sets: editingExercise.sets.length,
-        reps: Number(editingExercise.sets[0].reps),
-        weight: Number(editingExercise.sets[0].weight),
-    }
+      ...updatedExercises[editingExercise.index],
+      sets: editingExercise.sets.length,
+      reps: Number(editingExercise.sets[0].reps),
+      weight: Number(editingExercise.sets[0].weight),
+    };
     setExerciseList(updatedExercises);
     setEditModalVisible(false);
   }
   function getWorkoutID(): number {
     const muscleGroups = new Set(
-        exercises.map((ex) => exerciseToMuscle[normalizeExerciseName(ex.exercise)])
+      exerciseList.map((ex) => {
+        const normalized = normalizeExerciseName(ex.exercise);
+        return exerciseToMuscle[exerciseAliases[normalized] ?? normalized];
+      }),
     );
     muscleGroups.delete(undefined as any);
+
     if (muscleGroups.size > 1) {
-        return workoutMap["full body"] ?? 0;
+      return workoutMap["full body"] ?? 0;
     }
 
     const singleMuscle = [...muscleGroups][0];
     return workoutMap[singleMuscle] ?? workoutMap["full body"] ?? 0;
   }
 
-async function handleLogWorkout() {
-    try {
-        const result = await api.addWorkoutLog({
-            workout_id: getWorkoutID(),
-            split_name: workout_name,
-            duration: 0, 
-            date: new Date().toISOString().split("T")[0],
-            exercises:
-              exerciseList.map((ex) => ({
-                exercise_id: exerciseMap[ex.exercise] ?? normalizedExerciseMap[normalizeExerciseName(ex.exercise)],
-                machine_id: machineMap[ex.machine] ?? 0,
-                sets: ex.sets,
-                reps: ex.reps,
-                weight: ex.weight,
-            }))
-        })
-      setSavedLogId(result.workout_id);
-    } catch (error) {
-        Alert.alert("Workout did not log")
-    }
-    setPostSaveModalVisible(true);
+  function getExerciseID(exerciseName: string): number | undefined {
+    const normalizedName = normalizeExerciseName(exerciseName);
+    const aliasedName = exerciseAliases[normalizedName];
+
+    return (
+      exerciseMap[exerciseName] ??
+      normalizedExerciseMap[normalizedName] ??
+      (aliasedName ? normalizedExerciseMap[aliasedName] : undefined)
+    );
   }
-  async function handleUploadPost(sessionId: number) {
+
+  function getMachineID(machineName: string): number | undefined {
+    const normalizedName = normalizeExerciseName(machineName);
+    const aliasedName = machineAliases[normalizedName];
+
+    return (
+      machineMap[machineName] ??
+      machineMap[machineName.toLowerCase()] ??
+      normalizedMachineMap[normalizedName] ??
+      (aliasedName ? normalizedMachineMap[aliasedName] : undefined)
+    );
+  }
+
+  function closePostSaveModal() {
+    setPostSaveModalVisible(false);
+    router.replace("/(tabs)/workout");
+  }
+
+  async function handleLogWorkout() {
+    if (loggingWorkout) return;
+
+    if (savedLogId) {
+      setPostSaveModalVisible(true);
+      return;
+    }
+
+    const workoutId = getWorkoutID();
+    if (!workoutId) {
+      Alert.alert(
+        "Workout did not log",
+        "Could not match this generated workout to a saved workout category.",
+      );
+      return;
+    }
+
+    const unresolvedExercise = exerciseList.find(
+      (ex) => !getExerciseID(ex.exercise),
+    );
+    if (unresolvedExercise) {
+      Alert.alert(
+        "Workout did not log",
+        `Could not find the exercise "${unresolvedExercise.exercise}" in the database.`,
+      );
+      return;
+    }
+
+    const unresolvedMachine = exerciseList.find(
+      (ex) => !getMachineID(ex.machine),
+    );
+    if (unresolvedMachine) {
+      Alert.alert(
+        "Workout did not log",
+        `Could not find the machine "${unresolvedMachine.machine}" in the database.`,
+      );
+      return;
+    }
+
+    setLoggingWorkout(true);
     try {
-      await api.createWorkoutPost(sessionId);
+      const result = await api.addWorkoutLog({
+        workout_id: workoutId,
+        split_name: workout_name || "Generated Workout",
+        duration: 0,
+        date: new Date().toISOString().split("T")[0],
+        exercises: exerciseList.map((ex) => ({
+          exercise_id: getExerciseID(ex.exercise)!,
+          machine_id: getMachineID(ex.machine)!,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+        })),
+      });
+
+      setSavedLogId(result.session_id);
+      setPostSaveModalVisible(true);
     } catch (error) {
-      Alert.alert("Post failed.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save generated workout.";
+      Alert.alert("Workout did not log", message);
+    } finally {
+      setLoggingWorkout(false);
     }
   }
 
-    return (
-        <View style={styles.container}>
-            <Text style={styles.title}>{workout_name}</Text>
+  async function handleUploadPost() {
+    if (!savedLogId || postingSavedWorkout) return;
+
+    setPostingSavedWorkout(true);
+    try {
+      const result = await api.createWorkoutPost(savedLogId);
+      setPostSaveModalVisible(false);
+      Alert.alert(
+        result.created === false ? "Already posted" : "Workout posted",
+        result.created === false
+          ? "This workout has already been posted."
+          : "Your workout was saved as a post.",
+      );
+      router.replace("/(tabs)/workout");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to post workout.";
+      Alert.alert("Post failed", message);
+    } finally {
+      setPostingSavedWorkout(false);
+    }
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{workout_name}</Text>
       <Text style={[styles.subtitle, { color: s.secondaryText }]}>
         Generated exercises
       </Text>
@@ -231,32 +357,35 @@ async function handleLogWorkout() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Exercise</Text>
             {editingExercise?.sets.map((_, set_idx) => (
-                <RNView key={set_idx} style={{flexDirection: "row", gap: 12}}>
-                  <Text style={{marginBottom: 6}}>Set {set_idx + 1}:</Text>
-                  <RNView style = {{flexDirection: "row", gap: 12, flex: 1}}>
-                    <ForgeTextBox
-                        label = "Weight"
-                        value={String(editingExercise.sets[set_idx].weight)}
-                        onChangeText={(text) => {
-                            const updated = [...editingExercise.sets];
-                            updated[set_idx] = {...updated[set_idx], weight: text};
-                            setEditingExercise({...editingExercise, sets: updated});
-                        }}
-                    />
-                    <ForgeTextBox
-                        label = "Reps"
-                        value={String(editingExercise.sets[set_idx].reps)}
-                        onChangeText={(text) => {
-                            const updated = [...editingExercise.sets];
-                            updated[set_idx] = {...updated[set_idx], reps: text};
-                            setEditingExercise({...editingExercise, sets: updated});
-                        }}
-                    />
-                  </RNView>
+              <RNView key={set_idx} style={{ flexDirection: "row", gap: 12 }}>
+                <Text style={{ marginBottom: 6 }}>Set {set_idx + 1}:</Text>
+                <RNView style={{ flexDirection: "row", gap: 12, flex: 1 }}>
+                  <ForgeTextBox
+                    label="Weight"
+                    value={String(editingExercise.sets[set_idx].weight)}
+                    onChangeText={(text) => {
+                      const updated = [...editingExercise.sets];
+                      updated[set_idx] = { ...updated[set_idx], weight: text };
+                      setEditingExercise({ ...editingExercise, sets: updated });
+                    }}
+                  />
+                  <ForgeTextBox
+                    label="Reps"
+                    value={String(editingExercise.sets[set_idx].reps)}
+                    onChangeText={(text) => {
+                      const updated = [...editingExercise.sets];
+                      updated[set_idx] = { ...updated[set_idx], reps: text };
+                      setEditingExercise({ ...editingExercise, sets: updated });
+                    }}
+                  />
                 </RNView>
+              </RNView>
             ))}
             <ForgeButton text="Save" onPress={handleSaveEdit} />
-            <ForgeButton text="Close" onPress={() => setEditModalVisible(false)} />
+            <ForgeButton
+              text="Close"
+              onPress={() => setEditModalVisible(false)}
+            />
           </View>
         </View>
       </Modal>
@@ -265,7 +394,7 @@ async function handleLogWorkout() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-                {exerciseList.map((ex, i) => (
+        {exerciseList.map((ex, i) => (
           <View
             key={`${ex.exercise}-${i}`}
             style={[
@@ -276,7 +405,7 @@ async function handleLogWorkout() {
               },
             ]}
           >
-                        <Text style={styles.exerciseName}>{ex.exercise}</Text>
+            <Text style={styles.exerciseName}>{ex.exercise}</Text>
 
             <Text style={[styles.exerciseStats, { color: s.secondaryText }]}>
               {ex.sets} sets x {ex.reps} reps @ {ex.weight} lbs
@@ -284,14 +413,17 @@ async function handleLogWorkout() {
 
             <RNView style={styles.exerciseActions}>
               <ForgeButton
-                    text="Edit"
-                    onPress = {() => {
-                      setEditingExercise({
-                        index: i,
-                        sets: Array.from({ length: ex.sets }, () => ({weight: String(ex.weight), reps: String(ex.reps)})),
-                      });
-                      setEditModalVisible(true);
-                    }}
+                text="Edit"
+                onPress={() => {
+                  setEditingExercise({
+                    index: i,
+                    sets: Array.from({ length: ex.sets }, () => ({
+                      weight: String(ex.weight),
+                      reps: String(ex.reps),
+                    })),
+                  });
+                  setEditModalVisible(true);
+                }}
               />
               <TouchableOpacity
                 style={[
@@ -319,16 +451,17 @@ async function handleLogWorkout() {
                 <AltMachButton exercise={ex.exercise} />
               </RNView>
             </RNView>
-                    </View>
-                ))}
-            </ScrollView>
+          </View>
+        ))}
+      </ScrollView>
 
       <RNView style={styles.footerButtons}>
         <ForgeButton
-          text="Log Generated Workout"
+          text={loggingWorkout ? "Logging..." : "Log Generated Workout"}
           onPress={() => {
-            handleLogWorkout();}
-        }
+            void handleLogWorkout();
+          }}
+          disabled={loggingWorkout}
         />
         <ForgeButton
           text="Cancel"
@@ -337,40 +470,31 @@ async function handleLogWorkout() {
       </RNView>
       <AppModal
         visible={postSaveModalVisible}
-          onClose={() => {
-            setPostSaveModalVisible(false); 
-              router.push("/(tabs)/workout");
-            }}
-            title={"Post Workout"}
-            actions={
-              <>
-              <ForgeButton
-                text="Upload"
-                onPress={async () => {
-                  if (savedLogId) {
-                    try {
-                      await handleUploadPost(savedLogId);
-                    } catch (error) {
-                      Alert.alert("Post failed.");
-                    }
-               }
-                  setPostSaveModalVisible(false);
-                  router.push("/(tabs)/workout");
-                }}
-                color={s.buttonBg}
-              />
-                  <ForgeButton
-                    text="Not Now"
-                    onPress={() => {
-                      setPostSaveModalVisible(false);
-                      router.push("/(tabs)/workout");
-                    }}
-                    color={s.buttonBg}
-                  />
-              </>
-            }
-          >
-        <Text style={styles.modalSubtitle}> Would you like to upload this workout?</Text>
+        onClose={closePostSaveModal}
+        title={"Post Workout"}
+        actions={
+          <>
+            <ForgeButton
+              text={postingSavedWorkout ? "Uploading..." : "Upload"}
+              onPress={() => {
+                void handleUploadPost();
+              }}
+              color={s.buttonBg}
+              disabled={postingSavedWorkout || savedLogId == null}
+            />
+            <ForgeButton
+              text="Not Now"
+              onPress={closePostSaveModal}
+              color={s.buttonBg}
+              disabled={postingSavedWorkout}
+            />
+          </>
+        }
+      >
+        <Text style={styles.modalSubtitle}>
+          {" "}
+          Would you like to upload this workout?
+        </Text>
       </AppModal>
 
       <ExerciseHelpInterface
@@ -379,22 +503,22 @@ async function handleLogWorkout() {
         exerciseId={selectedExerciseId}
         exerciseName={selectedExerciseName}
       />
-        </View>
-    );
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
+  container: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
-    },
-    title: {
-        fontSize: 24,
+  },
+  title: {
+    fontSize: 24,
     fontWeight: "bold",
     marginBottom: 6,
-    },
+  },
   subtitle: {
     fontSize: 15,
     marginBottom: 18,
@@ -408,9 +532,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 16,
-    },
-    exerciseName: {
-        fontSize: 18,
+  },
+  exerciseName: {
+    fontSize: 18,
     fontWeight: "700",
     lineHeight: 26,
     marginBottom: 10,
@@ -449,29 +573,29 @@ const styles = StyleSheet.create({
   footerButtons: {
     marginTop: 4,
     backgroundColor: "transparent",
-    },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 16,
-    },
-    modalTitle: {
-        fontSize: 18,
-        textAlign: "center",
-    },
-    modalCard: {
-      width: "100%",
-      maxWidth: 860,
-      maxHeight: "90%",
-      borderRadius: 14,
-      padding: 16,
-      backgroundColor: "#fff",
-    },
-    modalSubtitle: {
-        fontSize: 16,
-        textAlign: "center",
-        marginBottom: 20,
-    }
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    textAlign: "center",
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 860,
+    maxHeight: "90%",
+    borderRadius: 14,
+    padding: 16,
+    backgroundColor: "#fff",
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+  },
 });
