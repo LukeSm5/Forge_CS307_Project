@@ -14,18 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Text, useScheme } from "@/components/Themed";
-import { api, ChatListItem } from "@/core/api";
+import { api, ChatListItem, ChatMessage } from "@/core/api";
 
 type SocialChatsOverlayProps = {
   visible: boolean;
   onClose: () => void;
   refreshKey?: number;
-};
-
-type LocalMessage = {
-  id: string;
-  text: string;
-  created_at: string;
 };
 
 function getInitials(username: string) {
@@ -49,6 +43,16 @@ function formatMessageTime(value: string) {
   });
 }
 
+function getChatPreview(chat: ChatListItem) {
+  if (!chat.last_message_text) return "New conversation";
+
+  const prefix =
+    chat.last_sender_id === chat.friend_id
+      ? `${chat.friend_username}: `
+      : "You: ";
+  return `${prefix}${chat.last_message_text}`;
+}
+
 export default function SocialChatsOverlay({
   visible,
   onClose,
@@ -58,12 +62,15 @@ export default function SocialChatsOverlay({
   const scrollRef = useRef<ScrollView | null>(null);
   const [chats, setChats] = useState<ChatListItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatListItem | null>(null);
-  const [localMessagesByThread, setLocalMessagesByThread] = useState<
-    Record<string, LocalMessage[]>
+  const [messagesByThread, setMessagesByThread] = useState<
+    Record<string, ChatMessage[]>
   >({});
   const [draftMessage, setDraftMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [chatError, setChatError] = useState("");
 
   const loadChats = useCallback(async () => {
     try {
@@ -79,48 +86,128 @@ export default function SocialChatsOverlay({
     }
   }, []);
 
+  const loadMessages = useCallback(
+    async (threadId: number, showSpinner = true) => {
+      try {
+        if (showSpinner) setMessagesLoading(true);
+        setChatError("");
+        const rows = await api.getChatMessages(threadId);
+        const threadKey = String(threadId);
+        setMessagesByThread((current) => ({
+          ...current,
+          [threadKey]: rows,
+        }));
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        });
+      } catch (e) {
+        console.error(e);
+        if (showSpinner) setChatError("Unable to load messages right now.");
+      } finally {
+        if (showSpinner) setMessagesLoading(false);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (visible) {
       loadChats();
     } else {
       setSelectedChat(null);
       setDraftMessage("");
+      setChatError("");
     }
   }, [visible, refreshKey, loadChats]);
 
   useEffect(() => {
     setDraftMessage("");
+    setChatError("");
   }, [selectedChat?.thread_id]);
 
-  const sendLocalMessage = useCallback(() => {
-    if (!selectedChat) return;
+  useEffect(() => {
+    if (!visible || !selectedChat) return;
+
+    loadMessages(selectedChat.thread_id);
+    const intervalId = setInterval(() => {
+      loadMessages(selectedChat.thread_id, false);
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [visible, selectedChat, loadMessages]);
+
+  const sendMessage = useCallback(async () => {
+    if (!selectedChat || sending) return;
 
     const trimmed = draftMessage.trim();
     if (!trimmed) return;
 
-    const threadKey = String(selectedChat.thread_id);
-    const newMessage: LocalMessage = {
-      id: `${threadKey}-${Date.now()}`,
-      text: trimmed,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      setSending(true);
+      setChatError("");
+      const savedMessage = await api.sendChatMessage(
+        selectedChat.thread_id,
+        trimmed,
+      );
+      const threadKey = String(selectedChat.thread_id);
 
-    setLocalMessagesByThread((current) => ({
-      ...current,
-      [threadKey]: [...(current[threadKey] ?? []), newMessage],
-    }));
-    setDraftMessage("");
+      setMessagesByThread((current) => {
+        const existingMessages = current[threadKey] ?? [];
+        if (
+          existingMessages.some(
+            (message) => message.message_id === savedMessage.message_id,
+          )
+        ) {
+          return current;
+        }
 
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-  }, [draftMessage, selectedChat]);
+        return {
+          ...current,
+          [threadKey]: [...existingMessages, savedMessage],
+        };
+      });
+
+      setChats((current) => {
+        const updated = current.map((chat) =>
+          chat.thread_id === selectedChat.thread_id
+            ? {
+                ...chat,
+                last_message_at: savedMessage.created_at,
+                last_message_text: savedMessage.message_text,
+                last_sender_id: savedMessage.sender_id,
+                updated_at: savedMessage.created_at,
+              }
+            : chat,
+        );
+
+        return updated.sort((a, b) => {
+          const aTime = new Date(
+            a.last_message_at ?? a.updated_at ?? a.created_at,
+          ).getTime();
+          const bTime = new Date(
+            b.last_message_at ?? b.updated_at ?? b.created_at,
+          ).getTime();
+          return bTime - aTime;
+        });
+      });
+
+      setDraftMessage("");
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    } catch (e) {
+      console.error(e);
+      setChatError("Unable to send message right now.");
+    } finally {
+      setSending(false);
+    }
+  }, [draftMessage, selectedChat, sending]);
 
   const renderChatRoom = () => {
     if (!selectedChat) return null;
 
     const threadKey = String(selectedChat.thread_id);
-    const messages = localMessagesByThread[threadKey] ?? [];
+    const messages = messagesByThread[threadKey] ?? [];
 
     return (
       <KeyboardAvoidingView
@@ -161,7 +248,7 @@ export default function SocialChatsOverlay({
               style={[styles.chatRoomSubtitle, { color: scheme.secondaryText }]}
               numberOfLines={1}
             >
-              Chat between you and {selectedChat.friend_username}
+              Messages save and reload automatically
             </Text>
           </View>
         </View>
@@ -175,7 +262,19 @@ export default function SocialChatsOverlay({
             },
           ]}
         >
-          {messages.length === 0 ? (
+          {messagesLoading ? (
+            <View style={styles.emptyMessagesWrap}>
+              <ActivityIndicator />
+              <Text
+                style={[
+                  styles.placeholderText,
+                  { color: scheme.secondaryText },
+                ]}
+              >
+                Loading messages...
+              </Text>
+            </View>
+          ) : messages.length === 0 ? (
             <View style={styles.emptyMessagesWrap}>
               <Ionicons
                 name="chatbubble-ellipses-outline"
@@ -191,7 +290,7 @@ export default function SocialChatsOverlay({
                   { color: scheme.secondaryText },
                 ]}
               >
-                Type a message below to add it to this chat log.
+                Type a message below to start this chat.
               </Text>
             </View>
           ) : (
@@ -204,36 +303,75 @@ export default function SocialChatsOverlay({
                 scrollRef.current?.scrollToEnd({ animated: true })
               }
             >
-              {messages.map((message) => (
-                <View key={message.id} style={styles.sentMessageRow}>
+              {messages.map((message) => {
+                const isMine = message.is_mine;
+
+                return (
                   <View
-                    style={[
-                      styles.sentMessageBubble,
-                      { backgroundColor: scheme.buttonBg },
-                    ]}
+                    key={message.message_id}
+                    style={
+                      isMine ? styles.sentMessageRow : styles.receivedMessageRow
+                    }
                   >
-                    <Text
+                    {!isMine && (
+                      <Text
+                        style={[
+                          styles.messageSender,
+                          { color: scheme.secondaryText },
+                        ]}
+                      >
+                        {message.sender_username}
+                      </Text>
+                    )}
+                    <View
                       style={[
-                        styles.sentMessageText,
-                        { color: scheme.buttonText },
+                        styles.messageBubble,
+                        isMine
+                          ? {
+                              backgroundColor: scheme.buttonBg,
+                              borderBottomRightRadius: 5,
+                            }
+                          : {
+                              backgroundColor: scheme.background,
+                              borderColor: scheme.neutralColor,
+                              borderWidth: 1,
+                              borderBottomLeftRadius: 5,
+                            },
                       ]}
                     >
-                      {message.text}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.sentMessageTime,
-                        { color: scheme.buttonText },
-                      ]}
-                    >
-                      {formatMessageTime(message.created_at)}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.messageText,
+                          { color: isMine ? scheme.buttonText : scheme.text },
+                        ]}
+                      >
+                        {message.message_text}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.messageTime,
+                          {
+                            color: isMine
+                              ? scheme.buttonText
+                              : scheme.secondaryText,
+                          },
+                        ]}
+                      >
+                        {formatMessageTime(message.created_at)}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
         </View>
+
+        {!!chatError && (
+          <Text style={[styles.chatError, { color: scheme.buttonBg }]}>
+            {chatError}
+          </Text>
+        )}
 
         <View
           style={[
@@ -264,19 +402,24 @@ export default function SocialChatsOverlay({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send message"
-            onPress={sendLocalMessage}
-            disabled={!draftMessage.trim()}
+            onPress={sendMessage}
+            disabled={!draftMessage.trim() || sending}
             style={({ pressed }) => [
               styles.sendButton,
               {
-                backgroundColor: draftMessage.trim()
-                  ? scheme.buttonBg
-                  : scheme.neutralColor,
+                backgroundColor:
+                  draftMessage.trim() && !sending
+                    ? scheme.buttonBg
+                    : scheme.neutralColor,
               },
-              pressed && draftMessage.trim() && styles.pressed,
+              pressed && draftMessage.trim() && !sending && styles.pressed,
             ]}
           >
-            <Ionicons name="send" size={18} color={scheme.buttonText} />
+            {sending ? (
+              <ActivityIndicator size="small" color={scheme.buttonText} />
+            ) : (
+              <Ionicons name="send" size={18} color={scheme.buttonText} />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -407,7 +550,7 @@ export default function SocialChatsOverlay({
                 style={[styles.chatPreview, { color: scheme.secondaryText }]}
                 numberOfLines={1}
               >
-                New conversation
+                {getChatPreview(chat)}
               </Text>
             </View>
 
@@ -643,23 +786,38 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "flex-end",
   },
-  sentMessageBubble: {
+  receivedMessageRow: {
+    width: "100%",
+    alignItems: "flex-start",
+  },
+  messageSender: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 3,
+    marginLeft: 8,
+  },
+  messageBubble: {
     maxWidth: "82%",
     borderRadius: 18,
-    borderBottomRightRadius: 5,
     paddingHorizontal: 13,
     paddingVertical: 9,
   },
-  sentMessageText: {
+  messageText: {
     fontSize: 15,
     lineHeight: 20,
   },
-  sentMessageTime: {
+  messageTime: {
     fontSize: 10,
     fontWeight: "700",
     opacity: 0.75,
     marginTop: 4,
     textAlign: "right",
+  },
+  chatError: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 8,
+    textAlign: "center",
   },
   composer: {
     borderWidth: 1,
