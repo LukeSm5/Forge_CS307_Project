@@ -2394,7 +2394,7 @@ def get_post_comments(
             "user_id": row.ProfileID,
             "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
             "text": row.text,
-            "timestamp": row.timestamp,
+            "timestamp": row.timestamp.timestamp(),
         }
         for row in rows
     ] }
