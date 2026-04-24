@@ -12,7 +12,7 @@ export default function ProgressionScreen({ userId }: { userId: number }) {
     api.getExercises()
       .then((ex: Record<string, number>) => setExercises(Object.keys(ex)));
     api.profileData().then((prof) => setProfile(prof));
-  });
+  }, []);
 
   return (
     <View style={styles.container}>
