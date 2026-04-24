@@ -255,7 +255,7 @@ export default function MealFeedCard({ meal }: { meal: SharedMeal }) {
             </Pressable>
             </View>
 
-            {(postInfo) ? (<View style={{ marginTop: 10, flexDirection: "row", gap: 12 }}>
+            {(postInfo) ? (<View style={{ marginTop: 10, flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
                     <LikeButton 
                       likes={postInfo.likes}
                       likePost={() => {
