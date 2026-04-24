@@ -2559,6 +2559,7 @@ def publish_meal_post(
 
     return {
         "post_id": post_row.PostID,
+        "profile_id": post_row.ProfileID,
         "created_at": post_row.created_at.isoformat(),
         "source": post_row.source,
         "name": post_row.name,
@@ -2622,6 +2623,7 @@ def get_meal_feed(
         author = db.query(Accounts).filter(Accounts.UserID == post.ProfileID).first()
         results.append({
             "post_id": post.PostID,
+            "profile_id": post.ProfileID,
             "created_at": post.created_at.isoformat(),
             "source": post.source,
             "name": post.name,
@@ -2645,7 +2647,7 @@ def get_meal_feed(
     return results
 
 
-@app.post("/feed/posts/{post_id}/save", response_model=SessionMealOut, status_code=201)
+@app.post("/feed/posts/{post_id}/save", status_code=201)
 def save_meal_from_feed(
     post_id: int,
     me: Accounts = Depends(get_current_account),
@@ -2689,7 +2691,29 @@ def save_meal_from_feed(
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    return _build_session_meal_out(db, entry)
+
+    return {
+        "save_id": entry.SessionMealID,
+        "post_id": post_id,
+        "name": meal_name,
+        "source": post.source,
+        "calories": post.calories,
+        "protein": post.protein,
+        "carbs": post.carbs,
+        "fat": post.fat,
+        "sugar": post.sugar,
+        "fiber": post.fiber,
+        "sodium": post.sodium,
+        "cuisine": post.cuisine,
+        "goal": post.goal,
+        "complexity": post.complexity,
+        "spice_level": post.spice_level,
+        "dietary": json.loads(post.dietary) if post.dietary else [],
+        "restaurant": post.restaurant,
+        "category": post.category,
+        "meal_type": post.meal_type,
+        "saved_at": entry.date.isoformat(),
+    }
 
 
 @app.get("/feed/workouts/gym", response_model=List[WorkoutFeedPostOut])
@@ -3419,28 +3443,14 @@ def calculate_statistics(me, db, days):
         .scalar() or 0  # .scalar() returns the single number; "or 0" handles empty weeks
     )
     total_volume = total_volume if total_volume else 0
-    least_hit_query = (
-        db.query(
-            Workouts.name, 
-            func.count(session_workouts.SessionID).label('occurrence')
-        )
-        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
-        .filter(session_workouts.ProfileID == me.UserID)
-        .filter(session_workouts.date >= since_date)
-        .group_by(Workouts.name)
-        .order_by(func.count(session_workouts.SessionID).asc()) # Changed to ASC
-        .first()
-    )
-
-    # Crucial: Use the "or 'None'" logic to prevent the Pydantic ValidationError
-    bottom_muscle_name = least_hit_query[0] if least_hit_query else "None"
+    bottom_muscle = "None"
 
     return ReportData(
         workout_num= workout_count,
         top_muscle = top_muscle,
         bench_max = max_bench,
         total_volume = total_volume,
-        bottom_muscle = bottom_muscle_name
+        bottom_muscle = bottom_muscle
     )
 @app.get("/weeklyReport")
 def get_weekly_reports(me: Accounts = Depends(get_current_account),
@@ -3451,5 +3461,3 @@ def get_weekly_reports(me: Accounts = Depends(get_current_account),
 def get_monthly_reports(me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),):
     return calculate_statistics(me, db, 30)
-
-
