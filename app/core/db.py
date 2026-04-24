@@ -204,20 +204,23 @@ Index("ix_chat_messages_thread_created_at", ChatMessages.ThreadID, ChatMessages.
 class Likes(Base):
     __tablename__ = 'Likes'
     LikesID = Column(Integer, primary_key=True, autoincrement=True)
-    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=False)
+    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=True)
+    MealPostID = Column(Integer, ForeignKey('MealPosts.PostID'), nullable=True)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False)
 
 class Reactions(Base):
     __tablename__ = 'Reactions'
     ReactionID = Column(Integer, primary_key=True, autoincrement=True)
-    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=False)
+    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=True)
+    MealPostID = Column(Integer, ForeignKey('MealPosts.PostID'), nullable=True)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False)
     reaction_type = Column(Text, nullable=False)  # emoji
 
 class Comments(Base):
     __tablename__ = 'Comments'
     CommentID = Column(Integer, primary_key=True, autoincrement=True)
-    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=False)
+    PostID = Column(Integer, ForeignKey('Posts.PostID'), nullable=True)
+    MealPostID = Column(Integer, ForeignKey('MealPosts.PostID'), nullable=True)
     ProfileID = Column(Integer, ForeignKey('Profiles.ProfileID'), nullable=False)
     text = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))

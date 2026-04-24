@@ -105,9 +105,11 @@ class PostWorkoutPayload(BaseModel):
 
 class PostInfoPayload(BaseModel):
     post_id: int
+    is_meal: bool
 
 class PostTextPayload(BaseModel):
     post_id: int
+    is_meal: bool
     text: str
 
 class ResetPasswordRequest(BaseModel):
@@ -2278,7 +2280,7 @@ def get_post_likes(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    rows = db.query(Likes).filter(Likes.PostID == payload.post_id).all()
+    rows = db.query(Likes).filter(Likes.PostID == payload.post_id if not payload.is_meal else Likes.MealPostID == payload.post_id).all()
     return { "likes": [
         {
             "user_id": row.ProfileID,
@@ -2294,7 +2296,7 @@ def get_post_reactions(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    rows = db.query(Reactions).filter(Reactions.PostID == payload.post_id).all()
+    rows = db.query(Reactions).filter(Reactions.PostID == payload.post_id if not payload.is_meal else Reactions.MealPostID == payload.post_id).all()
     return { "reactions": [
         {
             "user_id": row.ProfileID,
@@ -2310,7 +2312,7 @@ def get_post_comments(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    rows = db.query(Comments).filter(Comments.PostID == payload.post_id).all()
+    rows = db.query(Comments).filter(Comments.PostID == payload.post_id if not payload.is_meal else Comments.MealPostID == payload.post_id).all()
     return { "comments": [
         {
             "user_id": row.ProfileID,
@@ -2328,15 +2330,16 @@ def like_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    if db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).first():
+    id_filter = Likes.PostID == payload.post_id if not payload.is_meal else Likes.MealPostID == payload.post_id
+    if db.query(Likes).filter(id_filter, Likes.ProfileID == me.UserID).first():
         raise HTTPException(status_code=400, detail="Post already liked")
-    like = Likes(PostID=payload.post_id, ProfileID=me.UserID)
+    like = Likes(PostID=payload.post_id, ProfileID=me.UserID) if not payload.is_meal else Likes(MealPostID=payload.post_id, ProfileID=me.UserID)
     db.add(like)
     db.commit()
 
-    post = db.query(Posts).filter(Posts.PostID == payload.post_id).first()
-
-    add_notification(db, post.ProfileID, f"{me.username} liked your post")
+    poster_id = db.query(Posts).filter(Posts.PostID == payload.post_id).first().ProfileID if not payload.is_meal else \
+        db.query(MealPosts).filter(MealPosts.PostID == payload.post_id).first().ProfileID
+    add_notification(db, poster_id, f"{me.username} liked your post")
 
     return {"ok": True, "detail": "Post liked"}
 
@@ -2347,9 +2350,10 @@ def like_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    if not db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).first():
+    id_filter = Likes.PostID == payload.post_id if not payload.is_meal else Likes.MealPostID == payload.post_id
+    if not db.query(Likes).filter(id_filter, Likes.ProfileID == me.UserID).first():
         raise HTTPException(status_code=400, detail="Post not liked")
-    db.query(Likes).filter(Likes.PostID == payload.post_id, Likes.ProfileID == me.UserID).delete()
+    db.query(Likes).filter(id_filter, Likes.ProfileID == me.UserID).delete()
     db.commit()
     return {"ok": True, "detail": "Post unliked"}
 
@@ -2360,15 +2364,19 @@ def react_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    existing = db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).first()
+    id_filter = Reactions.PostID == payload.post_id if not payload.is_meal else Reactions.MealPostID == payload.post_id
+    existing = db.query(Reactions).filter(id_filter, Reactions.ProfileID == me.UserID).first()
     if existing:
         existing.reaction_type = payload.text
     else:
-        reaction = Reactions(PostID=payload.post_id, ProfileID=me.UserID, reaction_type=payload.text)
+        reaction = Reactions(PostID=payload.post_id, ProfileID=me.UserID, reaction_type=payload.text) if not payload.is_meal else \
+            Reactions(MealPostID=payload.post_id, ProfileID=me.UserID, reaction_type=payload.text)
         db.add(reaction)
     db.commit()
 
-    add_notification(db, payload.post_id, f"{me.username} reacted to your post with '{payload.text}'")
+    poster_id = db.query(Posts).filter(Posts.PostID == payload.post_id).first().ProfileID if not payload.is_meal else \
+        db.query(MealPosts).filter(MealPosts.PostID == payload.post_id).first().ProfileID
+    add_notification(db, poster_id, f"{me.username} reacted to your post with '{payload.text}'")
 
     return {"ok": True, "detail": "Post reacted"}
 
@@ -2379,9 +2387,10 @@ def unreact_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    if not db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).first():
+    id_filter = Reactions.PostID == payload.post_id if not payload.is_meal else Reactions.MealPostID == payload.post_id
+    if not db.query(Reactions).filter(id_filter, Reactions.ProfileID == me.UserID).first():
         raise HTTPException(status_code=400, detail="Post not reacted")
-    db.query(Reactions).filter(Reactions.PostID == payload.post_id, Reactions.ProfileID == me.UserID).delete()
+    db.query(Reactions).filter(id_filter, Reactions.ProfileID == me.UserID).delete()
     db.commit()
     return {"ok": True, "detail": "Post unreacted"}
 
@@ -2392,9 +2401,15 @@ def comment_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text)
+    comment = Comments(PostID=payload.post_id, ProfileID=me.UserID, text=payload.text) if not payload.is_meal else \
+        Comments(MealPostID=payload.post_id, ProfileID=me.UserID, text=payload.text)
     db.add(comment)
     db.commit()
+
+    poster_id = db.query(Posts).filter(Posts.PostID == payload.post_id).first().ProfileID if not payload.is_meal else \
+        db.query(MealPosts).filter(MealPosts.PostID == payload.post_id).first().ProfileID
+    add_notification(db, poster_id, f"{me.username} has commented on your post: \"{payload.text}\"")
+
     return {"ok": True, "detail": "Post commented"}
 
 

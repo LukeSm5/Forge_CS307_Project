@@ -35,6 +35,7 @@ import {
   GroupGoal as ApiGroupGoal,
   CreateGroupGoalRequest,
 } from "@/core/api";
+import MealFeedCard from "@/components/social/MealFeedCard";
 
 type ProfileSearchResult = {
   id: number | string;
@@ -360,7 +361,6 @@ export default function ProfilesTab() {
   const [sharedMeals, setSharedMeals] = useState<SharedMeal[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedError, setFeedError] = useState("");
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [gymWorkouts, setGymWorkouts] = useState<WorkoutFeedPost[]>([]);
   const [gymFeedLoading, setGymFeedLoading] = useState(false);
   const [gymFeedError, setGymFeedError] = useState("");
@@ -384,31 +384,6 @@ export default function ProfilesTab() {
       .catch(() => setFeedError("Could not load feed."))
       .finally(() => setFeedLoading(false));
   }, []);
-
-  const handleRemoveSharedMeal = async (shareId: string) => {
-    try {
-      await removeSharedMeal(shareId);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDownloadMeal = async (meal: SharedMeal) => {
-    if (!meal.postId) return;
-    setDownloadingId(meal.shareId);
-    try {
-      await api.saveMealFromFeed(meal.postId);
-      Alert.alert(
-        "Saved!",
-        `"${meal.name}" has been added to your meal library.`,
-      );
-    } catch (e) {
-      console.error(e);
-      Alert.alert("Error", "Could not save meal. Please try again.");
-    } finally {
-      setDownloadingId(null);
-    }
-  };
 
   const loadGymWorkoutFeed = useCallback(async () => {
     try {
@@ -1330,193 +1305,7 @@ export default function ProfilesTab() {
             </Text>
           ) : (
             <View style={{ gap: 10, marginTop: 8 }}>
-              {sharedMeals.map((meal) => (
-                <View
-                  key={meal.shareId}
-                  style={[
-                    styles.profileRow,
-                    {
-                      backgroundColor: colors.soft,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <View style={styles.profileMain}>
-                    {/* Meal name + poster */}
-                    <Text style={[styles.usernameText, { color: colors.text }]}>
-                      {meal.name}
-                    </Text>
-                    {meal.username ? (
-                      <Text
-                        style={[styles.locationText, { color: colors.orange }]}
-                      >
-                        @{meal.username}
-                      </Text>
-                    ) : null}
-
-                    {/* Source subtitle */}
-                    {meal.source === "restaurant" && meal.restaurant ? (
-                      <Text style={[styles.bioText, { color: colors.muted }]}>
-                        {meal.restaurant}
-                        {meal.category ? ` · ${meal.category}` : ""}
-                        {meal.mealType
-                          ? ` · ${meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}`
-                          : ""}
-                      </Text>
-                    ) : null}
-                    {meal.source === "tagged" && (meal.cuisine || meal.goal) ? (
-                      <Text style={[styles.bioText, { color: colors.muted }]}>
-                        {[meal.cuisine, meal.goal, meal.complexity]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </Text>
-                    ) : null}
-
-                    {/* Macro chips */}
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 6,
-                        marginTop: 6,
-                      }}
-                    >
-                      {meal.calories != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.macroPillText,
-                              { color: colors.orange },
-                            ]}
-                          >
-                            {meal.calories} kcal
-                          </Text>
-                        </View>
-                      ) : null}
-                      {meal.protein != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#60a5fa" }]}
-                          >
-                            {meal.protein}g protein
-                          </Text>
-                        </View>
-                      ) : null}
-                      {meal.carbs != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#a78bfa" }]}
-                          >
-                            {meal.carbs}g carbs
-                          </Text>
-                        </View>
-                      ) : null}
-                      {meal.fat != null ? (
-                        <View
-                          style={[
-                            styles.macroPill,
-                            {
-                              backgroundColor: colors.soft,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.macroPillText, { color: "#fbbf24" }]}
-                          >
-                            {meal.fat}g fat
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    <Text
-                      style={[
-                        styles.bioText,
-                        { color: colors.muted, marginTop: 6 },
-                      ]}
-                    >
-                      {new Date(meal.sharedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </Text>
-                  </View>
-
-                  <View style={styles.actionsCol}>
-                    {/* Download — save to diet tab meal library */}
-                    <Pressable
-                      onPress={() => handleDownloadMeal(meal)}
-                      disabled={downloadingId === meal.shareId}
-                      style={({ pressed }) => [
-                        styles.iconButton,
-                        {
-                          backgroundColor: colors.friendBg,
-                          borderColor: colors.friendBorder,
-                        },
-                        pressed && styles.pressed,
-                        downloadingId === meal.shareId && { opacity: 0.5 },
-                      ]}
-                    >
-                      {downloadingId === meal.shareId ? (
-                        <ActivityIndicator size="small" />
-                      ) : (
-                        <Text
-                          style={[
-                            styles.friendButtonText,
-                            { color: colors.orange },
-                          ]}
-                        >
-                          ↓
-                        </Text>
-                      )}
-                    </Pressable>
-
-                    {/* Remove from feed */}
-                    <Pressable
-                      onPress={() => handleRemoveSharedMeal(meal.shareId)}
-                      style={({ pressed }) => [
-                        styles.iconButton,
-                        {
-                          backgroundColor: colors.flagBg,
-                          borderColor: colors.flagBorder,
-                        },
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[styles.flagButtonText, { color: colors.red }]}
-                      >
-                        ✕
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
+              {sharedMeals.map((meal, idx) => <MealFeedCard key={idx} meal={meal} />)}
             </View>
           )}
         </View>

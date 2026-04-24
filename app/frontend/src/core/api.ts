@@ -643,31 +643,31 @@ look pleasing on a graph.
     }
   },
 
-  getPostInfo: async (postId: number): Promise<PostInfo> => {
-    const likes = await post<{ likes: { user_id: number, username: string}[] }>('/posts/likes', { post_id: postId });
-    const comments = await post<{ comments: { user_id: number, username: string, text: string, timestamp: number }[] }>('/posts/comments', { post_id: postId });
-    const reactions = await post<{ reactions: { user_id: number, username: string, reaction: string }[] }>('/posts/reactions', { post_id: postId });
+  getPostInfo: async (postId: number, isMeal: boolean): Promise<PostInfo> => {
+    const likes = await post<{ likes: { user_id: number, username: string}[] }>('/posts/likes', { post_id: postId, is_meal: isMeal });
+    const comments = await post<{ comments: { user_id: number, username: string, text: string, timestamp: number }[] }>('/posts/comments', { post_id: postId, is_meal: isMeal });
+    const reactions = await post<{ reactions: { user_id: number, username: string, reaction: string }[] }>('/posts/reactions', { post_id: postId, is_meal: isMeal });
     return { likes: likes.likes, comments: comments.comments, reactions: reactions.reactions };
   },
 
-  likePost: async (postId: number): Promise<void> => {
-    await post<{ ok: boolean }>('/feed/likePost', { post_id: postId });
+  likePost: async (postId: number, isMeal: boolean): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/likePost', { post_id: postId, is_meal: isMeal });
   },
 
-  unlikePost: async (postId: number): Promise<void> => {
-    await post<{ ok: boolean }>('/feed/unlikePost', { post_id: postId });
+  unlikePost: async (postId: number, isMeal: boolean): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/unlikePost', { post_id: postId, is_meal: isMeal });
   },
 
-  reactToPost: async (postId: number, reaction: string): Promise<void> => {
-    await post<{ ok: boolean }>('/feed/reactPost', { post_id: postId, text: reaction });
+  reactToPost: async (postId: number, isMeal: boolean, reaction: string): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/reactPost', { post_id: postId, is_meal: isMeal, text: reaction });
   },
 
-  unreactToPost: async (postId: number): Promise<void> => {
-    await post<{ ok: boolean }>('/feed/unreactPost', { post_id: postId });
+  unreactToPost: async (postId: number, isMeal: boolean): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/unreactPost', { post_id: postId, is_meal: isMeal });
   },
 
-  commentOnPost: async (postId: number, text: string): Promise<void> => {
-    await post<{ ok: boolean }>('/feed/commentPost', { post_id: postId, text });
+  commentOnPost: async (postId: number, isMeal: boolean, text: string): Promise<void> => {
+    await post<{ ok: boolean }>('/feed/commentPost', { post_id: postId, is_meal: isMeal, text });
   },
 
   reportUser: async (reportedId: number, description: string): Promise<void> => {

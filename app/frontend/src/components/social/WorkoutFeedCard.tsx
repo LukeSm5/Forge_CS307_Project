@@ -55,7 +55,7 @@ export default function WorkoutFeedCard({
   const refresh = () => setKey(k => k + 1);
 
   useEffect(() => {
-    api.getPostInfo(post.post_id).then(setPostInfo);
+    api.getPostInfo(post.post_id, true).then(setPostInfo);
   }, [ key ])
 
   return (
@@ -129,11 +129,11 @@ export default function WorkoutFeedCard({
         <LikeButton 
           likes={postInfo.likes}
           likePost={() => {
-            api.likePost(post.post_id)
+            api.likePost(post.post_id, false)
               .then(refresh);
           }}
           unlikePost={() => {
-            api.unlikePost(post.post_id)
+            api.unlikePost(post.post_id, false)
             .then(refresh);
           }}
         />
@@ -144,18 +144,18 @@ export default function WorkoutFeedCard({
             reaction={reaction}
             reactions={postInfo.reactions}
             reactPost={(reaction: string) => {
-              api.reactToPost(post.post_id, reaction)
+              api.reactToPost(post.post_id, false, reaction)
                 .then(refresh);
             }}
             unreactPost={() => {
-              api.unreactToPost(post.post_id)
+              api.unreactToPost(post.post_id, false)
               .then(refresh);
             }}
           />
         ))}
 
         <CommentsButton comments={postInfo.comments} postComment={(text) => {
-          api.commentOnPost(post.post_id, text)
+          api.commentOnPost(post.post_id, false, text)
             .then(refresh);
         }} />
         
