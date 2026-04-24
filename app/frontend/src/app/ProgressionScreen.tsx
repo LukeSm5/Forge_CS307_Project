@@ -10,12 +10,24 @@ export default function ProgressionScreen() {
   const [ profile, setProfile ] = useState<{ age: number, weight: number, height: number, gender: string, health_goals: string } | null>(null);
   const  {userId } = useLocalSearchParams();
   const numericUserId = Number(userId);
+  const [blocked, setBlocked] = useState(false);
   useEffect(() => {
-    api.getExercises()
-      .then((ex: Record<string, number>) => setExercises(Object.keys(ex)));
-    api.profileData(numericUserId).then((prof) => setProfile(prof));
+    api.checkBlock(numericUserId).then((status => {
+        if (status.i_blocked_them || status.they_blocked_me) {
+          setBlocked(true);
+        } else {
+          setBlocked(false);
+          api.getExercises().then((ex: Record<string, number>) => setExercises(Object.keys(ex)));
+          api.profileData(numericUserId).then((prof) => setProfile(prof));}
+    }))
   }, []);
-
+  if (blocked) {
+    return (
+        <View style={styles.container}>
+        <Text>This profile is unavailable</Text>
+        </View>
+    );
+  }
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Progression</Text>
@@ -25,7 +37,6 @@ export default function ProgressionScreen() {
           <Text>Weight: {profile.weight} lbs</Text>
           <Text>Height: {profile.height} inches</Text>
           <Text>Gender: {profile.gender}</Text>
-          <Text>Health Goals: {profile.health_goals}</Text>
         </>
       )}
       <ScrollView style={{width: '80%'}}>
