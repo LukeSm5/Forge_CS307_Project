@@ -1285,9 +1285,6 @@ export type CreateGroupGoalRequest = {
   unit: GoalUnit;
 };
 
-};
-
-// change this after it works
 export type ReportData = {
   workout_num: number
   top_muscle: string
