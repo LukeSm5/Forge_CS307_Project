@@ -1,13 +1,13 @@
 
 from app.fast_api import api
-from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals, Friendships, Blocks, Reports
+from app.core.db import Accounts, Exercises, Machines, Workouts, menu_meals, Profiles, session_menu_meals, Friendships, Blocks, Reports, MealPosts
 import pytest
 from app.core.session import engine, Base, SessionLocal
 from datetime import date
 from app.core import repos
 
 from app.fast_api.api import LogMenuMealRequest, CreateAccountRequest, CreateSessionRequest, CreateProfileRequest, LogMenuMealRequest, TailorExerciseRequest, RecalibrateCaloriesRequest, LoginRequest
-from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn, FriendAddresseePayload, FriendAcceptPayload, BlockPayload, ReportPayload
+from app.fast_api.api import SessionMenuMealOut, SessionExerciseIn, FriendAddresseePayload, FriendAcceptPayload, BlockPayload, ReportPayload, PublishMealPostRequest
 
 def seed_test_user(db):
     """
@@ -104,7 +104,7 @@ def seed_test_user(db):
         print(f"Seed failed: {e}")
         raise
 
-def seed_friend_test_user(db):
+def seed_test_user_friend(db):
     """
     seed another test dummy user. 
     blank with no history. 
@@ -304,10 +304,185 @@ def test_userstory_27(db, me):
         print('passed: user story 27\n')
 
 
+def test_userstory_40(db, me):
+    """
+    upload meals from a diet log to a social platform
+    """
+    print('testing: user story 40')
+
+    # pull a real logged menu meal from the db for test data
+    logged_meal = db.query(session_menu_meals).filter(
+        session_menu_meals.ProfileID == me.UserID
+    ).first()
+
+    if logged_meal:
+        menu_meal = db.query(menu_meals).filter(
+            menu_meals.MenuMealID == logged_meal.MenuMealID
+        ).first()
+        payload = PublishMealPostRequest(
+            source='restaurant',
+            name=menu_meal.product if menu_meal else 'Test Meal',
+            calories=float(menu_meal.energy_kcal) if menu_meal and menu_meal.energy_kcal else None,
+            protein=float(menu_meal.protein_g) if menu_meal and menu_meal.protein_g else None,
+            carbs=float(menu_meal.carbohydrates_g) if menu_meal and menu_meal.carbohydrates_g else None,
+            fat=float(menu_meal.total_fat_g) if menu_meal and menu_meal.total_fat_g else None,
+            restaurant=menu_meal.restaurant if menu_meal else None,
+            meal_type=logged_meal.meal_type,
+        )
+        print(f'\tusing logged meal: {payload.name} from {payload.restaurant}')
+    else:
+        # fallback to hardcoded if no logged meals exist for this user
+        payload = PublishMealPostRequest(
+            source='tagged',
+            name='Test High Protein Bowl',
+            calories=520.0,
+            protein=45.0,
+            carbs=38.0,
+            fat=14.0,
+            cuisine='American',
+            goal='High Protein',
+            complexity='Simple',
+            meal_type='lunch',
+        )
+        print(f'\tno logged meals found, using hardcoded test meal: {payload.name}')
+
+    # 1. publish the post
+    response = publish_meal_post_for_test(payload, me, db)
+    post_id = response.get('post_id')
+    print(f'\tpublish meal post: post_id={post_id}')
+    assert post_id is not None, "Expected a post_id in response"
+    assert response.get('name') == payload.name
+    assert response.get('username') == me.username
+
+    # 2. confirm post exists in MealPosts
+    created_post = db.query(MealPosts).filter(
+        MealPosts.PostID == post_id,
+        MealPosts.ProfileID == me.UserID
+    ).first()
+
+    assert created_post is not None, "Published post should exist in MealPosts"
+    print(f'\tpost confirmed in MealPosts')
+
+    # 3. confirm post content is correct
+    assert created_post.name == payload.name
+    assert created_post.source == payload.source
+    assert created_post.ProfileID == me.UserID
+    print(f'\tpost content verified: {created_post.name}')
+
+    # 4. delete the post
+    response = api.delete_meal_post(post_id, me, db)
+    print(f'\tdelete post: {response}')
+    assert response['ok'] == True
+
+    # 5. confirm post is deleted from MealPosts
+    deleted_post = db.query(MealPosts).filter(
+        MealPosts.PostID == post_id
+    ).first()
+
+    assert deleted_post is None, "Deleted post should not exist in MealPosts"
+    print(f'\tpost confirmed deleted')
+
+    print('passed: user story 40\n')
+
+
+from sqlalchemy import func
+
+def publish_meal_post_for_test(payload, me, db):
+    old_next_post_id = api._next_post_id
+    api._next_post_id = lambda db: (db.query(func.max(MealPosts.PostID)).scalar() or 0) + 1
+
+    try:
+        return api.publish_meal_post(payload, me, db)
+    finally:
+        api._next_post_id = old_next_post_id
+
+
+def test_userstory_41(db, me):
+    """
+    save a meal from the social feed to personal diet log
+    """
+    print('testing: user story 41')
+
+    # 1. publish a meal post to the feed first so we have something to save
+    logged_meal = db.query(session_menu_meals).filter(
+        session_menu_meals.ProfileID == me.UserID
+    ).first()
+
+    if logged_meal:
+        menu_meal = db.query(menu_meals).filter(
+            menu_meals.MenuMealID == logged_meal.MenuMealID
+        ).first()
+        payload = PublishMealPostRequest(
+            source='restaurant',
+            name=menu_meal.product if menu_meal else 'Test Meal',
+            calories=float(menu_meal.energy_kcal) if menu_meal and menu_meal.energy_kcal else None,
+            protein=float(menu_meal.protein_g) if menu_meal and menu_meal.protein_g else None,
+            carbs=float(menu_meal.carbohydrates_g) if menu_meal and menu_meal.carbohydrates_g else None,
+            fat=float(menu_meal.total_fat_g) if menu_meal and menu_meal.total_fat_g else None,
+            restaurant=menu_meal.restaurant if menu_meal else None,
+            meal_type=logged_meal.meal_type,
+        )
+    else:
+        payload = PublishMealPostRequest(
+            source='tagged',
+            name='Test High Protein Bowl',
+            calories=520.0,
+            protein=45.0,
+            carbs=38.0,
+            fat=14.0,
+            cuisine='American',
+            goal='High Protein',
+            meal_type='lunch',
+        )
+
+    post_response = publish_meal_post_for_test(payload, me, db)
+    post_id = post_response.get('post_id')
+    print(f'\tpublished meal post: post_id={post_id}, name={payload.name}')
+    assert post_id is not None
+
+    # 2. save the meal from the feed
+    save_response = api.save_meal_from_feed(post_id, me, db)
+    session_meal_id = save_response.session_meal_id
+    print(f'\tsaved meal: session_meal_id={session_meal_id}, name={save_response.meal_name}')
+    assert session_meal_id is not None
+    assert save_response.meal_name == payload.name
+    assert save_response.profile_id == me.UserID
+    assert save_response.servings == 1.0
+
+    # 3. verify macros carried over correctly
+    if payload.calories is not None:
+        assert save_response.calories == payload.calories, "Calories should match original post"
+    if payload.protein is not None:
+        assert save_response.protein == payload.protein, "Protein should match original post"
+    if payload.carbs is not None:
+        assert save_response.carbs == payload.carbs, "Carbs should match original post"
+    if payload.fat is not None:
+        assert save_response.fat == payload.fat, "Fat should match original post"
+    print(f'\tmacros verified')
+
+    # 4. confirm save response returned a valid saved meal id
+    assert session_meal_id is not None, "Saved meal should return a session meal id"
+    assert save_response.meal_name == payload.name
+    assert save_response.profile_id == me.UserID
+    print(f'\tconfirmed saved meal response')
+
+    # 5. verify note contains source info
+    assert 'meal feed' in save_response.notes.lower(), "Notes should reference meal feed"
+    print(f'\tnotes verified: "{save_response.notes}"')
+
+    # 6. clean up — delete the meal post
+    api.delete_meal_post(post_id, me, db)
+    print(f'\tcleaned up meal post')
+
+    print('passed: user story 41\n')
+
+
 def test_userstory_42(db, me, them):
     """
     add and remove friends from a social network
     """
+    assert me is not None, "Test user me was not found"
+    assert them is not None, "Test user them was not found"
     print('testing: user story 42')
 
     # clean up any existing friendship row before testing
@@ -360,6 +535,7 @@ def test_userstory_42(db, me, them):
 
     # if we never assert then we pass all checks
     print('passed: user story 42\n')
+
 
 
 def test_userstory_45(db, me, them):
@@ -426,33 +602,42 @@ def test_userstory_45(db, me, them):
     print('passed: user story 45\n')
     
 
-def test_userstories(db):
+def test_sprint2(db):
     """
-    for sprint review
+    for sprint 2 review
     """
     me = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
-    them = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
     print('')
     test_userstory_27(db, me)
     test_userstory_30(db, me)
-    test_userstory_42(db, me, them)
-    test_userstory_45(db, me, them)
+
+def test_sprint3(db):
+    """
+    for sprint 3 review
+    """
+    m = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
+    t = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
+    print('')
+    test_userstory_40(db, m)
+    test_userstory_41(db, m)
+    test_userstory_42(db, m, t)
+    test_userstory_45(db, m, t)
 
 
 if __name__ == '__main__':
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # seed_test_user(db)  # run this once
-        # seed_friend_test_user(db) # run this once
+        seed_test_user(db)  # run this once
+        seed_test_user_friend(db) # run this once
 
-        # test_userstories(db)
-        m = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
-        t = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
+        # m = db.query(Accounts).filter(Accounts.username == 'dev_test_user').first()
+        # t = db.query(Accounts).filter(Accounts.username == 'friend_test_user').first()
+        test_sprint3(db)
 
     finally:
         db.close()
 
 
-
+# run however you run seed
   
