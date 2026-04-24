@@ -49,14 +49,14 @@ export default function WorkoutFeedCard({
   const title = post.split_name?.trim() || post.workout_name;
   const durationLabel = formatDuration(post.duration);
 
-  const [ postInfo, setPostInfo ] = useState<PostInfo | null>(null);
-  
-  const [ key, setKey ] = useState(0);
-  const refresh = () => setKey(k => k + 1);
+  const [postInfo, setPostInfo] = useState<PostInfo | null>(null);
+
+  const [key, setKey] = useState(0);
+  const refresh = () => setKey((k) => k + 1);
 
   useEffect(() => {
     api.getPostInfo(post.post_id, true).then(setPostInfo);
-  }, [ key ])
+  }, [key]);
 
   return (
     <View
@@ -125,41 +125,42 @@ export default function WorkoutFeedCard({
         </View>
       ) : null}
 
-      {postInfo ? (<View style={{ marginTop: 10, flexDirection: "row", gap: 12 }}>
-        <LikeButton 
-          likes={postInfo.likes}
-          likePost={() => {
-            api.likePost(post.post_id, false)
-              .then(refresh);
-          }}
-          unlikePost={() => {
-            api.unlikePost(post.post_id, false)
-            .then(refresh);
-          }}
-        />
-
-        {['🔥', '💪', '🙌'].map(reaction => (
-          <ReactionButton 
-            key={reaction}
-            reaction={reaction}
-            reactions={postInfo.reactions}
-            reactPost={(reaction: string) => {
-              api.reactToPost(post.post_id, false, reaction)
-                .then(refresh);
+      {postInfo ? (
+        <View style={styles.interactionRow}>
+          <LikeButton
+            likes={postInfo.likes}
+            likePost={() => {
+              api.likePost(post.post_id, false).then(refresh);
             }}
-            unreactPost={() => {
-              api.unreactToPost(post.post_id, false)
-              .then(refresh);
+            unlikePost={() => {
+              api.unlikePost(post.post_id, false).then(refresh);
             }}
           />
-        ))}
 
-        <CommentsButton comments={postInfo.comments} postComment={(text) => {
-          api.commentOnPost(post.post_id, false, text)
-            .then(refresh);
-        }} />
-        
-      </View>) : <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>}
+          {["🔥", "💪", "🙌"].map((reaction) => (
+            <ReactionButton
+              key={reaction}
+              reaction={reaction}
+              reactions={postInfo.reactions}
+              reactPost={(reaction: string) => {
+                api.reactToPost(post.post_id, false, reaction).then(refresh);
+              }}
+              unreactPost={() => {
+                api.unreactToPost(post.post_id, false).then(refresh);
+              }}
+            />
+          ))}
+
+          <CommentsButton
+            comments={postInfo.comments}
+            postComment={(text) => {
+              api.commentOnPost(post.post_id, false, text).then(refresh);
+            }}
+          />
+        </View>
+      ) : (
+        <Text style={{ color: colors.muted, marginTop: 10 }}>Loading...</Text>
+      )}
     </View>
   );
 }
@@ -243,5 +244,12 @@ const styles = StyleSheet.create({
   moreText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  interactionRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
   },
 });
