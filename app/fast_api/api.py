@@ -464,6 +464,16 @@ class FriendAddresseePayload(BaseModel):
 class FriendAcceptPayload(BaseModel):
     requester_id: int
 
+class ChatListItemOut(BaseModel):
+    thread_id: int
+    friend_id: int
+    friend_username: str
+    friend_bio: Optional[str] = None
+    friend_gym_location: Optional[str] = None
+    created_at: str
+    updated_at: str
+    last_message_at: Optional[str] = None
+
 class DismissNotificationPayload(BaseModel):
     notification_id: int
 
@@ -2955,6 +2965,94 @@ def accept_friend_request(
 
     db.commit()
     return {"ok": True, "status": "accepted"}
+
+
+
+@app.get("/chats", response_model=List[ChatListItemOut])
+def list_chats(
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    """
+    Return one chat row for each accepted friend.
+
+    The chat thread is created when a friend request is accepted. This endpoint
+    also creates any missing thread for older accepted friendships, so users who
+    became friends before the chat feature was added still show up in the chat
+    list.
+    """
+    accepted_friendships = db.query(Friendships).filter(
+        Friendships.status == "accepted",
+        or_(
+            Friendships.RequesterID == me.UserID,
+            Friendships.AddresseeID == me.UserID,
+        ),
+    ).all()
+
+    created_missing_thread = False
+    chat_items = []
+
+    for friendship in accepted_friendships:
+        friend_id = (
+            friendship.AddresseeID
+            if friendship.RequesterID == me.UserID
+            else friendship.RequesterID
+        )
+
+        user1_id, user2_id = sorted((me.UserID, friend_id))
+        thread = db.query(ChatThreads).filter(
+            ChatThreads.User1ID == user1_id,
+            ChatThreads.User2ID == user2_id,
+        ).first()
+
+        if not thread:
+            thread = ChatThreads(User1ID=user1_id, User2ID=user2_id)
+            db.add(thread)
+            db.flush()
+            created_missing_thread = True
+
+        friend_account = db.query(Accounts).filter(
+            Accounts.UserID == friend_id
+        ).first()
+
+        if not friend_account:
+            continue
+
+        friend_profile = db.query(Profiles).filter(
+            Profiles.ProfileID == friend_id
+        ).first()
+
+        chat_items.append((thread, friend_account, friend_profile))
+
+    if created_missing_thread:
+        db.commit()
+
+    chat_items.sort(
+        key=lambda item: item[0].last_message_at or item[0].updated_at or item[0].created_at,
+        reverse=True,
+    )
+
+    results = []
+    for thread, friend_account, friend_profile in chat_items:
+        created_at = thread.created_at or datetime.now(timezone.utc)
+        updated_at = thread.updated_at or created_at
+
+        results.append(
+            ChatListItemOut(
+                thread_id=thread.ThreadID,
+                friend_id=friend_account.UserID,
+                friend_username=friend_account.username,
+                friend_bio=friend_account.bio,
+                friend_gym_location=friend_profile.gym_location if friend_profile else None,
+                created_at=created_at.isoformat(),
+                updated_at=updated_at.isoformat(),
+                last_message_at=thread.last_message_at.isoformat()
+                if thread.last_message_at
+                else None,
+            )
+        )
+
+    return results
 
 
 @app.delete("/friends")

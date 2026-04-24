@@ -370,6 +370,7 @@ export default function ProfilesTab() {
   const [activeSocialPanel, setActiveSocialPanel] =
     useState<SocialPanel>("friends");
   const [chatsOverlayVisible, setChatsOverlayVisible] = useState(false);
+  const [chatListRefreshKey, setChatListRefreshKey] = useState(0);
 
   useEffect(() => {
     return subscribeToSharedMeals(setSharedMeals);
@@ -590,6 +591,7 @@ export default function ProfilesTab() {
           break;
         case "accept":
           await api.acceptFriendRequest(targetId);
+          setChatListRefreshKey((prev) => prev + 1);
           break;
       }
 
@@ -1540,6 +1542,7 @@ export default function ProfilesTab() {
       <SocialChatsOverlay
         visible={chatsOverlayVisible}
         onClose={() => setChatsOverlayVisible(false)}
+        refreshKey={chatListRefreshKey}
       />
 
       <Modal
