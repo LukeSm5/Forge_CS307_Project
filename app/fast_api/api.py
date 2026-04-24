@@ -3411,7 +3411,14 @@ def calculate_statistics(me, db, days):
         .scalar()
     )
     max_bench = max_bench if max_bench else 0
-    total_volume = 0
+    total_volume = (
+        db.query(func.sum(session_exercises.reps * session_exercises.weight))
+        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
+        .filter(session_workouts.ProfileID == me.UserID)
+        .filter(session_workouts.date >= since_date)
+        .scalar() or 0  # .scalar() returns the single number; "or 0" handles empty weeks
+    )
+    total_volume = total_volume if total_volume else 0
     bottom_muscle = "None"
 
     return ReportData(
