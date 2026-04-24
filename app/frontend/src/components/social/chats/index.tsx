@@ -2,8 +2,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -37,6 +37,7 @@ export default function SocialChatsOverlay({
 }: SocialChatsOverlayProps) {
   const scheme = useScheme();
   const [chats, setChats] = useState<ChatListItem[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ChatListItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -57,8 +58,220 @@ export default function SocialChatsOverlay({
   useEffect(() => {
     if (visible) {
       loadChats();
+    } else {
+      setSelectedChat(null);
     }
   }, [visible, refreshKey, loadChats]);
+
+  const renderChatRoom = () => {
+    if (!selectedChat) return null;
+
+    return (
+      <View style={styles.chatRoomContainer}>
+        <View style={styles.chatRoomHeader}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to chats"
+            onPress={() => setSelectedChat(null)}
+            style={({ pressed }) => [
+              styles.backButton,
+              {
+                backgroundColor: scheme.secondaryBackground,
+                borderColor: scheme.neutralColor,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons name="chevron-back" size={24} color={scheme.text} />
+          </Pressable>
+
+          <View style={[styles.avatar, { backgroundColor: scheme.buttonBg }]}>
+            <Text style={[styles.avatarText, { color: scheme.buttonText }]}>
+              {getInitials(selectedChat.friend_username)}
+            </Text>
+          </View>
+
+          <View style={styles.chatRoomTitleWrap}>
+            <Text
+              style={[styles.chatRoomName, { color: scheme.text }]}
+              numberOfLines={1}
+            >
+              {selectedChat.friend_username}
+            </Text>
+            <Text
+              style={[styles.chatRoomSubtitle, { color: scheme.secondaryText }]}
+              numberOfLines={1}
+            >
+              Chat between you and {selectedChat.friend_username}
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.messagesPlaceholder,
+            {
+              backgroundColor: scheme.secondaryBackground,
+              borderColor: scheme.neutralColor,
+            },
+          ]}
+        >
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={44}
+            color={scheme.buttonBg}
+          />
+          <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
+            No messages yet
+          </Text>
+          <Text
+            style={[styles.placeholderText, { color: scheme.secondaryText }]}
+          >
+            Sending and loading messages will be added next.
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderChatList = () => {
+    if (loading) {
+      return (
+        <View
+          style={[
+            styles.placeholderBox,
+            {
+              backgroundColor: scheme.secondaryBackground,
+              borderColor: scheme.neutralColor,
+            },
+          ]}
+        >
+          <ActivityIndicator />
+          <Text
+            style={[styles.placeholderText, { color: scheme.secondaryText }]}
+          >
+            Loading chats...
+          </Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View
+          style={[
+            styles.placeholderBox,
+            {
+              backgroundColor: scheme.secondaryBackground,
+              borderColor: scheme.neutralColor,
+            },
+          ]}
+        >
+          <Ionicons name="warning-outline" size={42} color={scheme.buttonBg} />
+          <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
+            Could not load chats
+          </Text>
+          <Text
+            style={[styles.placeholderText, { color: scheme.secondaryText }]}
+          >
+            {error}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading chats"
+            onPress={loadChats}
+            style={({ pressed }) => [
+              styles.retryButton,
+              { backgroundColor: scheme.buttonBg },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text
+              style={[styles.retryButtonText, { color: scheme.buttonText }]}
+            >
+              Retry
+            </Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (chats.length === 0) {
+      return (
+        <View
+          style={[
+            styles.placeholderBox,
+            {
+              backgroundColor: scheme.secondaryBackground,
+              borderColor: scheme.neutralColor,
+            },
+          ]}
+        >
+          <Ionicons
+            name="chatbubbles-outline"
+            size={42}
+            color={scheme.buttonBg}
+          />
+          <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
+            Chat list goes here
+          </Text>
+          <Text
+            style={[styles.placeholderText, { color: scheme.secondaryText }]}
+          >
+            No chats currently
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView
+        contentContainerStyle={styles.chatList}
+        showsVerticalScrollIndicator={false}
+      >
+        {chats.map((chat) => (
+          <Pressable
+            key={chat.thread_id}
+            accessibilityRole="button"
+            accessibilityLabel={`Open chat with ${chat.friend_username}`}
+            onPress={() => setSelectedChat(chat)}
+            style={({ pressed }) => [
+              styles.chatRow,
+              {
+                backgroundColor: scheme.secondaryBackground,
+                borderColor: scheme.neutralColor,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={[styles.avatar, { backgroundColor: scheme.buttonBg }]}>
+              <Text style={[styles.avatarText, { color: scheme.buttonText }]}>
+                {getInitials(chat.friend_username)}
+              </Text>
+            </View>
+
+            <View style={styles.chatInfo}>
+              <Text style={[styles.chatName, { color: scheme.text }]}>
+                {chat.friend_username}
+              </Text>
+              <Text
+                style={[styles.chatPreview, { color: scheme.secondaryText }]}
+                numberOfLines={1}
+              >
+                New conversation
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={scheme.secondaryText}
+            />
+          </Pressable>
+        ))}
+      </ScrollView>
+    );
+  };
 
   return (
     <Modal
@@ -66,7 +279,7 @@ export default function SocialChatsOverlay({
       transparent
       animationType="slide"
       presentationStyle="overFullScreen"
-      onRequestClose={onClose}
+      onRequestClose={selectedChat ? () => setSelectedChat(null) : onClose}
     >
       <SafeAreaView
         style={[
@@ -84,167 +297,39 @@ export default function SocialChatsOverlay({
             },
           ]}
         >
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={[styles.eyebrow, { color: scheme.buttonBg }]}>
-                MESSAGES
-              </Text>
-              <Text style={[styles.title, { color: scheme.text }]}>Chats</Text>
-            </View>
+          {!selectedChat ? (
+            <>
+              <View style={styles.headerRow}>
+                <View>
+                  <Text style={[styles.eyebrow, { color: scheme.buttonBg }]}>
+                    MESSAGES
+                  </Text>
+                  <Text style={[styles.title, { color: scheme.text }]}>
+                    Chats
+                  </Text>
+                </View>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close chats"
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.closeButton,
-                {
-                  backgroundColor: scheme.secondaryBackground,
-                  borderColor: scheme.neutralColor,
-                },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons name="close" size={24} color={scheme.text} />
-            </Pressable>
-          </View>
-
-          {loading ? (
-            <View
-              style={[
-                styles.placeholderBox,
-                {
-                  backgroundColor: scheme.secondaryBackground,
-                  borderColor: scheme.neutralColor,
-                },
-              ]}
-            >
-              <ActivityIndicator />
-              <Text
-                style={[
-                  styles.placeholderText,
-                  { color: scheme.secondaryText },
-                ]}
-              >
-                Loading chats...
-              </Text>
-            </View>
-          ) : error ? (
-            <View
-              style={[
-                styles.placeholderBox,
-                {
-                  backgroundColor: scheme.secondaryBackground,
-                  borderColor: scheme.neutralColor,
-                },
-              ]}
-            >
-              <Ionicons
-                name="warning-outline"
-                size={42}
-                color={scheme.buttonBg}
-              />
-              <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
-                Could not load chats
-              </Text>
-              <Text
-                style={[
-                  styles.placeholderText,
-                  { color: scheme.secondaryText },
-                ]}
-              >
-                {error}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Retry loading chats"
-                onPress={loadChats}
-                style={({ pressed }) => [
-                  styles.retryButton,
-                  { backgroundColor: scheme.buttonBg },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text
-                  style={[styles.retryButtonText, { color: scheme.buttonText }]}
-                >
-                  Retry
-                </Text>
-              </Pressable>
-            </View>
-          ) : chats.length === 0 ? (
-            <View
-              style={[
-                styles.placeholderBox,
-                {
-                  backgroundColor: scheme.secondaryBackground,
-                  borderColor: scheme.neutralColor,
-                },
-              ]}
-            >
-              <Ionicons
-                name="chatbubbles-outline"
-                size={42}
-                color={scheme.buttonBg}
-              />
-              <Text style={[styles.placeholderTitle, { color: scheme.text }]}>
-                Chat list goes here
-              </Text>
-              <Text
-                style={[
-                  styles.placeholderText,
-                  { color: scheme.secondaryText },
-                ]}
-              >
-                No chats currently
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.chatList}
-              showsVerticalScrollIndicator={false}
-            >
-              {chats.map((chat) => (
-                <View
-                  key={chat.thread_id}
-                  style={[
-                    styles.chatRow,
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close chats"
+                  onPress={onClose}
+                  style={({ pressed }) => [
+                    styles.closeButton,
                     {
                       backgroundColor: scheme.secondaryBackground,
                       borderColor: scheme.neutralColor,
                     },
+                    pressed && styles.pressed,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.avatar,
-                      { backgroundColor: scheme.buttonBg },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.avatarText, { color: scheme.buttonText }]}
-                    >
-                      {getInitials(chat.friend_username)}
-                    </Text>
-                  </View>
+                  <Ionicons name="close" size={24} color={scheme.text} />
+                </Pressable>
+              </View>
 
-                  <View style={styles.chatInfo}>
-                    <Text style={[styles.chatName, { color: scheme.text }]}>
-                      {chat.friend_username}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.chatPreview,
-                        { color: scheme.secondaryText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      New conversation
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
+              {renderChatList()}
+            </>
+          ) : (
+            renderChatRoom()
           )}
         </View>
       </SafeAreaView>
@@ -356,6 +441,44 @@ const styles = StyleSheet.create({
   },
   chatPreview: {
     fontSize: 13,
+  },
+  chatRoomContainer: {
+    flex: 1,
+  },
+  chatRoomHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 18,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chatRoomTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  chatRoomName: {
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 2,
+  },
+  chatRoomSubtitle: {
+    fontSize: 12,
+  },
+  messagesPlaceholder: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 22,
+    gap: 10,
   },
   pressed: {
     opacity: 0.8,
