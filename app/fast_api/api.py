@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 import re
 from datetime import timezone, datetime, timedelta, date
-from sqlalchemy import inspect, text, or_, and_, func
+from sqlalchemy import inspect, text, or_, and_
 from openai import OpenAI
 import os
 import json
@@ -19,7 +19,7 @@ from app.core import ai_retrieval
 from app.core.prompt import tailor_exercise_prompt_text, calorie_goal_prompt_text
 from app.core.session import get_db
 from app.core.seed import engine
-from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, GroupGoals, GroupGoalMembers, MealPosts
+from app.core.db import Accounts, InboxNotifications, Likes, Reactions, Comments, Profiles, Workouts, workout_exercises, Exercises, Machines, session_workouts, session_exercises, menu_meals, session_menu_meals, session_meals, Meals, meal_macros, Ingredients, Friendships, Blocks, Reports, Posts, ChatThreads, ChatMessages, GroupGoals, GroupGoalMembers
 from app.core import repos, session
 from app.core.notifications import NotificationService, get_notification_service
 from app.fast_api import account_management as am
@@ -86,6 +86,27 @@ def ensure_dev_schema() -> None:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
         if "gym_location" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
+
+        if "ChatThreads" in existing_tables:
+            try:
+                chat_thread_columns = {column["name"] for column in inspector.get_columns("ChatThreads")}
+                if "updated_at" not in chat_thread_columns:
+                    connection.execute(text('ALTER TABLE "ChatThreads" ADD COLUMN updated_at DATETIME'))
+                if "last_message_at" not in chat_thread_columns:
+                    connection.execute(text('ALTER TABLE "ChatThreads" ADD COLUMN last_message_at DATETIME'))
+            except Exception:
+                pass
+
+        if "ChatMessages" in existing_tables:
+            try:
+                chat_message_columns = {column["name"] for column in inspector.get_columns("ChatMessages")}
+                if "read_at" not in chat_message_columns:
+                    connection.execute(text('ALTER TABLE "ChatMessages" ADD COLUMN read_at DATETIME'))
+                if "is_deleted" not in chat_message_columns:
+                    connection.execute(text('ALTER TABLE "ChatMessages" ADD COLUMN is_deleted BOOLEAN DEFAULT 0'))
+            except Exception:
+                pass
+
         # Make ExerciseID and WorkoutID nullable on Posts so meal posts don't require them
         if "ExerciseID" in posts_columns:
             try:
@@ -464,9 +485,6 @@ class FriendAddresseePayload(BaseModel):
 class FriendAcceptPayload(BaseModel):
     requester_id: int
 
-class DismissNotificationPayload(BaseModel):
-    notification_id: int
-
 class ChatListItemOut(BaseModel):
     thread_id: int
     friend_id: int
@@ -476,7 +494,24 @@ class ChatListItemOut(BaseModel):
     created_at: str
     updated_at: str
     last_message_at: Optional[str] = None
+    last_message_text: Optional[str] = None
+    last_sender_id: Optional[int] = None
 
+class ChatMessageCreate(BaseModel):
+    message_text: str = Field(..., min_length=1, max_length=2000)
+
+class ChatMessageOut(BaseModel):
+    message_id: int
+    thread_id: int
+    sender_id: int
+    sender_username: str
+    message_text: str
+    created_at: str
+    read_at: Optional[str] = None
+    is_mine: bool
+
+class DismissNotificationPayload(BaseModel):
+    notification_id: int
 
 class StreakResponse(BaseModel):
     profile_id: int
@@ -514,13 +549,6 @@ class PublishMealPostRequest(BaseModel):
 
 class SaveMealFromFeedRequest(BaseModel):
     post_id: int
-
-class ReportData(BaseModel):
-    workout_num: int
-    top_muscle: str
-    bottom_muscle: str
-    total_volume: int
-    bench_max: int
 
 
 def _get_openai_client() -> OpenAI | None:
@@ -2316,7 +2344,7 @@ def get_post_comments(
             "user_id": row.ProfileID,
             "username": db.query(Accounts).filter(Accounts.UserID == row.ProfileID).first().username,
             "text": row.text,
-            "timestamp": row.timestamp.timestamp(),
+            "timestamp": row.timestamp,
         }
         for row in rows
     ] }
@@ -2533,51 +2561,65 @@ def publish_meal_post(
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Meal name is required")
 
-    post_row = MealPosts(
+    caption = json.dumps({
+        "type": "meal",
+        "source": payload.source,
+        "name": payload.name,
+        "calories": payload.calories,
+        "protein": payload.protein,
+        "carbs": payload.carbs,
+        "fat": payload.fat,
+        "sugar": payload.sugar,
+        "fiber": payload.fiber,
+        "sodium": payload.sodium,
+        "cuisine": payload.cuisine,
+        "goal": payload.goal,
+        "complexity": payload.complexity,
+        "spice_level": payload.spice_level,
+        "dietary": payload.dietary,
+        "restaurant": payload.restaurant,
+        "category": payload.category,
+        "meal_type": payload.meal_type,
+    })
+
+    post_row = Posts(
+        PostID=_next_post_id(db),
         ProfileID=me.UserID,
-        source=payload.source,
-        name=payload.name,
-        calories=payload.calories,
-        protein=payload.protein,
-        carbs=payload.carbs,
-        fat=payload.fat,
-        sugar=payload.sugar,
-        fiber=payload.fiber,
-        sodium=payload.sodium,
-        cuisine=payload.cuisine,
-        goal=payload.goal,
-        complexity=payload.complexity,
-        spice_level=payload.spice_level,
-        dietary=json.dumps(payload.dietary) if payload.dietary is not None else None,
-        restaurant=payload.restaurant,
-        category=payload.category,
-        meal_type=payload.meal_type,
+        caption=caption,
+        ExerciseID=None,
+        WorkoutID=None,
+        MachineID=_fallback_machine_id(db),
     )
     db.add(post_row)
     db.commit()
     db.refresh(post_row)
 
+    created_at_str = (
+        post_row.created_at.isoformat()
+        if hasattr(post_row, "created_at") and post_row.created_at is not None
+        else datetime.utcnow().isoformat()
+    )
+
     return {
         "post_id": post_row.PostID,
-        "profile_id": post_row.ProfileID,
-        "created_at": post_row.created_at.isoformat(),
-        "source": post_row.source,
-        "name": post_row.name,
-        "calories": post_row.calories,
-        "protein": post_row.protein,
-        "carbs": post_row.carbs,
-        "fat": post_row.fat,
-        "sugar": post_row.sugar,
-        "fiber": post_row.fiber,
-        "sodium": post_row.sodium,
-        "cuisine": post_row.cuisine,
-        "goal": post_row.goal,
-        "complexity": post_row.complexity,
-        "spice_level": post_row.spice_level,
-        "dietary": json.loads(post_row.dietary) if post_row.dietary else [],
-        "restaurant": post_row.restaurant,
-        "category": post_row.category,
-        "meal_type": post_row.meal_type,
+        "created_at": created_at_str,
+        "source": payload.source,
+        "name": payload.name,
+        "calories": payload.calories,
+        "protein": payload.protein,
+        "carbs": payload.carbs,
+        "fat": payload.fat,
+        "sugar": payload.sugar,
+        "fiber": payload.fiber,
+        "sodium": payload.sodium,
+        "cuisine": payload.cuisine,
+        "goal": payload.goal,
+        "complexity": payload.complexity,
+        "spice_level": payload.spice_level,
+        "dietary": payload.dietary,
+        "restaurant": payload.restaurant,
+        "category": payload.category,
+        "meal_type": payload.meal_type,
         "username": me.username,
     }
 
@@ -2588,14 +2630,14 @@ def delete_meal_post(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(MealPosts).filter(
-        MealPosts.PostID == post_id,
-        MealPosts.ProfileID == me.UserID,
+    post = db.query(Posts).filter(
+        Posts.PostID == post_id,
+        Posts.ProfileID == me.UserID,
     ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Meal post not found")
 
-    db.delete(post)
+    _delete_posts_and_related_rows(db, [post_id])
     db.commit()
     return {"ok": True}
 
@@ -2610,9 +2652,9 @@ def get_meal_feed(
     blocked_ids = _blocked_user_ids(db, me.UserID)
 
     all_posts = (
-        db.query(MealPosts)
-        .filter(MealPosts.ProfileID.notin_(blocked_ids) if blocked_ids else True)
-        .order_by(MealPosts.PostID.desc())
+        db.query(Posts)
+        .filter(Posts.caption.like('%"type": "meal"%'))
+        .order_by(Posts.PostID.desc())
         .offset(offset)
         .limit(limit)
         .all()
@@ -2620,66 +2662,87 @@ def get_meal_feed(
 
     results = []
     for post in all_posts:
+        if post.ProfileID in blocked_ids:
+            continue
+        try:
+            data = json.loads(post.caption)
+        except Exception:
+            continue
+        if data.get("type") != "meal":
+            continue
         author = db.query(Accounts).filter(Accounts.UserID == post.ProfileID).first()
+        created_at_str = (
+            post.created_at.isoformat()
+            if hasattr(post, "created_at") and post.created_at is not None
+            else datetime.utcnow().isoformat()
+        )
         results.append({
             "post_id": post.PostID,
-            "profile_id": post.ProfileID,
-            "created_at": post.created_at.isoformat(),
-            "source": post.source,
-            "name": post.name,
-            "calories": post.calories,
-            "protein": post.protein,
-            "carbs": post.carbs,
-            "fat": post.fat,
-            "sugar": post.sugar,
-            "fiber": post.fiber,
-            "sodium": post.sodium,
-            "cuisine": post.cuisine,
-            "goal": post.goal,
-            "complexity": post.complexity,
-            "spice_level": post.spice_level,
-            "dietary": json.loads(post.dietary) if post.dietary else [],
-            "restaurant": post.restaurant,
-            "category": post.category,
-            "meal_type": post.meal_type,
+            "created_at": created_at_str,
+            "source": data.get("source"),
+            "name": data.get("name"),
+            "calories": data.get("calories"),
+            "protein": data.get("protein"),
+            "carbs": data.get("carbs"),
+            "fat": data.get("fat"),
+            "sugar": data.get("sugar"),
+            "fiber": data.get("fiber"),
+            "sodium": data.get("sodium"),
+            "cuisine": data.get("cuisine"),
+            "goal": data.get("goal"),
+            "complexity": data.get("complexity"),
+            "spice_level": data.get("spice_level"),
+            "dietary": data.get("dietary"),
+            "restaurant": data.get("restaurant"),
+            "category": data.get("category"),
+            "meal_type": data.get("meal_type"),
             "username": author.username if author else None,
         })
     return results
 
 
-@app.post("/feed/posts/{post_id}/save", status_code=201)
+@app.post("/feed/posts/{post_id}/save", response_model=SessionMealOut, status_code=201)
 def save_meal_from_feed(
     post_id: int,
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    post = db.query(MealPosts).filter(MealPosts.PostID == post_id).first()
+    post = db.query(Posts).filter(Posts.PostID == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    meal_name = (post.name or "Shared Meal").strip()
+    try:
+        data = json.loads(post.caption)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Post is not a meal post")
+
+    if data.get("type") != "meal":
+        raise HTTPException(status_code=400, detail="Post is not a meal post")
+
+    meal_name = (data.get("name") or "Shared Meal").strip()
     meal = Meals(name=meal_name)
     db.add(meal)
     db.flush()
 
     macros_data = {
-        "calories": post.calories,
-        "protein": post.protein,
-        "fat": post.fat,
-        "carbs": post.carbs,
-        "sugar": post.sugar,
-        "fiber": post.fiber,
-        "sodium": post.sodium,
+        "calories": data.get("calories"),
+        "protein": data.get("protein"),
+        "fat": data.get("fat"),
+        "carbs": data.get("carbs"),
+        "sugar": data.get("sugar"),
+        "fiber": data.get("fiber"),
+        "sodium": data.get("sodium"),
     }
     if any(v is not None for v in macros_data.values()):
         macros_row = meal_macros(MealID=meal.MealID, **macros_data)
         db.add(macros_row)
 
-    note_parts = [f"Saved from meal feed (source: {post.source or 'unknown'})"]
-    if post.restaurant:
-        note_parts.append(f"Restaurant: {post.restaurant}")
-    if post.meal_type:
-        note_parts.append(f"Meal type: {post.meal_type}")
+    source_label = data.get("source", "unknown")
+    note_parts = [f"Saved from meal feed (source: {source_label})"]
+    if data.get("restaurant"):
+        note_parts.append(f"Restaurant: {data['restaurant']}")
+    if data.get("meal_type"):
+        note_parts.append(f"Meal type: {data['meal_type']}")
 
     entry = session_meals(
         ProfileID=me.UserID,
@@ -2691,29 +2754,7 @@ def save_meal_from_feed(
     db.add(entry)
     db.commit()
     db.refresh(entry)
-
-    return {
-        "save_id": entry.SessionMealID,
-        "post_id": post_id,
-        "name": meal_name,
-        "source": post.source,
-        "calories": post.calories,
-        "protein": post.protein,
-        "carbs": post.carbs,
-        "fat": post.fat,
-        "sugar": post.sugar,
-        "fiber": post.fiber,
-        "sodium": post.sodium,
-        "cuisine": post.cuisine,
-        "goal": post.goal,
-        "complexity": post.complexity,
-        "spice_level": post.spice_level,
-        "dietary": json.loads(post.dietary) if post.dietary else [],
-        "restaurant": post.restaurant,
-        "category": post.category,
-        "meal_type": post.meal_type,
-        "saved_at": entry.date.isoformat(),
-    }
+    return _build_session_meal_out(db, entry)
 
 
 @app.get("/feed/workouts/gym", response_model=List[WorkoutFeedPostOut])
@@ -2963,19 +3004,45 @@ def accept_friend_request(
 
 
 
+def _blocked_between(db: Session, user_a_id: int, user_b_id: int) -> bool:
+    return db.query(Blocks).filter(
+        or_(
+            and_(Blocks.BlockerID == user_a_id, Blocks.BlockedID == user_b_id),
+            and_(Blocks.BlockerID == user_b_id, Blocks.BlockedID == user_a_id),
+        )
+    ).first() is not None
+
+
+def _require_chat_thread_access(
+    thread_id: int,
+    me: Accounts,
+    db: Session,
+) -> tuple[ChatThreads, int]:
+    thread = db.query(ChatThreads).filter(ChatThreads.ThreadID == thread_id).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    if me.UserID not in (thread.User1ID, thread.User2ID):
+        raise HTTPException(status_code=403, detail="You do not have access to this chat")
+
+    other_user_id = thread.User2ID if thread.User1ID == me.UserID else thread.User1ID
+
+    friendship = repos.lookup_friendship(db, me.UserID, other_user_id)
+    if not friendship or friendship.status != "accepted":
+        raise HTTPException(status_code=403, detail="You can only message accepted friends")
+
+    if _blocked_between(db, me.UserID, other_user_id):
+        raise HTTPException(status_code=403, detail="You cannot message this user")
+
+    return thread, other_user_id
+
+
 @app.get("/chats", response_model=List[ChatListItemOut])
 def list_chats(
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    """
-    Return one chat row for each accepted friend.
-
-    The chat thread is created when a friend request is accepted. This endpoint
-    also creates any missing thread for older accepted friendships, so users who
-    became friends before the chat feature was added still show up in the chat
-    list.
-    """
+    """Return one chat row for each accepted friend."""
     accepted_friendships = db.query(Friendships).filter(
         Friendships.status == "accepted",
         or_(
@@ -2985,7 +3052,7 @@ def list_chats(
     ).all()
 
     created_missing_thread = False
-    chat_items = []
+    chat_items: list[tuple[ChatThreads, Accounts, Optional[Profiles], Optional[ChatMessages]]] = []
 
     for friendship in accepted_friendships:
         friend_id = (
@@ -2993,6 +3060,9 @@ def list_chats(
             if friendship.RequesterID == me.UserID
             else friendship.RequesterID
         )
+
+        if _blocked_between(db, me.UserID, friend_id):
+            continue
 
         user1_id, user2_id = sorted((me.UserID, friend_id))
         thread = db.query(ChatThreads).filter(
@@ -3017,37 +3087,118 @@ def list_chats(
             Profiles.ProfileID == friend_id
         ).first()
 
-        chat_items.append((thread, friend_account, friend_profile))
+        last_message = db.query(ChatMessages).filter(
+            ChatMessages.ThreadID == thread.ThreadID,
+            ChatMessages.is_deleted == False,
+        ).order_by(
+            ChatMessages.created_at.desc(),
+            ChatMessages.MessageID.desc(),
+        ).first()
+
+        chat_items.append((thread, friend_account, friend_profile, last_message))
 
     if created_missing_thread:
         db.commit()
 
     chat_items.sort(
-        key=lambda item: item[0].last_message_at or item[0].updated_at or item[0].created_at,
+        key=lambda item: item[3].created_at if item[3] else (item[0].last_message_at or item[0].updated_at or item[0].created_at),
         reverse=True,
     )
 
-    results = []
-    for thread, friend_account, friend_profile in chat_items:
-        created_at = thread.created_at or datetime.now(timezone.utc)
-        updated_at = thread.updated_at or created_at
-
-        results.append(
-            ChatListItemOut(
-                thread_id=thread.ThreadID,
-                friend_id=friend_account.UserID,
-                friend_username=friend_account.username,
-                friend_bio=friend_account.bio,
-                friend_gym_location=friend_profile.gym_location if friend_profile else None,
-                created_at=created_at.isoformat(),
-                updated_at=updated_at.isoformat(),
-                last_message_at=thread.last_message_at.isoformat()
-                if thread.last_message_at
-                else None,
-            )
+    return [
+        ChatListItemOut(
+            thread_id=thread.ThreadID,
+            friend_id=friend_account.UserID,
+            friend_username=friend_account.username,
+            friend_bio=friend_account.bio,
+            friend_gym_location=friend_profile.gym_location if friend_profile else None,
+            created_at=thread.created_at.isoformat() if thread.created_at else "",
+            updated_at=thread.updated_at.isoformat() if thread.updated_at else "",
+            last_message_at=last_message.created_at.isoformat()
+            if last_message
+            else (thread.last_message_at.isoformat() if thread.last_message_at else None),
+            last_message_text=last_message.message_text if last_message else None,
+            last_sender_id=last_message.SenderID if last_message else None,
         )
+        for thread, friend_account, friend_profile, last_message in chat_items
+    ]
 
-    return results
+
+@app.get("/chats/{thread_id}/messages", response_model=List[ChatMessageOut])
+def get_chat_messages(
+    thread_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    _require_chat_thread_access(thread_id, me, db)
+
+    messages = db.query(ChatMessages).filter(
+        ChatMessages.ThreadID == thread_id,
+        ChatMessages.is_deleted == False,
+    ).order_by(
+        ChatMessages.created_at.asc(),
+        ChatMessages.MessageID.asc(),
+    ).all()
+
+    sender_ids = {message.SenderID for message in messages}
+    senders = {}
+    if sender_ids:
+        sender_rows = db.query(Accounts).filter(Accounts.UserID.in_(sender_ids)).all()
+        senders = {sender.UserID: sender.username for sender in sender_rows}
+
+    return [
+        ChatMessageOut(
+            message_id=message.MessageID,
+            thread_id=message.ThreadID,
+            sender_id=message.SenderID,
+            sender_username=senders.get(message.SenderID, "Unknown User"),
+            message_text=message.message_text,
+            created_at=message.created_at.isoformat() if message.created_at else "",
+            read_at=message.read_at.isoformat() if message.read_at else None,
+            is_mine=message.SenderID == me.UserID,
+        )
+        for message in messages
+    ]
+
+
+@app.post("/chats/{thread_id}/messages", response_model=ChatMessageOut)
+def send_chat_message(
+    thread_id: int,
+    payload: ChatMessageCreate,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    thread, _other_user_id = _require_chat_thread_access(thread_id, me, db)
+
+    message_text = payload.message_text.strip()
+    if not message_text:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    now = datetime.now(timezone.utc)
+    message = ChatMessages(
+        ThreadID=thread.ThreadID,
+        SenderID=me.UserID,
+        message_text=message_text,
+        created_at=now,
+    )
+
+    thread.updated_at = now
+    thread.last_message_at = now
+
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return ChatMessageOut(
+        message_id=message.MessageID,
+        thread_id=message.ThreadID,
+        sender_id=message.SenderID,
+        sender_username=me.username,
+        message_text=message.message_text,
+        created_at=message.created_at.isoformat() if message.created_at else "",
+        read_at=message.read_at.isoformat() if message.read_at else None,
+        is_mine=True,
+    )
 
 
 @app.delete("/friends")
@@ -3403,61 +3554,3 @@ def leave_group_goal(
     db.delete(member)
     db.commit()
     return {"ok": True}
-
-def calculate_statistics(me, db, days):
-    since_date = datetime.now(timezone.utc) - timedelta(days=days)
-    workout_count = db.query(session_workouts).filter(
-        session_workouts.ProfileID == me.UserID,
-        session_workouts.date >= since_date
-    ).count()
-    hardest_hit_query = (
-        db.query(
-            Workouts.name, 
-            func.count(session_workouts.SessionID).label('occurrence')
-        )
-        .join(Workouts, Workouts.WorkoutID == session_workouts.WorkoutID)
-        .filter(session_workouts.ProfileID == me.UserID)
-        .filter(session_workouts.date >= since_date)
-        .group_by(Workouts.name)
-        .order_by(func.count(session_workouts.SessionID).desc())
-        .first()
-    )
-    top_muscle = hardest_hit_query[0] if hardest_hit_query else "None"
-
-    max_bench = (
-        db.query(func.max(session_exercises.weight))
-        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
-        .filter(
-            session_workouts.ProfileID == me.UserID,
-            session_workouts.date >= since_date,
-            session_exercises.ExerciseID == 9
-        )
-        .scalar()
-    )
-    max_bench = max_bench if max_bench else 0
-    total_volume = (
-        db.query(func.sum(session_exercises.reps * session_exercises.weight))
-        .join(session_workouts, session_workouts.SessionID == session_exercises.SessionID)
-        .filter(session_workouts.ProfileID == me.UserID)
-        .filter(session_workouts.date >= since_date)
-        .scalar() or 0  # .scalar() returns the single number; "or 0" handles empty weeks
-    )
-    total_volume = total_volume if total_volume else 0
-    bottom_muscle = "None"
-
-    return ReportData(
-        workout_num= workout_count,
-        top_muscle = top_muscle,
-        bench_max = max_bench,
-        total_volume = total_volume,
-        bottom_muscle = bottom_muscle
-    )
-@app.get("/weeklyReport")
-def get_weekly_reports(me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),):
-    return calculate_statistics(me, db, 7)
-
-@app.get("/monthlyReport")
-def get_monthly_reports(me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),):
-    return calculate_statistics(me, db, 30)
