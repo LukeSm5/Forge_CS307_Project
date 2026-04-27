@@ -18,6 +18,8 @@ export type ProfileSearchResult = {
   gymLocation?: string | null;
   bio?: string | null;
   workoutStreakWeeks?: number;
+  progressPublic?: boolean;
+  canViewProgress?: boolean;
 };
 
 export type FriendshipAction = "send" | "remove" | "cancel" | "accept";
@@ -27,6 +29,7 @@ export type ProfileDetailModalState = {
   loading: boolean;
   profile: ProfileSearchResult | null;
   error: string;
+  accessLabel?: "public" | "friends_only";
 };
 
 export type FlagStep = "choose" | "block_confirm" | "report";
