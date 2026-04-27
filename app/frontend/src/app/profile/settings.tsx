@@ -39,7 +39,7 @@ function formatStoredTime(storedTime: string) {
 
 export default function SettingsScreen() {
   const {loading, status, user, pUsername, setPUsername,
-    pBio, setPBio, pGymLocation, setPGymLocation,
+    pBio, setPBio, pGymLocation, setPGymLocation, pProgressPublic, setPProgressPublic,
     notificationLoading, notificationPrefs, refreshMe, refreshNotificationPrefs,
     refreshGymLocations, updateNotificationsEnabled, updateNotificationToggle,
     updateMealTime, doUpdateProfile, doChangePassword, doLogout, setUser, setStatus,
@@ -337,6 +337,22 @@ export default function SettingsScreen() {
                   value={pGymLocation}
                   placeholder="Unknown Location"
                   onChange={(item) => setPGymLocation(item.value)}
+                />
+              </View>
+              <Text style={styles.fieldLabel}>Progress Visibility</Text>
+              <Text style={styles.helper}>
+                Public profiles are visible to any valid user except accounts you block. Restricted profiles are visible only to accepted friends.
+              </Text>
+              <View style={styles.modeRow}>
+                <ModeButton
+                  label="Public"
+                  selected={pProgressPublic}
+                  onPress={() => setPProgressPublic(true)}
+                />
+                <ModeButton
+                  label="Restricted"
+                  selected={!pProgressPublic}
+                  onPress={() => setPProgressPublic(false)}
                 />
               </View>
               <ActionButton
