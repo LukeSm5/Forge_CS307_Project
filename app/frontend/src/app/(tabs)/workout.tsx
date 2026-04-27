@@ -203,11 +203,11 @@ export default function WorkoutTabScreen() {
   }
 
   function handleLogWorkout() {
-    router.push("/AddWorkoutScreen");
+    router.push("./AddWorkoutScreen");
   }
 
   function handleGenerateWorkout() {
-    router.push("/GenerateWorkoutScreen");
+    router.push("./GenerateWorkoutScreen");
   }
 
   async function handleAddToLog(log: LoggedWorkout) {
