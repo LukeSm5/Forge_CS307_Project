@@ -8,13 +8,12 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  View,
   Image,
 } from "react-native";
 
 import { useRouter } from "expo-router";
 import ForgeButton from "@/components/ForgeButton";
-import { Text, useScheme } from "@/components/Themed";
+import { Text, useScheme, View } from "@/components/Themed";
 import SocialActionButtons from "@/components/social/SocialActionButtons";
 import SocialChatButton from "@/components/social/SocialChatButton";
 import SocialChatsOverlay from "@/components/social/chats";
@@ -24,12 +23,10 @@ import { SocialPanel } from "@/components/social/socialTypes";
 import {
   SharedMeal,
   subscribeToSharedMeals,
-  removeSharedMeal,
   refreshFeed,
 } from "@/core/sharedMealsStore";
 import {
   api,
-  SavedMealPost,
   WorkoutFeedPost,
   GroupGoal as ApiGroupGoal,
   CreateGroupGoalRequest,
@@ -38,9 +35,7 @@ import MealFeedCard from "@/components/social/MealFeedCard";
 import {
   ProfileSearchResult,
   ProfileDetailModalState,
-  ReportModalState,
   FlagModalState,
-  GoalUnit,
   FriendModalState,
   CreateGoalModalState,
   LogProgressModalState,
@@ -52,6 +47,7 @@ import { useSocialColors } from "@/components/social/useSocialColors";
 import FriendModal from "../social/friendModal"
 import FlagModal from "../social/flagModal"
 import GoalModal from "../social/goalModal"
+import LogProgressModal from "../social/logProgressModal";
 
 export default function ProfilesTab() {
   const scheme = useScheme();
@@ -75,22 +71,7 @@ export default function ProfilesTab() {
       profile: null,
       error: "",
     });
-  const [reportModal, setReportModal] = useState<ReportModalState>({
-    visible: false,
-    loading: false,
-    profile: null,
-    description: "",
-    blockAfter: false,
-  });
-  const closeReportModal = () => {
-    setReportModal({
-      visible: false,
-      loading: false,
-      profile: null,
-      description: "",
-      blockAfter: false,
-    });
-  };
+
   const [flagModal, setFlagModal] = useState<FlagModalState>({
     visible: false,
     loading: false,
@@ -532,28 +513,6 @@ export default function ProfilesTab() {
       setError("Unable to submit report right now.");
     }
   };
-
-  const modalTitle =
-    friendModal.action === "remove"
-      ? "Remove Friend?"
-      : friendModal.action === "send"
-        ? "Send Friend Request?"
-        : friendModal.action === "cancel"
-          ? "Cancel Request?"
-          : friendModal.action === "accept"
-            ? "Accept Friend Request?"
-            : "";
-
-  const modalBody =
-    friendModal.profile && friendModal.action === "remove"
-      ? `Remove @${friendModal.profile.username} from your friends list?`
-      : friendModal.profile && friendModal.action === "send"
-        ? `Send a friend request to @${friendModal.profile.username}?`
-        : friendModal.profile && friendModal.action === "cancel"
-          ? `Cancel your pending request to @${friendModal.profile.username}?`
-          : friendModal.profile && friendModal.action === "accept"
-            ? `Accept @${friendModal.profile.username}'s friend request?`
-            : "";
 
   return (
     <>
@@ -1396,109 +1355,12 @@ export default function ProfilesTab() {
       />
 
       {/* ─── LOG PROGRESS MODAL ─── */}
-      <Modal
-        visible={logProgressModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeLogProgressModal}
-      >
-        <View
-          style={[
-            styles.modalBackdrop,
-            { backgroundColor: colors.modalBackdrop },
-          ]}
-        >
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: colors.modalCardBg,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {logProgressModal.loading ? (
-              <View style={styles.modalLoadingWrap}>
-                <ActivityIndicator size="small" />
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
-                  Saving progress...
-                </Text>
-              </View>
-            ) : (
-              <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Log Progress
-                </Text>
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
-                  {logProgressModal.goal?.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.goalFieldLabel,
-                    { color: colors.muted, marginTop: 14 },
-                  ]}
-                >
-                  Amount ({logProgressModal.goal?.unit})
-                </Text>
-                <TextInput
-                  value={logProgressModal.amount}
-                  onChangeText={(t) =>
-                    setLogProgressModal((prev) => ({ ...prev, amount: t }))
-                  }
-                  placeholder="e.g. 5"
-                  placeholderTextColor={colors.placeholder}
-                  keyboardType="numeric"
-                  keyboardAppearance={scheme.keyboard}
-                  autoFocus
-                  style={[
-                    styles.goalInput,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                />
-                <View style={styles.modalButtonRow}>
-                  <Pressable
-                    onPress={closeLogProgressModal}
-                    style={({ pressed }) => [
-                      styles.modalButton,
-                      {
-                        backgroundColor: colors.modalSecondaryBg,
-                        borderColor: colors.border,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.modalSecondaryButtonText,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Cancel
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleLogProgress}
-                    style={({ pressed }) => [
-                      styles.modalButton,
-                      {
-                        backgroundColor: colors.orange,
-                        borderColor: colors.orange,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.modalPrimaryButtonText}>Save</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <LogProgressModal
+      state={logProgressModal}
+      onClose={closeLogProgressModal}
+      onLogProgress={handleLogProgress}
+      onChangeAmount={(t) =>setLogProgressModal((prev) => ({ ...prev, amount: t }))}
+      />
     </>
   );
 }

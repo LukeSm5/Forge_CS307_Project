@@ -29,14 +29,6 @@ export type ProfileDetailModalState = {
   error: string;
 };
 
-export type ReportModalState = {
-  visible: boolean;
-  loading: boolean;
-  profile: ProfileSearchResult | null;
-  description: string;
-  blockAfter: boolean; // checkbox option to also block after reporting
-};
-
 export type FlagStep = "choose" | "block_confirm" | "report";
 
 export type FlagModalState = {

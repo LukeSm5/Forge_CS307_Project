@@ -1,5 +1,5 @@
 import { View, Text } from "@/components/Themed";
-import { Pressable, ActivityIndicator, StyleSheet, Modal } from "react-native";
+import { Pressable, ActivityIndicator, Modal } from "react-native";
 import { FriendModalState } from "@/components/social/socialTypes";
 import { styles } from "@/components/social/socialStyles";
 import { useSocialColors } from "@/components/social/useSocialColors";

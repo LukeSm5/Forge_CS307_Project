@@ -1,4 +1,5 @@
 import { CSSProperties, ReactNode } from "react";
+import { C } from "../../constants/dietConstants"
 
 export type SpiceLevel = "mild" | "medium" | "hot" | "extra_hot";
 export type Cuisine    = "american" | "italian" | "mexican" | "asian" | "mediterranean" | "indian" | "middle_eastern" | "other";
@@ -308,18 +309,6 @@ export const SEED: TaggedMeal[] = [
     ],
   },
 ];
-
-export const C = {
-  bg:      "#ffffffff",
-  surface: "#ffffffff",
-  border:  "#ccccccff",
-  orange:  "#165ef9ff",
-  amber:   "#2452fbff",
-  gold:    "#0b46f5ff",
-  muted:   "#686868ff",
-  dimmer:  "#474747ff",
-  text:    "#2e2e2eff",
-};
 
 export const chip = (bg: string, color: string, extra: CSSProperties = {}): CSSProperties => ({
   background: bg, color, borderRadius: 4,

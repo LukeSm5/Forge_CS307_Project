@@ -1,7 +1,19 @@
 import { MacroRange, BrowseFilterState, TrackerState, GoalDirection } from '../app/diet/dietTypes';
-import { MacroFilterKey, MealMacros, C } from '@/app/diet/mealTypes';
+import { MacroFilterKey, MealMacros } from '@/app/diet/mealTypes';
 
 /* ----------------- constants -----------------*/
+export const C = {
+  bg:      "#ffffffff",
+  surface: "#ffffffff",
+  border:  "#ccccccff",
+  orange:  "#165ef9ff",
+  amber:   "#2452fbff",
+  gold:    "#0b46f5ff",
+  muted:   "#686868ff",
+  dimmer:  "#474747ff",
+  text:    "#2e2e2eff",
+};
+
 export const EMPTY_RANGE: MacroRange = { min: null, max: null };
 
 export const EMPTY_BROWSE_FILTER: BrowseFilterState = {

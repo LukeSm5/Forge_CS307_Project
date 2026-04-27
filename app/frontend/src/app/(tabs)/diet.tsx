@@ -5,7 +5,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   TextInput,
   Modal,
 } from 'react-native';
@@ -18,6 +17,7 @@ import { MacroRange,
   LoggedMenuMeal, 
   MealTypeOption, GoalDirection, OverlayMode, TrackerState} from '../diet/dietTypes';
 import { useAuth } from '@/core/auth';
+import { styles, trackerStyles } from "../diet/dietStyles"
 
 import { 
   EMPTY_BROWSE_FILTER, 
@@ -35,7 +35,8 @@ import {
   logAmount,
   setGoalValue,
   logMealMacrosToTrackers,
-  nextIngredientId
+  nextIngredientId,
+  C
 } from '@/constants/dietConstants';
 import ForgeButton from '@/components/ForgeButton';
 import { Text, View } from '@/components/Themed';
@@ -70,7 +71,6 @@ import {
   INGREDIENT_CATEGORIES,
   EMPTY_TAGS,
   EMPTY_MACROS,
-  C,
 } from '../diet/mealTypes';
 
 import { api } from '../../core/api';
@@ -1832,137 +1832,3 @@ export default function Diet() {
     </ScrollView>
   );
 }
-
-/* ════════════════════════════════════════════════════ */
-/*                      STYLES                          */
-/* ════════════════════════════════════════════════════ */
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C?.bg ?? '#ffffff' },
-  content: { padding: 20, paddingBottom: 48, gap: 20 },
-  pageTitle: { color: C?.text ?? '#000000', fontSize: 28, fontWeight: '800', marginBottom: 4 },
-  sectionCard: { backgroundColor: C?.surface ?? '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#ffffff', borderRadius: 16, padding: 16, gap: 14 },
-  sectionEyebrow: { color: C?.muted ?? '#5a5757', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2 },
-  input: { width: '100%', borderWidth: 1.5, borderColor: C?.border ?? '#8a93a7', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: C?.text ?? '#000000', backgroundColor: '#ffffff', fontSize: 15 },
-  sectionLabel: { color: C?.text ?? '#000000', fontSize: 15, fontWeight: '700', marginTop: 4 },
-  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  pillText: { fontSize: 13, fontWeight: '600' },
-  rowGap: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  flex1: { flex: 1 },
-  flex2: { flex: 2 },
-  chipGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  chipText: { fontSize: 12, fontWeight: '600' },
-  mealCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#898f9f', borderRadius: 14, padding: 14, gap: 12 },
-  mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mealCardTitle: { color: C?.text ?? '#000000', fontSize: 18, fontWeight: '800', flex: 1 },
-  filterBlock: { gap: 10 },
-  collapsible: { borderWidth: 1, borderColor: C?.border ?? '#e2e8f0', borderRadius: 12, overflow: 'hidden' },
-  collapsibleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: C?.surface ?? '#f8fafc' },
-  collapsibleTitle: { fontSize: 15, fontWeight: '700', color: C?.text ?? '#000000' },
-  collapsibleBadge: { fontSize: 11, fontWeight: '600', color: C?.orange ?? '#f97316', backgroundColor: colorWithAlpha(C?.orange ?? '#f97316', '18'), paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  collapsibleArrow: { fontSize: 10, color: C?.muted ?? '#6b7280' },
-  collapsibleBody: { paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
-  resultsLabel: { color: C?.muted ?? '#40454e', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  emptyText: { color: '#474d56', fontSize: 14, lineHeight: 20 },
-  cardList: { gap: 12 },
-  errorText: { color: '#fca5a5', fontSize: 14, lineHeight: 20 },
-  successText: { color: '#86efac', fontSize: 14, lineHeight: 20 },
-  loader: { marginTop: 4 },
-  restaurantList: { gap: 10 },
-  restaurantMealRow: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#9199ab', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  restaurantMealInfo: { flex: 1, gap: 4 },
-  restaurantMealName: { color: C?.text ?? '#000000', fontSize: 15, fontWeight: '700', flex: 1 },
-  restaurantMealProtein: { color: C?.muted ?? '#434850', fontSize: 13, fontWeight: '600' },
-  restaurantMealCalories: { color: C?.orange ?? '#f97316', fontSize: 14, fontWeight: '700' },
-  restaurantMealStats: { alignItems: 'flex-end', gap: 2 },
-  pageTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  calorieWidget: { backgroundColor: C?.surface ?? '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#e2e8f0', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-  calorieWidgetLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: C?.muted ?? '#6b7280' },
-  calorieWidgetNumber: { fontSize: 28, fontWeight: '800', color: C?.orange ?? '#f97316' },
-  calorieWidgetStats: { flexDirection: 'row', marginTop: 10, marginBottom: 10, backgroundColor: 'transparent', width: '100%', columnGap: 16 },
-  calorieWidgetStat: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  calorieWidgetStatLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, color: '#6b7280', fontWeight: '700' },
-  calorieWidgetStatValue: { fontSize: 16, fontWeight: '800', color: '#111827', marginTop: 2 },
-  myMealList: { gap: 10 },
-  myMealRow: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#9199ab', borderRadius: 12, padding: 12, gap: 10 },
-  myMealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nutritionScroll: { flexGrow: 0 },
-  nutritionScrollContent: { gap: 8, paddingRight: 4 },
-  nutritionChip: { backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 64 },
-  nutritionChipLabel: { fontSize: 10, fontWeight: '700', color: C?.muted ?? '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
-  nutritionChipValue: { fontSize: 13, fontWeight: '700', color: C?.text ?? '#000000', marginTop: 2 },
-  myMealMeta: { alignItems: 'flex-end', gap: 2 },
-  myMealDate: { fontSize: 12, fontWeight: '600', color: C?.muted ?? '#6b7280' },
-  myMealType: { fontSize: 12, fontWeight: '700', color: C?.orange ?? '#f97316' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modalCard: { width: '100%', maxWidth: 420, borderRadius: 16, backgroundColor: '#fff', padding: 20, gap: 12 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  modalSubtitle: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
-  modalOption: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#f9fafb' },
-  modalOptionText: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  modalOptionActive: { borderColor: '#f97316', backgroundColor: '#fff7ed' },
-  modalOptionTextActive: { color: '#f97316' },
-  modalButtonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  modalButtonHalf: { flex: 1 },
-  modalSubtitleSecondary: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginTop: -4, marginBottom: 8 },
-
-  /* ─── New styles for enhanced features ─── */
-  tabRow: { flexDirection: 'row', gap: 6, backgroundColor: colorWithAlpha(C?.border ?? '#e2e8f0', '40'), borderRadius: 6, padding: 4 },
-  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 5, alignItems: 'center' },
-  tabBtnActive: { backgroundColor: C?.orange ?? '#f97316' },
-  tabBtnText: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: C?.muted ?? '#6b7280' },
-  tabBtnTextActive: { color: '#ffffff' },
-  miniLabel: { color: C?.muted ?? '#6b7280', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  rangeInput: { width: '100%', backgroundColor: C?.surface ?? '#ffffff', borderWidth: 1.5, borderColor: C?.border ?? '#8a93a7', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7, color: C?.text ?? '#000000', fontSize: 13 },
-  filterToggleLabel: { color: C?.muted ?? '#6b7280', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1.2 },
-  macroBadge: { alignItems: 'center', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 5, minWidth: 44 },
-  macroBadgeValue: { fontSize: 13, fontWeight: '700', lineHeight: 13 },
-  macroBadgeLabel: { color: C?.muted ?? '#6b7280', fontSize: 8, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.6 },
-  macroBadgeUnit: { color: C?.muted ?? '#6b7280', fontSize: 7, letterSpacing: 0.4 },
-  browseSubheading: { fontSize: 8, color: C?.muted ?? '#6b7280', letterSpacing: 1.6, textTransform: 'uppercase', fontWeight: '600' },
-  browseExpandHeading: { color: C?.orange ?? '#f97316', fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', fontWeight: '700' },
-  ingredientRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 10, backgroundColor: C?.surface ?? '#ffffff', borderWidth: 1, borderColor: C?.border ?? '#e2e8f0', borderRadius: 6 },
-  ingredientFieldLabel: { color: C?.muted ?? '#6b7280', fontSize: 8, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  ingredientRemoveBtn: { marginTop: 16, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: '#fef2f240', borderWidth: 1, borderColor: '#fca5a540', borderRadius: 4 },
-});
-
-/* ─── Macro Tracker styles ─── */
-const trackerStyles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  card: { flex: 1, minWidth: 70, backgroundColor: FORGE.cardBg, borderWidth: 1, borderColor: FORGE.cardBorder, borderRadius: 10, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 6, alignItems: 'center', gap: 6, position: 'relative' },
-  cardMet: { borderColor: FORGE.orange },
-  cardNoGoal: { borderColor: FORGE.dim, opacity: 0.75 },
-  swapBtn: { position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: 4, borderWidth: 1, borderColor: FORGE.cardBorder, backgroundColor: FORGE.charcoal, alignItems: 'center', justifyContent: 'center' },
-  barWrap: { width: '100%', paddingHorizontal: 8, paddingVertical: 10, alignItems: 'center', gap: 4 },
-  barNum: { fontSize: 22, fontWeight: '700', color: FORGE.textPrimary, lineHeight: 24 },
-  barUnit: { fontSize: 10, color: FORGE.steel, letterSpacing: 0.4, marginBottom: 4 },
-  barTrack: { width: '100%', height: 6, backgroundColor: FORGE.trackEmpty, borderRadius: 3, flexDirection: 'row', overflow: 'hidden' },
-  barFill: { height: 6, borderRadius: 3 },
-  barOverflow: { fontSize: 9, fontWeight: '600', marginTop: 2 },
-  barPrompt: { fontSize: 11, fontWeight: '500', color: FORGE.dim, letterSpacing: 0.4, textTransform: 'uppercase', textAlign: 'center', lineHeight: 14, paddingVertical: 10 },
-  ringName: { fontSize: 13, fontWeight: '700', color: FORGE.textPrimary, textAlign: 'center', letterSpacing: 0.6, textTransform: 'uppercase' },
-  ringStatus: { fontSize: 11, textAlign: 'center', minHeight: 13 },
-  cfgRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cfgLabel: { fontSize: 10, color: FORGE.steel },
-  cfgInput: { width: 50, paddingVertical: 3, paddingHorizontal: 4, borderRadius: 4, borderWidth: 1, borderColor: FORGE.cardBorder, backgroundColor: FORGE.charcoal, color: FORGE.textPrimary, fontSize: 11, textAlign: 'center' },
-  clearGoalBtn: { width: 16, height: 16, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
-  setGoalBtn: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 4, borderWidth: 1, borderColor: FORGE.orange },
-  dirToggle: { flexDirection: 'row', borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: FORGE.cardBorder },
-  dirBtn: { flex: 1, paddingVertical: 2, paddingHorizontal: 5, alignItems: 'center' },
-  dirBtnActive: { backgroundColor: FORGE.orange },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(18,17,16,0.9)', borderRadius: 10, zIndex: 10, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  ovLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', color: FORGE.steel },
-  ovInput: { width: 86, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 6, borderWidth: 1, borderColor: FORGE.orange, backgroundColor: FORGE.charcoal, color: FORGE.textPrimary, fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  ovBtn: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 5, borderWidth: 1, borderColor: FORGE.cardBorder, backgroundColor: FORGE.charcoal },
-  ovBtnConfirm: { backgroundColor: FORGE.orange, borderColor: FORGE.orange },
-  picker: { backgroundColor: FORGE.cardBg, borderWidth: 1, borderColor: FORGE.cardBorder, borderRadius: 10, padding: 16, marginBottom: 12 },
-  pickerTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: FORGE.orange, marginBottom: 10 },
-  pickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  pickerItem: { paddingVertical: 9, paddingHorizontal: 6, borderRadius: 7, borderWidth: 1, borderColor: FORGE.cardBorder, backgroundColor: FORGE.charcoal, alignItems: 'center', gap: 2, minWidth: 70 },
-  pickerItemCurrent: { borderColor: FORGE.orange, backgroundColor: '#2A2826' },
-  pickerItemName: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: FORGE.textPrimary },
-  pickerItemUnit: { fontSize: 10, color: FORGE.steel },
-  doneBtn: { paddingVertical: 5, paddingHorizontal: 16, borderRadius: 5, borderWidth: 1, borderColor: FORGE.cardBorder },
-});

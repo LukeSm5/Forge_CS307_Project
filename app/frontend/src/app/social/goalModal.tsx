@@ -1,9 +1,8 @@
 import { useSocialColors } from "@/components/social/useSocialColors";
-import { View, Text, } from "@/components/Themed";
+import { View, Text, useScheme } from "@/components/Themed";
 import { styles } from "@/components/social/socialStyles";
 import { Pressable, ActivityIndicator, Modal, TextInput, ScrollView } from "react-native";
 import { CreateGoalModalState, GoalUnit } from "@/components/social/socialTypes";
-import { useScheme } from "@/components/Themed";
 
 type Props = {
     state: CreateGoalModalState
