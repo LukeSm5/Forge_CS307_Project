@@ -144,7 +144,7 @@ export const api = {
       email: updated.email,
       username: updated.username,
       bio: e.bio ?? me.bio ?? "",
-      gym_location: e.gym_location ?? me.gym_location ?? "Unknown Location"
+      gym_location: e.gym_location ?? me.gym_location ?? "Unknown Location",
       progress_public: e.progress_public ?? me.progress_public ?? true,
     };
   },
