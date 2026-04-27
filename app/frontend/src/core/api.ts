@@ -130,7 +130,7 @@ export const api = {
       access_token: result.access_token,
     };
   },
-  updateMe: async (e: { username?: string; bio?: string; gym_location?: string }): Promise<User | undefined> => {
+  updateMe: async (e: { username?: string; bio?: string; gym_location?: string; progress_public?: boolean }): Promise<User | undefined> => {
     const me = await api.me();
     if (!me) throw new Error("User not signed in.");
 
@@ -145,6 +145,7 @@ export const api = {
       username: updated.username,
       bio: e.bio ?? me.bio ?? "",
       gym_location: e.gym_location ?? me.gym_location ?? "Unknown Location"
+      progress_public: e.progress_public ?? me.progress_public ?? true,
     };
   },
   changePassword: async (e: { current_password: string; new_password: string }): Promise<User | undefined> => {
@@ -561,6 +562,10 @@ look pleasing on a graph.
     )
   },
 
+  getProfileProgressAccess: async (profileId: number): Promise<ProfileProgressAccess> => {
+  return get<ProfileProgressAccess>(`/profiles/${profileId}/progress-access`);
+  },
+
   getProfileStreak: async (profileId: number): Promise<ProfileStreak> => {
     return get<ProfileStreak>(`/profiles/${profileId}/streak`);
   },
@@ -794,6 +799,7 @@ export type User = {
   username: string,
   bio: string,
   gym_location?: string,
+  progress_public?: boolean,
   age?: number,
   height?: number,
   weight?: number,
@@ -1187,6 +1193,15 @@ export type ProfileSearchResult = {
   bio: string | null;
   gym_location: string | null;
   workout_streak_weeks?: number;
+  progress_public?: boolean;
+  can_view_progress?: boolean;
+};
+
+export type ProfileProgressAccess = {
+  profile_id: number;
+  progress_public: boolean;
+  can_view_progress: boolean;
+  access_label: 'public' | 'friends_only';
 };
 
 export type ProfileStreak = {
