@@ -1029,6 +1029,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=2 * 60)
 
+def _profile_progress_public(profile) -> bool:
+    if profile is None:
+        return True
+    value = getattr(profile, "progress_public", None)
+    return True if value is None else bool(value)
 
 @app.get("/auth/me", response_model=AccountMeResponse)
 def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
