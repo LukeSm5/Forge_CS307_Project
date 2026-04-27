@@ -24,6 +24,7 @@ export function useSettings() {
   const [pUsername, setPUsername] = useState("");
   const [pBio, setPBio] = useState("");
   const [pGymLocation, setPGymLocation] = useState("Unknown Location");
+  const [pProgressPublic, setPProgressPublic] = useState(true);
   const [notificationLoading, setNotificationLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] =
     useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
@@ -43,6 +44,7 @@ export function useSettings() {
       setPUsername(me.username ?? "");
       setPBio(me.bio ?? "");
       setPGymLocation(me.gym_location ?? "Unknown Location");
+      setPProgressPublic(me.progress_public ?? true);
     } catch {
       setUser(null);
     } finally {
@@ -163,6 +165,7 @@ export function useSettings() {
         username: pUsername || undefined,
         bio: pBio ?? "",
         gym_location: pGymLocation || "Unknown Location",
+        progress_public: pProgressPublic,
       });
       if (typeof updated === "undefined") throw new Error("User not signed in");
       setUser(updated);
@@ -213,6 +216,7 @@ export function useSettings() {
    return {
     loading, status, user, pUsername, setPUsername,
     pBio, setPBio, pGymLocation, setPGymLocation,
+    pProgressPublic, setPProgressPublic,
     notificationLoading, notificationPrefs,
     gymLocations, cCurrent, setCCurrent, cNew, setCNew,
     currentUser, setUser, setCurrentUser, setStatus,
