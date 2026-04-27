@@ -51,6 +51,7 @@ import { styles } from "@/components/social/socialStyles";
 import { useSocialColors } from "@/components/social/useSocialColors";
 import FriendModal from "../social/friendModal"
 import FlagModal from "../social/flagModal"
+import GoalModal from "../social/goalModal"
 
 export default function ProfilesTab() {
   const scheme = useScheme();
@@ -109,18 +110,6 @@ export default function ProfilesTab() {
       description: "",
     });
   };
-
-  /* ─── Group Goals ─── */
-  const GOAL_UNITS: GoalUnit[] = [
-    "kg",
-    "lbs",
-    "km",
-    "miles",
-    "sessions",
-    "calories",
-    "steps",
-    "minutes",
-  ];
 
   const [groupGoals, setGroupGoals] = useState<GroupGoal[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
@@ -1396,214 +1385,15 @@ export default function ProfilesTab() {
       />
 
       {/* ─── CREATE GROUP GOAL MODAL ─── */}
-      <Modal
-        visible={createGoalModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeCreateGoalModal}
-      >
-        <View
-          style={[
-            styles.modalBackdrop,
-            { backgroundColor: colors.modalBackdrop },
-          ]}
-        >
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: colors.modalCardBg,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {createGoalModal.loading ? (
-              <View style={styles.modalLoadingWrap}>
-                <ActivityIndicator size="small" />
-                <Text style={[styles.modalBodyText, { color: colors.muted }]}>
-                  Creating goal...
-                </Text>
-              </View>
-            ) : (
-              <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Create Group Goal
-                </Text>
-
-                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>
-                  Title
-                </Text>
-                <TextInput
-                  value={createGoalModal.title}
-                  onChangeText={(t) =>
-                    setCreateGoalModal((prev) => ({ ...prev, title: t }))
-                  }
-                  placeholder="e.g. Run 50km together"
-                  placeholderTextColor={colors.placeholder}
-                  keyboardAppearance={scheme.keyboard}
-                  style={[
-                    styles.goalInput,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                />
-
-                <Text style={[styles.goalFieldLabel, { color: colors.muted }]}>
-                  Description (optional)
-                </Text>
-                <TextInput
-                  value={createGoalModal.description}
-                  onChangeText={(t) =>
-                    setCreateGoalModal((prev) => ({ ...prev, description: t }))
-                  }
-                  placeholder="What are you working toward?"
-                  placeholderTextColor={colors.placeholder}
-                  multiline
-                  numberOfLines={2}
-                  keyboardAppearance={scheme.keyboard}
-                  style={[
-                    styles.goalInput,
-                    styles.goalInputMulti,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                />
-
-                <View style={styles.goalTargetRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.goalFieldLabel, { color: colors.muted }]}
-                    >
-                      Target
-                    </Text>
-                    <TextInput
-                      value={createGoalModal.targetValue}
-                      onChangeText={(t) =>
-                        setCreateGoalModal((prev) => ({
-                          ...prev,
-                          targetValue: t,
-                        }))
-                      }
-                      placeholder="100"
-                      placeholderTextColor={colors.placeholder}
-                      keyboardType="numeric"
-                      keyboardAppearance={scheme.keyboard}
-                      style={[
-                        styles.goalInput,
-                        {
-                          color: colors.text,
-                          backgroundColor: colors.inputBg,
-                          borderColor: colors.inputBorder,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.goalFieldLabel, { color: colors.muted }]}
-                    >
-                      Unit
-                    </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          gap: 6,
-                          paddingVertical: 4,
-                        }}
-                      >
-                        {GOAL_UNITS.map((u) => (
-                          <Pressable
-                            key={u}
-                            onPress={() =>
-                              setCreateGoalModal((prev) => ({
-                                ...prev,
-                                unit: u,
-                              }))
-                            }
-                            style={[
-                              styles.unitPill,
-                              {
-                                backgroundColor:
-                                  createGoalModal.unit === u
-                                    ? colors.orange
-                                    : colors.soft,
-                                borderColor:
-                                  createGoalModal.unit === u
-                                    ? colors.orange
-                                    : colors.border,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.unitPillText,
-                                {
-                                  color:
-                                    createGoalModal.unit === u
-                                      ? colors.buttonText
-                                      : colors.muted,
-                                },
-                              ]}
-                            >
-                              {u}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                </View>
-
-                <View style={styles.modalButtonRow}>
-                  <Pressable
-                    onPress={closeCreateGoalModal}
-                    style={({ pressed }) => [
-                      styles.modalButton,
-                      {
-                        backgroundColor: colors.modalSecondaryBg,
-                        borderColor: colors.border,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.modalSecondaryButtonText,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Cancel
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleCreateGoal}
-                    style={({ pressed }) => [
-                      styles.modalButton,
-                      {
-                        backgroundColor: colors.orange,
-                        borderColor: colors.orange,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.modalPrimaryButtonText}>Create</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <GoalModal
+      state={createGoalModal}
+      onClose ={closeCreateGoalModal}
+      onCreateGoal={handleCreateGoal}
+      onChangeDescription={(t) => setCreateGoalModal((prev) => ({ ...prev, description: t }))}
+      onChangeTargetValue={(t) => setCreateGoalModal((prev) => ({...prev, targetValue: t,}))}
+      onChangeTitle={(t) => setCreateGoalModal((prev) => ({ ...prev, title: t })) }
+      onChangeUnit={(u) => setCreateGoalModal((prev) => ({...prev,unit: u,}))}
+      />
 
       {/* ─── LOG PROGRESS MODAL ─── */}
       <Modal
