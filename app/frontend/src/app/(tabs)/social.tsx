@@ -49,6 +49,22 @@ import FlagModal from "../social/flagModal"
 import GoalModal from "../social/goalModal"
 import LogProgressModal from "../social/logProgressModal";
 
+function profileAccessMessage(profile: ProfileSearchResult, accessLabel?: "public" | "friends_only") {
+  if (profile.canViewProgress) {
+    return null;
+  }
+
+  if (profile.progressPublic) {
+    return "This user's progress is public, but you do not have access to view it.";
+  }
+
+  if (accessLabel === "friends_only") {
+    return "This user's progress is restricted to accepted friends.";
+  }
+
+  return "You do not have access to this user's progress.";
+}
+
 export default function ProfilesTab() {
   const scheme = useScheme();
   const tabBarHeight = useBottomTabBarHeight();
@@ -324,7 +340,9 @@ export default function ProfilesTab() {
           username: p.username,
           bio: p.bio,
           gymLocation: p.gym_location,
-          workoutStreakWeeks: p.workout_streak_weeks ?? 0,
+          workoutStreakWeeks: p.workout_streak_weeks ?? null,
+          progressPublic: p.progress_public ?? true,
+          canViewProgress: p.can_view_progress ?? true
         })),
       );
     } catch (e) {
@@ -357,6 +375,8 @@ export default function ProfilesTab() {
       loading: false,
       profile: null,
       error: "",
+      accessLabel: undefined,
+
     });
   };
 
@@ -366,23 +386,35 @@ export default function ProfilesTab() {
       loading: true,
       profile,
       error: "",
+      accessLabel: undefined,
     });
 
     try {
-      const streak = await api.getProfileStreak(Number(profile.id));
+      const access = await api.getProfileProgressAccess(Number(profile.id));
       const updatedProfile = {
         ...profile,
-        workoutStreakWeeks: streak.workout_streak_weeks,
+        progressPublic: access.progress_public,
+        canViewProgress: access.can_view_progress,
       };
 
+      let finalProfile = updatedProfile;
+      if (access.can_view_progress) {
+        const streak = await api.getProfileStreak(Number(profile.id));
+        finalProfile = {
+          ...updatedProfile,
+          workoutStreakWeeks: streak.workout_streak_weeks,
+        };
+      }
+
       setResults((current) =>
-        current.map((item) => (item.id === profile.id ? updatedProfile : item)),
+        current.map((item) => (item.id === profile.id ? finalProfile : item)),
       );
       setProfileDetailModal({
         visible: true,
         loading: false,
-        profile: updatedProfile,
+        profile: finalProfile,
         error: "",
+        accessLabel: access.access_label,
       });
     } catch (e) {
       const message =
@@ -392,6 +424,7 @@ export default function ProfilesTab() {
         loading: false,
         profile,
         error: message,
+        accessLabel: undefined,
       });
     }
   };
@@ -803,26 +836,49 @@ export default function ProfilesTab() {
                         {profile.gymLocation || "No gym location provided"}
                       </Text>
 
-                      <View
-                        style={[
-                          styles.streakBadge,
-                          {
-                            backgroundColor: colors.friendBg,
-                            borderColor: colors.friendBorder,
-                          },
-                        ]}
-                      >
-                        <Text
+                      {profile.canViewProgress ? (
+                        <View
                           style={[
-                            styles.streakBadgeText,
-                            { color: colors.orange },
+                            styles.streakBadge,
+                            {
+                              backgroundColor: colors.friendBg,
+                              borderColor: colors.friendBorder,
+                            },
                           ]}
                         >
-                          Workout streak: {profile.workoutStreakWeeks ?? 0} week
-                          {(profile.workoutStreakWeeks ?? 0) === 1 ? "" : "s"}
-                        </Text>
-                      </View>
-
+                          <Text
+                            style={[
+                              styles.streakBadgeText,
+                              { color: colors.orange },
+                            ]}
+                          >
+                            Workout streak: {profile.workoutStreakWeeks ?? 0} week
+                            {(profile.workoutStreakWeeks ?? 0) === 1 ? "" : "s"}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={[
+                            styles.streakBadge,
+                            {
+                              backgroundColor: colors.flagBg,
+                              borderColor: colors.flagBorder,
+                            },
+                          ]}
+                         >
+                          <Text
+                            style={[
+                              styles.streakBadgeText,
+                              { color: colors.red },
+                            ]}
+                          >
+                            {profile.progressPublic
+                              ? "Progress hidden for you"
+                              : "Friends-only progress"}
+                          </Text>
+                        </View>
+                      )}
+                      
                       <Text
                         style={[styles.bioText, { color: colors.muted }]}
                         numberOfLines={2}
@@ -871,10 +927,8 @@ export default function ProfilesTab() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => router.push({
-                          pathname: "../ProgressionScreen",
-                          params: { userId: profile.id }
-                        })}
+                        onPress={() => router.push("../ProgressionScreen")}
+
                         style={({ pressed }) => [
                           styles.iconButton,
                           {
@@ -1220,33 +1274,6 @@ export default function ProfilesTab() {
                   @{profileDetailModal.profile.username}
                 </Text>
 
-                <View
-                  style={[
-                    styles.profileDetailHero,
-                    {
-                      backgroundColor: colors.modalSecondaryBg,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.profileDetailStreakNumber,
-                      { color: colors.orange },
-                    ]}
-                  >
-                    {profileDetailModal.profile.workoutStreakWeeks ?? 0}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.profileDetailStreakLabel,
-                      { color: colors.muted },
-                    ]}
-                  >
-                    week workout streak
-                  </Text>
-                </View>
-
                 <View style={styles.profileDetailSection}>
                   <Text
                     style={[
@@ -1254,27 +1281,98 @@ export default function ProfilesTab() {
                       { color: colors.orange },
                     ]}
                   >
-                    Gym
+                    Visibility
                   </Text>
                   <Text style={[styles.modalBodyText, { color: colors.text }]}>
-                    {profileDetailModal.profile.gymLocation ||
-                      "No gym location provided"}
+                    {profileDetailModal.accessLabel === "friends_only"
+                      ? "Restricted to accepted friends"
+                      : "Public"}
                   </Text>
                 </View>
 
-                <View style={styles.profileDetailSection}>
-                  <Text
+                {profileDetailModal.profile.canViewProgress ? (
+                  <>
+                    <View
+                      style={[
+                        styles.profileDetailHero,
+                        {
+                          backgroundColor: colors.modalSecondaryBg,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.profileDetailStreakNumber,
+                          { color: colors.orange },
+                        ]}
+                      >
+                        {profileDetailModal.profile.workoutStreakWeeks ?? 0}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.profileDetailStreakLabel,
+                          { color: colors.muted },
+                        ]}
+                      >
+                        week workout streak
+                      </Text>
+                    </View>
+
+                    <View style={styles.profileDetailSection}>
+                      <Text
+                        style={[
+                          styles.profileDetailLabel,
+                          { color: colors.orange },
+                        ]}
+                      >
+                        Gym
+                      </Text>
+                      <Text style={[styles.modalBodyText, { color: colors.text }]}>
+                        {profileDetailModal.profile.gymLocation ||
+                            "No gym location provided"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.profileDetailSection}>
+                      <Text
+                        style={[
+                          styles.profileDetailLabel,
+                          { color: colors.orange },
+                        ]}
+                      >                
+                        Bio
+                      </Text>
+                      <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                        {profileDetailModal.profile.bio || "No bio provided"}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View
                     style={[
-                      styles.profileDetailLabel,
-                      { color: colors.orange },
+                      styles.profileDetailHero,
+                      {
+                        backgroundColor: colors.modalSecondaryBg,
+                        borderColor: colors.border,
+                      },
                     ]}
                   >
-                    Bio
-                  </Text>
-                  <Text style={[styles.modalBodyText, { color: colors.muted }]}>
-                    {profileDetailModal.profile.bio || "No bio provided"}
+                    <Text
+                      style={[
+                        styles.modalBodyText,
+                        { color: colors.text, textAlign: "center" },
+                      ]}
+                  >
+                    {profileAccessMessage(
+                      profileDetailModal.profile,
+                      profileDetailModal.accessLabel,
+                    )}
                   </Text>
                 </View>
+              )}
+
+
 
                 {profileDetailModal.error ? (
                   <Text style={[styles.errorText, { color: colors.red }]}>
