@@ -325,7 +325,7 @@ class CreateSessionRequest(BaseModel):
 class SessionExerciseOut(BaseModel):
     exercise_id: int
     exercise_name: str
-    machine_id: int
+    machine_id: Optional[int] = None
     set_number: int
     reps: int
     weight: Optional[int]
