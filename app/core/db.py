@@ -28,7 +28,6 @@ class Profiles(Base):
     calorie_goal = Column(Float)
     metricOrImperial = Column(Boolean)  # "metric" or "imperial"
     gym_location = Column(Text)
-    progress_public = Column(Boolean, nullable=True, default=True)
 
 # --- STATIC ---
 
