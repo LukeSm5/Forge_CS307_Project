@@ -60,7 +60,7 @@ export default function TabLayout() {
             <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
           ),
           headerRight: () => (
-            <Link href="/settings" asChild>
+            <Link href="/profile/settings" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <Ionicons

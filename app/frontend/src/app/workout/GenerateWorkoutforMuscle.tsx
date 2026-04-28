@@ -84,7 +84,7 @@ export default function GenerateWorkoutforMuscle() {
         muscles: selectedMuscles,
       });
       router.push({
-        pathname: "./LogGeneratedWorkout",
+        pathname: "/workout/LogGeneratedWorkout",
         params: {
           workout_name: workout.workout,
           exercises: JSON.stringify(workout.exercises),

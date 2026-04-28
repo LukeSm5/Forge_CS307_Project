@@ -16,7 +16,7 @@ export default function GenerateWorkoutScreen() {
     try {
       const workout = await api.quickWorkout();
       router.push({
-        pathname: "./LogGeneratedWorkout",
+        pathname: "/workout/LogGeneratedWorkout",
         params: {
           workout_name: workout.workout,
           exercises: JSON.stringify(workout.exercises),
@@ -48,7 +48,7 @@ export default function GenerateWorkoutScreen() {
         )}
         <ForgeButton
           text="Generate Workout for Muscle"
-          onPress={() => router.push("./GenerateWorkoutforMuscle")}
+          onPress={() => router.push("/workout/GenerateWorkoutforMuscle")}
         />
       </View>
     </>

@@ -1,5 +1,5 @@
-import { MacroRange, BrowseFilterState, TrackerState, GoalDirection } from '../app/diet/dietTypes';
-import { MacroFilterKey, MealMacros } from '@/app/diet/mealTypes';
+import type { MacroRange, BrowseFilterState, TrackerState, GoalDirection } from '../app/diet/dietTypes';
+import type { MacroFilterKey, MealMacros } from '@/app/diet/mealTypes';
 
 /* ----------------- constants -----------------*/
 export const C = {

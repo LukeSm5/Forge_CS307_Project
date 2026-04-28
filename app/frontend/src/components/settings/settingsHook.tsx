@@ -204,7 +204,7 @@ export function useSettings() {
       setUser(null);
       setCurrentUser(null);
       setLoggedIn(false);
-      router.replace("/loginScreen");
+      router.replace("/auth/loginScreen");
     } catch (e: any) {
       setStatus({ type: "err", msg: e?.message ?? "Unable to log out." });
     } finally {
