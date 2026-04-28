@@ -86,10 +86,7 @@ def ensure_dev_schema() -> None:
             connection.execute(text('ALTER TABLE "menu_meals" ADD COLUMN beef BOOLEAN'))
         if "gym_location" not in profile_columns:
             connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN gym_location VARCHAR'))
-        if "progress_public" not in profile_columns:
-            connection.execute(text('ALTER TABLE "Profiles" ADD COLUMN progress_public BOOLEAN DEFAULT 1'))
-            connection.execute(text('UPDATE "Profiles" SET progress_public = 1 WHERE progress_public IS NULL'))
-            
+       
         if "ChatThreads" in existing_tables:
             try:
                 chat_thread_columns = {column["name"] for column in inspector.get_columns("ChatThreads")}
