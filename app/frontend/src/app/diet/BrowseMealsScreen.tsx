@@ -3,9 +3,9 @@ import {
   TaggedMeal, MealTagSet, MealMacros, Ingredient, Dietary, SpiceLevel, Cuisine, Complexity, Goal, TimeLabel,
   SPICE_LEVELS, CUISINES, COMPLEXITIES, GOALS, TIME_LABELS, DIETARY_OPTS,
   SPICE_COLOR, SPICE_ICON, GOAL_COLOR, GOAL_ICON, COMPLEXITY_COLOR, TIME_COLOR, TIME_ICON,
-  INGREDIENT_UNITS,
-  C, chip, Pill, GLOBAL_STYLES,
+  INGREDIENT_UNITS, chip, Pill, GLOBAL_STYLES,
 } from "./mealTypes";
+import { C } from "@/constants/dietConstants";
 
 type MacroRange = { min: number | null; max: number | null };
 type FilterState = Partial<Omit<MealTagSet, "dietary">> & {

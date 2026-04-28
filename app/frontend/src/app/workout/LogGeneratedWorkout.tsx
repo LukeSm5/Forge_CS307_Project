@@ -16,7 +16,6 @@ import ForgeTextBox from "@/components/ForgeTextBox";
 import AltMachButton from "@/components/machineAlternatives/AltMachButton";
 import ExerciseHelpInterface from "@/components/exerciseHelp/ExerciseHelpInterface";
 import { api, QuickWorkoutResponse } from "@/core/api";
-import { AppModal } from "@/components/AppModal";
 
 function normalizeExerciseName(name: string) {
   return name
@@ -468,35 +467,34 @@ export default function LogGeneratedWorkout() {
           onPress={() => router.push("/(tabs)/workout")}
         />
       </RNView>
-      <AppModal
+      <Modal
         visible={postSaveModalVisible}
-        onClose={closePostSaveModal}
-        title={"Post Workout"}
-        actions={
-          <>
-            <ForgeButton
+        onRequestClose={closePostSaveModal}
+        transparent
+        animationType="fade" >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Post Workout</Text>
+              <Text style={styles.modalSubtitle}>Would you like to upload this workout?</Text>
+              <View style={styles.exerciseActions}>
+                <ForgeButton
               text={postingSavedWorkout ? "Uploading..." : "Upload"}
               onPress={() => {
                 void handleUploadPost();
               }}
               color={s.buttonBg}
               disabled={postingSavedWorkout || savedLogId == null}
-            />
-            <ForgeButton
-              text="Not Now"
-              onPress={closePostSaveModal}
-              color={s.buttonBg}
-              disabled={postingSavedWorkout}
-            />
-          </>
-        }
-      >
-        <Text style={styles.modalSubtitle}>
-          {" "}
-          Would you like to upload this workout?
-        </Text>
-      </AppModal>
-
+                />
+                <ForgeButton
+                  text="Not Now"
+                  onPress={closePostSaveModal}
+                  color={s.buttonBg}
+                  disabled={postingSavedWorkout}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
       <ExerciseHelpInterface
         visible={helpVisible}
         setVisible={setHelpVisible}
@@ -506,6 +504,7 @@ export default function LogGeneratedWorkout() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
