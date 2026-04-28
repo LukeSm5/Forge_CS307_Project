@@ -1222,6 +1222,33 @@ export default function ProfilesTab() {
                   @{profileDetailModal.profile.username}
                 </Text>
 
+                <View
+                  style={[
+                    styles.profileDetailHero,
+                    {
+                      backgroundColor: colors.modalSecondaryBg,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.profileDetailStreakNumber,
+                      { color: colors.orange },
+                    ]}
+                  >
+                    {profileDetailModal.profile.workoutStreakWeeks ?? 0}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.profileDetailStreakLabel,
+                      { color: colors.muted },
+                    ]}
+                  >
+                    week workout streak
+                  </Text>
+                </View>
+                
                 <View style={styles.profileDetailSection}>
                   <Text
                     style={[
@@ -1229,98 +1256,28 @@ export default function ProfilesTab() {
                       { color: colors.orange },
                     ]}
                   >
-                    Visibility
+                    Gym
                   </Text>
                   <Text style={[styles.modalBodyText, { color: colors.text }]}>
-                    {profileDetailModal.accessLabel === "friends_only"
-                      ? "Restricted to accepted friends"
-                      : "Public"}
+                    {profileDetailModal.profile.gymLocation ||
+                      "No gym location provided"}
                   </Text>
                 </View>
 
-                {profileDetailModal.profile.canViewProgress ? (
-                  <>
-                    <View
-                      style={[
-                        styles.profileDetailHero,
-                        {
-                          backgroundColor: colors.modalSecondaryBg,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.profileDetailStreakNumber,
-                          { color: colors.orange },
-                        ]}
-                      >
-                        {profileDetailModal.profile.workoutStreakWeeks ?? 0}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.profileDetailStreakLabel,
-                          { color: colors.muted },
-                        ]}
-                      >
-                        week workout streak
-                      </Text>
-                    </View>
-
-                    <View style={styles.profileDetailSection}>
-                      <Text
-                        style={[
-                          styles.profileDetailLabel,
-                          { color: colors.orange },
-                        ]}
-                      >
-                        Gym
-                      </Text>
-                      <Text style={[styles.modalBodyText, { color: colors.text }]}>
-                        {profileDetailModal.profile.gymLocation ||
-                            "No gym location provided"}
-                      </Text>
-                    </View>
-
-                    <View style={styles.profileDetailSection}>
-                      <Text
-                        style={[
-                          styles.profileDetailLabel,
-                          { color: colors.orange },
-                        ]}
-                      >                
-                        Bio
-                      </Text>
-                      <Text style={[styles.modalBodyText, { color: colors.muted }]}>
-                        {profileDetailModal.profile.bio || "No bio provided"}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View
+                 <View style={styles.profileDetailSection}>
+                  <Text
                     style={[
-                      styles.profileDetailHero,
-                      {
-                        backgroundColor: colors.modalSecondaryBg,
-                        borderColor: colors.border,
-                      },
+                      styles.profileDetailLabel,
+                      { color: colors.orange },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.modalBodyText,
-                        { color: colors.text, textAlign: "center" },
-                      ]}
-                  >
-                    {profileAccessMessage(
-                      profileDetailModal.profile,
-                      profileDetailModal.accessLabel,
-                    )}
+                    Bio
+                  </Text>
+                  <Text style={[styles.modalBodyText, { color: colors.muted }]}>
+                    {profileDetailModal.profile.bio || "No bio provided"}
                   </Text>
                 </View>
               )}
-
-
 
                 {profileDetailModal.error ? (
                   <Text style={[styles.errorText, { color: colors.red }]}>
