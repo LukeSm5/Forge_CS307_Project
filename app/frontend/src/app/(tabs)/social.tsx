@@ -49,22 +49,6 @@ import FlagModal from "../social/flagModal"
 import GoalModal from "../social/goalModal"
 import LogProgressModal from "../social/logProgressModal";
 
-function profileAccessMessage(profile: ProfileSearchResult, accessLabel?: "public" | "friends_only") {
-  if (profile.canViewProgress) {
-    return null;
-  }
-
-  if (profile.progressPublic) {
-    return "This user's progress is public, but you do not have access to view it.";
-  }
-
-  if (accessLabel === "friends_only") {
-    return "This user's progress is restricted to accepted friends.";
-  }
-
-  return "You do not have access to this user's progress.";
-}
-
 export default function ProfilesTab() {
   const scheme = useScheme();
   const tabBarHeight = useBottomTabBarHeight();
@@ -340,9 +324,7 @@ export default function ProfilesTab() {
           username: p.username,
           bio: p.bio,
           gymLocation: p.gym_location,
-          workoutStreakWeeks: p.workout_streak_weeks ?? null,
-          progressPublic: p.progress_public ?? true,
-          canViewProgress: p.can_view_progress ?? true
+          workoutStreakWeeks: p.workout_streak_weeks ?? 0,
         })),
       );
     } catch (e) {
@@ -375,8 +357,6 @@ export default function ProfilesTab() {
       loading: false,
       profile: null,
       error: "",
-      accessLabel: undefined,
-
     });
   };
 
@@ -390,31 +370,20 @@ export default function ProfilesTab() {
     });
 
     try {
-      const access = await api.getProfileProgressAccess(Number(profile.id));
+      const streak = await api.getProfileStreak(Number(profile.id));
       const updatedProfile = {
         ...profile,
-        progressPublic: access.progress_public,
-        canViewProgress: access.can_view_progress,
+        workoutStreakWeeks: streak.workout_streak_weeks,
       };
 
-      let finalProfile = updatedProfile;
-      if (access.can_view_progress) {
-        const streak = await api.getProfileStreak(Number(profile.id));
-        finalProfile = {
-          ...updatedProfile,
-          workoutStreakWeeks: streak.workout_streak_weeks,
-        };
-      }
-
       setResults((current) =>
-        current.map((item) => (item.id === profile.id ? finalProfile : item)),
+        current.map((item) => (item.id === profile.id ? updatesProfile : item)),
       );
       setProfileDetailModal({
         visible: true,
         loading: false,
-        profile: finalProfile,
+        profile: updatedProfile,
         error: "",
-        accessLabel: access.access_label,
       });
     } catch (e) {
       const message =
@@ -424,7 +393,6 @@ export default function ProfilesTab() {
         loading: false,
         profile,
         error: message,
-        accessLabel: undefined,
       });
     }
   };
@@ -836,48 +804,25 @@ export default function ProfilesTab() {
                         {profile.gymLocation || "No gym location provided"}
                       </Text>
 
-                      {profile.canViewProgress ? (
-                        <View
+                      <View
+                        style={[
+                          styles.streakBadge,
+                          {
+                            backgroundColor: colors.friendBg,
+                            borderColor: colors.friendBorder,
+                          },
+                        ]}
+                      >
+                        <Text
                           style={[
-                            styles.streakBadge,
-                            {
-                              backgroundColor: colors.friendBg,
-                              borderColor: colors.friendBorder,
-                            },
+                            styles.streakBadgeText,
+                            { color: colors.orange },
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.streakBadgeText,
-                              { color: colors.orange },
-                            ]}
-                          >
-                            Workout streak: {profile.workoutStreakWeeks ?? 0} week
-                            {(profile.workoutStreakWeeks ?? 0) === 1 ? "" : "s"}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View
-                          style={[
-                            styles.streakBadge,
-                            {
-                              backgroundColor: colors.flagBg,
-                              borderColor: colors.flagBorder,
-                            },
-                          ]}
-                         >
-                          <Text
-                            style={[
-                              styles.streakBadgeText,
-                              { color: colors.red },
-                            ]}
-                          >
-                            {profile.progressPublic
-                              ? "Progress hidden for you"
-                              : "Friends-only progress"}
-                          </Text>
-                        </View>
-                      )}
+                          Workout streak: {profile.workoutStreakWeeks ?? 0} week
+                          {(profile.workoutStreakWeeks ?? 0) === 1 ? "" : "s"}
+                        </Text>
+                      </View>
                       
                       <Text
                         style={[styles.bioText, { color: colors.muted }]}
@@ -910,7 +855,10 @@ export default function ProfilesTab() {
                       </Pressable>
 
                       <Pressable
-                        onPress={() => handleFlag(profile)}
+                        onPress={() => router.push({
+                          pathname: "../ProgressionScreen",
+                          params: { userId: profile.id }
+                        })}
                         style={({ pressed }) => [
                           styles.iconButton,
                           {
