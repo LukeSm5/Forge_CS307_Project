@@ -1046,7 +1046,6 @@ def auth_me(me: Accounts = Depends(get_current_account), db: Session = Depends(g
         goals=profile.health_goals if profile else None,
         gender=profile.gender if profile else None,
         calorie_goal=profile.calorie_goal if profile else None,
-        progress_public=_profile_progress_public(profile),
     )
 
 
@@ -1751,7 +1750,6 @@ def create_workout_session(
             db.add(row)
             exercise_rows.append(row)
     db.commit()
-    _reconcile_workout_streak_notifications_safely(db, me.UserID)
     
     ex_out = []
     for row in exercise_rows:
@@ -1857,7 +1855,6 @@ def delete_workout_session(
 
     db.delete(session_row)
     db.commit()
-    _reconcile_workout_streak_notifications_safely(db, me.UserID)
     return {"deleted": True, "session_id": session_id}
 
 VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
@@ -2913,37 +2910,9 @@ def search_profiles(
             "bio": account.bio,
             "gym_location": profile.gym_location if profile else None,
             "workout_streak_weeks": _calculate_workout_streak(db, account.UserID).workout_streak_weeks if profile else 0,
-            "can_view_progress": _profiles_can_view_progress(db, me.UserID, account.UserID, profile),
-            "workout_streak_weeks": (
-                _calculate_workout_streak(db, account.UserID).workout_streak_weeks
-                if profile and _profiles_can_view_progress(db, me.UserID, account.UserID, profile)
-                else None
-            ),
         }
         for account, profile in rows
     ]
-
-@app.get("/profiles/{profile_id}/progress-access", response_model=ProfileProgressAccessResponse)
-def get_profile_progress_access(
-    profile_id: int,
-    me: Accounts = Depends(get_current_account),
-    db: Session = Depends(get_db),
-):
-    profile = db.query(Profiles).filter(Profiles.ProfileID == profile_id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    can_view = _profiles_can_view_progress(db, me.UserID, profile_id, profile)
-    return ProfileProgressAccessResponse(
-        profile_id=profile_id,
-        progress_public=_profile_progress_public(profile),
-        can_view_progress=can_view,
-        access_label=(
-            "public"
-            if _profile_progress_public(profile)
-            else "friends_only"
-        ),
-    )
 
 @app.get("/profiles/{profile_id}/streak", response_model=StreakResponse)
 def get_profile_streak(
@@ -2955,7 +2924,7 @@ def get_profile_streak(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    if not _profiles_can_view_streak(db, me.UserID, profile_id, profile):
+    if not _profiles_can_view_streak(db, me.UserID, profile_id):
         raise HTTPException(status_code=403, detail="You do not have access to view this streak")
 
     return _calculate_workout_streak(db, profile_id)
@@ -2968,7 +2937,6 @@ def add_notification(db: Session, profile_id: int, message: str, data: str = Non
 
 @app.get("/inbox")
 def get_inbox_notifications(me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
-    _reconcile_workout_streak_notifications_safely(db, me.UserID)
     rows = (
         db.query(InboxNotifications)
         .filter(InboxNotifications.ProfileID == me.UserID)
