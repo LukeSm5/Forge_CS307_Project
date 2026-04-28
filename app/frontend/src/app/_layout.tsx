@@ -69,7 +69,7 @@ import { UnitsProvider } from "@/core/conversions";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "auth/loginScreen",
+  initialRouteName: "loginScreen",
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -107,11 +107,10 @@ function RootLayoutNav() {
   const segments = useSegments();
   const currentRoot = segments[0] ?? "";
 
-  //const isPublicAuthRoute =
-    //currentRoot === "loginScreen" ||
-    //currentRoot === "createAccountScreen" ||
-    //currentRoot === "resetPasswordScreen";
-  const isPublicAuthRoute = currentRoot === "auth";
+  const isPublicAuthRoute =
+    currentRoot === "loginScreen" ||
+    currentRoot === "createAccountScreen" ||
+    currentRoot === "resetPasswordScreen";
   // don't redirect while checking stored token
   if (isLoadingAuth) return null;
 
@@ -121,20 +120,20 @@ function RootLayoutNav() {
     >
       <Stack>
         <Stack.Screen
-          name="auth/loginScreen"
+          name="loginScreen"
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="auth/createAccountScreen"
+          name="createAccountScreen"
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="auth/resetPasswordScreen"
+          name="resetPasswordScreen"
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="auth/onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="profile/settings" options={{ title: "Accessibility" }} />
+        <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
       {!isLoggedIn && !isPublicAuthRoute && <Redirect href="auth/loginScreen" />}
