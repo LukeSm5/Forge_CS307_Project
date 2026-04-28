@@ -20,7 +20,7 @@ import {
   TailoredExercise,
 } from "@/core/api";
 import { useUnits } from "@/core/conversions";
-import { stylesProvider } from "./AddWorkout.Styles";
+import { stylesProvider } from "./workout/AddWorkout.Styles";
 import { AppModal } from "@/components/AppModal";
 
 type SingleExercise = {
