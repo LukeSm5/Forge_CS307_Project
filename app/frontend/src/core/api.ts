@@ -47,7 +47,6 @@ async function get<T>(path: string): Promise<T> {
   if (res.ok) return (await res.json()) as T;
 
   const data = await res.json().catch(() => ({}));
-  console.error("API GET failed", { baseUrl: BASE_URL, path, status: res.status, data });
   throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
 }
 
@@ -1094,7 +1093,7 @@ export type SessionLog = {
 export type SessionExerciseLog = {
   exercise_id: number;
   exercise_name: string;
-  machine_id: number | null;
+  machine_id: number;
   set_number: number;
   reps: number;
   weight?: number | null;
