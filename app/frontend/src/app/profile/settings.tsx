@@ -84,7 +84,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <DeleteAccountBanner
           visible={accountDeleted}
-          onFinished={() => router.replace("/auth/loginScreen")}
+          onFinished={() => router.replace("/loginScreen")}
         />
 
         <View style={styles.container}>
