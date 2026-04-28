@@ -241,8 +241,6 @@ class UpdateAccountProfileRequest(BaseModel):
     username: Optional[str] = None
     bio: Optional[str] = None
     gym_location: Optional[str] = None
-    progress_public: Optional[bool] = None
-
 
 class ChangeAccountPasswordRequest(BaseModel):
     current_password: str
@@ -256,9 +254,9 @@ class AccountUpdateResponse(BaseModel):
     message: str
 
 class AccountMeResponse(BaseModel):
-    profile_id: int
-    email: str
-    username: str
+    profile_id: Optional[int] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
     bio: Optional[str] = None
     gym_location: Optional[str] = None
     age: Optional[float] = None
@@ -267,13 +265,6 @@ class AccountMeResponse(BaseModel):
     goals: Optional[str] = None
     gender: Optional[str] = None
     calorie_goal: Optional[float] = None
-    progress_public: Optional[bool] = None
-
-class ProfileProgressAccessResponse(BaseModel):
-    profile_id: int
-    progress_public: bool
-    can_view_progress: bool
-    access_label: str
 
 class MenuMealOut(BaseModel):
     id: int = Field(validation_alias="MenuMealID")
