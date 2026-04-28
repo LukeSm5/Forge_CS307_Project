@@ -1,8 +1,6 @@
 import { CSSProperties, ReactNode } from "react";
 import { C } from "../../constants/dietConstants"
 
-export { C };
-
 export type SpiceLevel = "mild" | "medium" | "hot" | "extra_hot";
 export type Cuisine    = "american" | "italian" | "mexican" | "asian" | "mediterranean" | "indian" | "middle_eastern" | "other";
 export type Complexity = "simple" | "moderate" | "complex";
