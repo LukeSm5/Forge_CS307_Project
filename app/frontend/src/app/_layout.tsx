@@ -69,7 +69,7 @@ import { UnitsProvider } from "@/core/conversions";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
-  initialRouteName: "loginScreen",
+  initialRouteName: "auth/loginScreen",
 };
 
 SplashScreen.preventAutoHideAsync();
@@ -107,12 +107,12 @@ function RootLayoutNav() {
   const segments = useSegments();
   const currentRoot = segments[0] ?? "";
 
-  const isPublicAuthRoute =
-    currentRoot === "loginScreen" ||
-    currentRoot === "createAccountScreen" ||
-    currentRoot === "resetPasswordScreen";
-
-  // ✅ don't redirect while checking stored token
+  //const isPublicAuthRoute =
+    //currentRoot === "loginScreen" ||
+    //currentRoot === "createAccountScreen" ||
+    //currentRoot === "resetPasswordScreen";
+  const isPublicAuthRoute = currentRoot === "auth";
+  // don't redirect while checking stored token
   if (isLoadingAuth) return null;
 
   return (
@@ -120,18 +120,21 @@ function RootLayoutNav() {
       value={effectiveScheme === "dark" ? DarkTheme : DefaultTheme}
     >
       <Stack>
-        <Stack.Screen name="loginScreen" options={{ headerShown: false }} />
         <Stack.Screen
-          name="createAccountScreen"
+          name="auth/loginScreen"
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="resetPasswordScreen"
+          name="auth/createAccountScreen"
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="auth/resetPasswordScreen"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="auth/onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: "Accessibility" }} />
+        <Stack.Screen name="profile/settings" options={{ title: "Accessibility" }} />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
       {!isLoggedIn && !isPublicAuthRoute && <Redirect href="auth/loginScreen" />}
