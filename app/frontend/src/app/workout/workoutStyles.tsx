@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native"
+import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   container: {
@@ -81,8 +81,12 @@ export const styles = StyleSheet.create({
     marginBottom: 6,
   },
   exerciseItem: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 15,
+    lineHeight: 22,
     marginBottom: 3,
+    paddingRight: 8,
   },
   timerRow: {
     marginTop: 14,
@@ -230,12 +234,22 @@ export const styles = StyleSheet.create({
   },
   exerciseRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: 8,
+    paddingVertical: 6,
+  },
+  progressButton: {
+    alignSelf: "flex-start",
+    borderRadius: 12,
+    marginVertical: 0,
+    minWidth: 88,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   postButton: {
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 26,
-  }
+  },
 });
