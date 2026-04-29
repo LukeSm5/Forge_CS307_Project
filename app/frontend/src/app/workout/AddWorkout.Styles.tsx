@@ -1,22 +1,29 @@
-import { StyleSheet } from 'react-native';
-import { useScheme } from '@/components/Themed';
+import { StyleSheet } from "react-native";
+import { useScheme } from "@/components/Themed";
 
 export const stylesProvider = () => {
   const s = useScheme();
   return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: s.background,
+    },
     container: {
       flex: 1,
+      backgroundColor: s.background,
     },
     scrollContent: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 10,
       gap: 10,
       paddingBottom: 40,
     },
     title: {
       fontSize: 28,
       fontWeight: "700",
-      marginBottom: 4,
-      textAlign: "center"
+      marginBottom: 8,
+      textAlign: "center",
+      color: s.text,
     },
     sectionTitle: {
       fontSize: 18,

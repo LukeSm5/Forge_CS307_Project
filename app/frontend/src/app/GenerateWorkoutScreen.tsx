@@ -50,7 +50,7 @@ export default function GenerateWorkoutScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Generate AI Workout</Text>
+          <Text style={styles.title}>Generate Workout</Text>
 
           <View
             style={[styles.card, { backgroundColor: s.secondaryBackground }]}
