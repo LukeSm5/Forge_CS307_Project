@@ -136,8 +136,12 @@ export default function CalendarScreen() {
 
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [isWeeklyReportOpen, setIsWeeklyReportOpen] = useState(false);
-  const [weeklyReportData, setWeeklyReportData] = useState<ReportData | null>(null);
-  const [monthlyReportData, setMonthlyReportData] = useState<ReportData | null>(null);
+  const [weeklyReportData, setWeeklyReportData] = useState<ReportData | null>(
+    null,
+  );
+  const [monthlyReportData, setMonthlyReportData] = useState<ReportData | null>(
+    null,
+  );
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
 
   useEffect(() => {
@@ -412,19 +416,21 @@ export default function CalendarScreen() {
     });
   }
 
+  const calendarTheme = useMemo(
+    () => ({
+      calendarBackground: s.background,
+      monthTextColor: s.text,
+      dayTextColor: s.text,
+      textDisabledColor: s.secondaryText,
+      selectedDayBackgroundColor: s.buttonBg,
+      selectedDayTextColor: s.background,
+      dotColor: s.buttonBg,
+      selectedDotColor: s.background,
+      todayTextColor: s.buttonBg,
+    }),
+    [s],
+  );
 
-  const calendarTheme = useMemo(() => ({
-    calendarBackground: s.background,
-    monthTextColor: s.text,
-    dayTextColor: s.text,
-    textDisabledColor: s.secondaryText,
-    selectedDayBackgroundColor: s.buttonBg,
-    selectedDayTextColor: s.background,
-    dotColor: s.buttonBg,
-    selectedDotColor: s.background,
-    todayTextColor: s.buttonBg,
-  }), [s]);
-  
   async function handleWeeklyReport() {
     try {
       const response: ReportData = await api.getWeeklyReport();
@@ -438,9 +444,8 @@ export default function CalendarScreen() {
       const response: ReportData = await api.getMonthlyReport();
       setMonthlyReportData(response);
     } catch (error) {
-      Alert.alert("Failed to fetch weekly report")
+      Alert.alert("Failed to fetch weekly report");
     }
-
   }
   return (
     <View style={styles.container}>
@@ -467,7 +472,8 @@ export default function CalendarScreen() {
               isSmallScreen && styles.actionButtonSmall,
               { backgroundColor: s.buttonBg },
             ]}
-            onPress={() => {setIsWeeklyReportOpen(true);
+            onPress={() => {
+              setIsWeeklyReportOpen(true);
               handleWeeklyReport();
             }}
           >
@@ -484,8 +490,7 @@ export default function CalendarScreen() {
             onPress={() => {
               setIsMonthlyReportOpen(true);
               handleMonthlyReport();
-            }
-            }
+            }}
           >
             <Text style={styles.addButtonText}>Generate Monthly Reports</Text>
           </Pressable>
@@ -868,11 +873,30 @@ export default function CalendarScreen() {
               Weekly Reports
             </Text>
             <ScrollView>
-              <Text {...modalTextProps}>Number of Lifts: {weeklyReportData? weeklyReportData.workout_num: "Loading..."}</Text>
-              <Text {...modalTextProps}>Max Bench: {weeklyReportData? weeklyReportData.bench_max: "Loading..."}</Text>
-              <Text {...modalTextProps}>Total Weight Lifted: {weeklyReportData? weeklyReportData.total_volume: "Loading..."}</Text>
-              <Text {...modalTextProps}>Hardest Hit Muscle Group: {weeklyReportData? weeklyReportData.top_muscle: "Loading..."}</Text>
-              <Text {...modalTextProps}>Least Hit Muscle Group: {weeklyReportData? weeklyReportData.bottom_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>
+                Number of Lifts:{" "}
+                {weeklyReportData ? weeklyReportData.workout_num : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Max Bench:{" "}
+                {weeklyReportData ? weeklyReportData.bench_max : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Total Weight Lifted:{" "}
+                {weeklyReportData
+                  ? weeklyReportData.total_volume
+                  : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Hardest Hit Muscle Group:{" "}
+                {weeklyReportData ? weeklyReportData.top_muscle : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Least Hit Muscle Group:{" "}
+                {weeklyReportData
+                  ? weeklyReportData.bottom_muscle
+                  : "Loading..."}
+              </Text>
             </ScrollView>
             <Pressable
               style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
@@ -890,11 +914,34 @@ export default function CalendarScreen() {
               Monthly Reports
             </Text>
             <ScrollView>
-              <Text {...modalTextProps}>Number of Lifts: {monthlyReportData? monthlyReportData.workout_num: "Loading..."}</Text>
-              <Text {...modalTextProps}>Max Bench: {monthlyReportData? monthlyReportData.bench_max: "Loading..."}</Text>
-              <Text {...modalTextProps}>Total Weight Lifted: {monthlyReportData? monthlyReportData.total_volume: "Loading..."}</Text>
-              <Text {...modalTextProps}>Hardest Hit Muscle Group: {monthlyReportData? monthlyReportData.top_muscle: "Loading..."}</Text>
-              <Text {...modalTextProps}>Least Hit Muscle Group: {monthlyReportData? monthlyReportData.bottom_muscle: "Loading..."}</Text>
+              <Text {...modalTextProps}>
+                Number of Lifts:{" "}
+                {monthlyReportData
+                  ? monthlyReportData.workout_num
+                  : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Max Bench:{" "}
+                {monthlyReportData ? monthlyReportData.bench_max : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Total Weight Lifted:{" "}
+                {monthlyReportData
+                  ? monthlyReportData.total_volume
+                  : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Hardest Hit Muscle Group:{" "}
+                {monthlyReportData
+                  ? monthlyReportData.top_muscle
+                  : "Loading..."}
+              </Text>
+              <Text {...modalTextProps}>
+                Least Hit Muscle Group:{" "}
+                {monthlyReportData
+                  ? monthlyReportData.bottom_muscle
+                  : "Loading..."}
+              </Text>
             </ScrollView>
             <Pressable
               style={[styles.actionBtn, styles.saveBtn, { marginTop: 16 }]}
@@ -909,7 +956,7 @@ export default function CalendarScreen() {
   );
 }
 
-const useStyles = () => { 
+const useStyles = () => {
   const s = useScheme();
 
   return StyleSheet.create({
@@ -1032,11 +1079,12 @@ const useStyles = () => {
       padding: 16,
     },
 
-    modalTitle: { 
-      fontSize: 18, 
+    modalTitle: {
+      fontSize: 18,
       fontWeight: "700",
       marginBottom: 12,
-      textAlign: "center" },
+      textAlign: "center",
+    },
 
     label: {
       fontSize: 14,
@@ -1178,4 +1226,4 @@ const useStyles = () => {
     cancelText: { fontWeight: "700" },
     saveText: { color: "white", fontWeight: "700" },
   });
-}
+};

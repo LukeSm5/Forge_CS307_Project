@@ -4,18 +4,19 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View as RNView,
   Modal,
 } from "react-native";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 import { Text, View, useScheme } from "@/components/Themed";
 import ForgeButton from "@/components/ForgeButton";
-import ForgeTextBox from "@/components/ForgeTextBox";
 import AltMachButton from "@/components/machineAlternatives/AltMachButton";
 import ExerciseHelpInterface from "@/components/exerciseHelp/ExerciseHelpInterface";
 import { api, QuickWorkoutResponse } from "@/core/api";
+import { AppModal } from "@/components/AppModal";
 
 function normalizeExerciseName(name: string) {
   return name
@@ -199,7 +200,6 @@ export default function LogGeneratedWorkout() {
       return;
     }
     const updatedExercises = [...exerciseList];
-    const firstSet = editingExercise.sets[0];
     updatedExercises[editingExercise.index] = {
       ...updatedExercises[editingExercise.index],
       sets: editingExercise.sets.length,
@@ -346,13 +346,6 @@ export default function LogGeneratedWorkout() {
   }
 
   return (
-    <>
-    <Stack.Screen
-        options={{
-          headerBackTitle: "Back",
-          headerShown: false,
-        }}
-    />
     <View style={styles.container}>
       <Text style={styles.title}>{workout_name}</Text>
       <Text style={[styles.subtitle, { color: s.secondaryText }]}>
@@ -362,31 +355,62 @@ export default function LogGeneratedWorkout() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Exercise</Text>
-            {editingExercise?.sets.map((_, set_idx) => (
-              <RNView key={set_idx} style={{ flexDirection: "row", gap: 12 }}>
-                <Text style={{ marginBottom: 6 }}>Set {set_idx + 1}:</Text>
-                <RNView style={{ flexDirection: "row", gap: 12, flex: 1 }}>
-                  <ForgeTextBox
-                    label="Weight"
-                    value={String(editingExercise.sets[set_idx].weight)}
-                    onChangeText={(text) => {
-                      const updated = [...editingExercise.sets];
-                      updated[set_idx] = { ...updated[set_idx], weight: text };
-                      setEditingExercise({ ...editingExercise, sets: updated });
-                    }}
-                  />
-                  <ForgeTextBox
-                    label="Reps"
-                    value={String(editingExercise.sets[set_idx].reps)}
-                    onChangeText={(text) => {
-                      const updated = [...editingExercise.sets];
-                      updated[set_idx] = { ...updated[set_idx], reps: text };
-                      setEditingExercise({ ...editingExercise, sets: updated });
-                    }}
-                  />
+            <ScrollView
+              style={styles.modalSets}
+              contentContainerStyle={styles.modalSetsContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {editingExercise?.sets.map((setValue, set_idx) => (
+                <RNView key={set_idx} style={styles.modalSetCard}>
+                  <Text style={styles.modalSetTitle}>Set {set_idx + 1}</Text>
+                  <RNView style={styles.modalInputRow}>
+                    <RNView style={styles.modalInputGroup}>
+                      <Text style={styles.modalInputLabel}>Weight</Text>
+                      <TextInput
+                        style={styles.modalInput}
+                        value={String(setValue.weight)}
+                        onChangeText={(text) => {
+                          const updated = [...editingExercise.sets];
+                          updated[set_idx] = {
+                            ...updated[set_idx],
+                            weight: text,
+                          };
+                          setEditingExercise({
+                            ...editingExercise,
+                            sets: updated,
+                          });
+                        }}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor="#777"
+                      />
+                    </RNView>
+
+                    <RNView style={styles.modalInputGroup}>
+                      <Text style={styles.modalInputLabel}>Reps</Text>
+                      <TextInput
+                        style={styles.modalInput}
+                        value={String(setValue.reps)}
+                        onChangeText={(text) => {
+                          const updated = [...editingExercise.sets];
+                          updated[set_idx] = {
+                            ...updated[set_idx],
+                            reps: text,
+                          };
+                          setEditingExercise({
+                            ...editingExercise,
+                            sets: updated,
+                          });
+                        }}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor="#777"
+                      />
+                    </RNView>
+                  </RNView>
                 </RNView>
-              </RNView>
-            ))}
+              ))}
+            </ScrollView>
             <ForgeButton text="Save" onPress={handleSaveEdit} />
             <ForgeButton
               text="Close"
@@ -474,36 +498,35 @@ export default function LogGeneratedWorkout() {
           onPress={() => router.push("/(tabs)/workout")}
         />
       </RNView>
-      <Modal
+      <AppModal
         visible={postSaveModalVisible}
-        onRequestClose={closePostSaveModal}
-        transparent
-        animationType="fade" >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Post Workout</Text>
-              <Text style={styles.modalSubtitle}>Would you like to upload this workout?</Text>
-              <View style={styles.exerciseActions}>
-                <ForgeButton
+        onClose={closePostSaveModal}
+        title={"Post Workout"}
+        actions={
+          <>
+            <ForgeButton
               text={postingSavedWorkout ? "Uploading..." : "Upload"}
               onPress={() => {
                 void handleUploadPost();
               }}
               color={s.buttonBg}
               disabled={postingSavedWorkout || savedLogId == null}
-              style = {{marginRight: 100}}
-                />
-                <ForgeButton
-                  text="Not Now"
-                  onPress={closePostSaveModal}
-                  color={s.buttonBg}
-                  disabled={postingSavedWorkout}
-                  style = {{marginRight: 20}}
-                />
-              </View>
-            </View>
-          </View>
-        </Modal>
+            />
+            <ForgeButton
+              text="Not Now"
+              onPress={closePostSaveModal}
+              color={s.buttonBg}
+              disabled={postingSavedWorkout}
+            />
+          </>
+        }
+      >
+        <Text style={styles.modalSubtitle}>
+          {" "}
+          Would you like to upload this workout?
+        </Text>
+      </AppModal>
+
       <ExerciseHelpInterface
         visible={helpVisible}
         setVisible={setHelpVisible}
@@ -511,10 +534,8 @@ export default function LogGeneratedWorkout() {
         exerciseName={selectedExerciseName}
       />
     </View>
-    </>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -527,12 +548,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 6,
-    textAlign: "center"
   },
   subtitle: {
     fontSize: 15,
     marginBottom: 18,
-    textAlign: "center",
   },
   scrollContent: {
     paddingBottom: 20,
@@ -593,22 +612,67 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    color: "#111",
+    fontSize: 22,
+    fontWeight: "800",
     textAlign: "center",
-    fontWeight: "bold"
   },
   modalCard: {
     width: "100%",
-    maxWidth: 860,
+    maxWidth: 520,
     maxHeight: "90%",
     borderRadius: 14,
     padding: 16,
+    backgroundColor: "#fff",
+  },
+  modalSets: {
+    maxHeight: 430,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  modalSetsContent: {
+    gap: 12,
+    paddingBottom: 4,
+  },
+  modalSetCard: {
+    backgroundColor: "transparent",
+  },
+  modalSetTitle: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  modalInputRow: {
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: "transparent",
+  },
+  modalInputGroup: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "transparent",
+  },
+  modalInputLabel: {
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 5,
+  },
+  modalInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#bbb",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#111",
     backgroundColor: "#fff",
   },
   modalSubtitle: {
     fontSize: 16,
     textAlign: "center",
     marginBottom: 20,
-    marginTop: 10, 
   },
 });
