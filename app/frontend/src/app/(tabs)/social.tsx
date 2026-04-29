@@ -980,7 +980,7 @@ export default function ProfilesTab() {
               No group goals yet. Create one to get started!
             </Text>
           ) : (
-            <View style={{ gap: 10, marginTop: 10 }}>
+            <View lightColor="transparent" darkColor="transparent" style={{ gap: 10, marginTop: 10 }}>
               {groupGoals.map((goal) => {
                 const pct = goalProgressPct(goal);
                 const total = goalTotalProgress(goal);
@@ -994,23 +994,17 @@ export default function ProfilesTab() {
                       {
                         backgroundColor: colors.soft,
                         borderColor: isComplete ? colors.orange : colors.border,
-                        flexDirection: "column",
-                        alignItems: "stretch",
-                        gap: 10,
                       },
+                      styles.goalCard,
                     ]}
                   >
                     <Pressable
                       onPress={() =>
                         setExpandedGoalId(isExpanded ? null : goal.goalId)
                       }
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
+                      style={styles.goalSummaryPressable}
                     >
-                      <View style={{ flex: 1 }}>
+                      <View lightColor="transparent" darkColor="transparent" style={{ flex: 1 }}>
                         <Text
                           style={[styles.usernameText, { color: colors.text }]}
                         >
@@ -1027,7 +1021,7 @@ export default function ProfilesTab() {
                       </Text>
                     </Pressable>
 
-                    <View>
+                    <View lightColor="transparent" darkColor="transparent">
                       <View
                         style={[
                           styles.goalBarTrack,
@@ -1044,7 +1038,7 @@ export default function ProfilesTab() {
                           ]}
                         />
                       </View>
-                      <View style={styles.goalBarLabelRow}>
+                      <View lightColor="transparent" darkColor="transparent" style={styles.goalBarLabelRow}>
                         <Text
                           style={[styles.goalBarLabel, { color: colors.muted }]}
                         >
@@ -1071,7 +1065,7 @@ export default function ProfilesTab() {
                             {goal.description}
                           </Text>
                         ) : null}
-                        <View style={{ gap: 6 }}>
+                        <View lightColor="transparent" darkColor="transparent" style={{ gap: 6 }}>
                           {goal.members.map((member) => (
                             <View
                               key={member.profileId}
@@ -1103,7 +1097,7 @@ export default function ProfilesTab() {
                           ))}
                         </View>
                         {!isComplete && (
-                          <View style={styles.goalActionRow}>
+                          <View lightColor="transparent" darkColor="transparent" style={styles.goalActionRow}>
                             {goal.members.some(
                               (m) => String(m.profileId) === currentUserId,
                             ) ? (

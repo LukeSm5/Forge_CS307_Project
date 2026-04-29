@@ -304,6 +304,24 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
+
+  goalCard: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  goalSummaryPressable: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  goalSummaryMain: {
+    flex: 1,
+    backgroundColor: "transparent",
+    paddingRight: 10,
+  },
+
   goalBarTrack: {
     height: 6,
     borderRadius: 3,

@@ -210,15 +210,15 @@ export const api = {
     return [
       {
         name: 'Treadmill',
-        desc: 'Useful for basic stamina training and calorie burn'
+        desc: 'A versatile cardio machine for walking, jogging, or running. It helps improve cardiovascular endurance, supports calorie burning, and allows users to adjust speed and incline to match their fitness level.'
       },
       {
         name: 'Stairmaster',
-        desc: 'A more advanced and difficult cardio machine, burns a lot of calories fast'
+        desc: 'A stair-climbing cardio machine that provides a challenging lower-body workout. It helps build endurance, strengthens the glutes, quads, hamstrings, and calves, and can be effective for high-intensity calorie burning.'
       },
       {
         name: 'Elliptical Machine',
-        desc: 'It\'s fun idk man'
+        desc: 'A low-impact cardio machine that simulates walking, running, and climbing motions. It helps improve cardiovascular fitness while reducing stress on the knees and joints, making it a good option for steady-state or recovery workouts.'
       }
     ]
   },
