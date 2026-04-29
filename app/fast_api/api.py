@@ -2701,7 +2701,7 @@ def get_meal_feed(
 
     all_posts = (
         db.query(MealPosts)
-        .order_by(MealPosts.created_at.timestamp())
+        .order_by(MealPosts.created_at)
         .offset(offset)
         .limit(limit)
         .all()
