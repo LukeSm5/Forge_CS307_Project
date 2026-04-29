@@ -776,7 +776,11 @@ look pleasing on a graph.
     return post<GroupGoal>(`/group-goals/${goalId}/progress`, { amount });
   },
 
-  leaveGroupGoal: async (goalId: string): Promise<void> => {
+  joinGroupGoal: async (goalId: string): Promise<GroupGoal> => {
+    return post<GroupGoal>(`/group-goals/${goalId}/members`, {});
+  },
+
+  leaveGroupGoal: async (goalId: string): Promise<GroupGoal> => {
     const res = await fetch(`${BASE_URL}/group-goals/${goalId}/members`, {
       method: 'DELETE',
       headers: headers(),
@@ -785,6 +789,11 @@ look pleasing on a graph.
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail ?? data.message ?? `HTTP ${res.status}`);
     }
+    return res.json() as Promise<GroupGoal>;
+  },
+
+  getMyProfile: async (): Promise<User> => {
+    return get<User>('/auth/me');
   },
 };
 
