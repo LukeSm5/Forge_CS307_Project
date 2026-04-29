@@ -16,6 +16,7 @@ export const stylesProvider = () => {
       fontSize: 28,
       fontWeight: "700",
       marginBottom: 4,
+      textAlign: "center"
     },
     sectionTitle: {
       fontSize: 18,

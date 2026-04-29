@@ -498,7 +498,7 @@ export default function AddWorkoutScreen() {
       <Stack.Screen
         options={{
           headerBackTitle: "Back",
-          headerTitle: "Log Workout",
+          headerShown: false,
         }}
       />
       <View style={styles.container}>

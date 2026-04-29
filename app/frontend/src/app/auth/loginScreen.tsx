@@ -165,84 +165,6 @@ const LoginScreen = () => {
     }
   };
 
-  const handleTemporaryAccount = async () => {
-    if (isSubmitting) return;
-
-    setRememberMe(false);
-    const seed = buildTemporaryProfileSeed();
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(`${BASE_URL}/auth/create_account`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: seed.email,
-          username: seed.username,
-          password: seed.password,
-          bio: seed.bio,
-        }),
-      });
-
-      const raw = await response.text();
-      let data: any = {};
-
-      try {
-        data = raw ? JSON.parse(raw) : {};
-      } catch {
-        data = {};
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data?.detail ?? raw ?? "Temporary account creation failed",
-        );
-      }
-
-      setToken(data.access_token ?? null);
-
-      await AsyncStorage.removeItem("refresh_token");
-
-      const createdUser = await api.me();
-      if (!createdUser) {
-        throw new Error(
-          "Temporary account was created but could not be loaded.",
-        );
-      }
-
-      const onboardingSuccess = await api.submitOnboarding(seed.onboarding);
-      if (!onboardingSuccess) {
-        throw new Error("Temporary account onboarding failed.");
-      }
-
-      const updatedUser = await api.updateMe({
-        bio: seed.bio,
-        gym_location: seed.gymLocation,
-      });
-
-      setCurrentUser(
-        updatedUser
-          ? {
-              profile_id: updatedUser.profile_id,
-              email: updatedUser.email,
-              username: updatedUser.username,
-            }
-          : {
-              profile_id: createdUser.profile_id,
-              email: createdUser.email,
-              username: createdUser.username,
-            },
-      );
-
-      setLoggedIn(true);
-      router.replace("/(tabs)");
-    } catch (error: any) {
-      alert(error?.message ?? "Could not create temporary account.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>
@@ -303,14 +225,6 @@ const LoginScreen = () => {
         onPress={() => router.push("./resetPasswordScreen")}
         text="Reset Password"
         disabled={isSubmitting}
-      />
-      <LoginButton
-        onPress={handleTemporaryAccount}
-        text={isSubmitting ? "Working..." : "Temporary"}
-        disabled={isSubmitting}
-        color="#dc2626"
-        textColor="#ffffff"
-        style={styles.temporaryButton}
       />
     </View>
   );
