@@ -1,99 +1,73 @@
-import {
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ViewStyle,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleProp, StyleSheet, ViewStyle } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
-import { Separator, Text, useScheme, View } from "@/components/Themed";
-import CardioMachineResult from "@/components/cardioSearch/CardioMachineResult";
-import React, { useEffect, useState } from "react";
-import { api, Notification, SearchCardioMachineResponse } from "@/core/api";
-import ForgeButton from "../ForgeButton";
-import { Modal } from "react-native";
+import { Text } from "@/components/Themed";
+import { api, Notification } from "@/core/api";
 import NotificationComponent from "./NotificationComponent";
-import { useFocusEffect } from '@react-navigation/native';
 
 export default function NotificationList({
   style,
 }: {
   style?: StyleProp<ViewStyle>;
 }) {
-  const s = useScheme();
-
   const [key, setKey] = useState(0);
-  const refresh = () => setKey(prev => prev + 1);
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => {
-    api.getNotifications().then(setNotifications);
-  }, [key]);
+  const refresh = () => setKey((prev) => prev + 1);
 
-  useFocusEffect(() => {
+  const loadNotifications = useCallback(() => {
     api.getNotifications().then(setNotifications);
-  });
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [key, loadNotifications]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [loadNotifications]),
+  );
+
+  const sortedNotifications = [...(notifications ?? [])].sort(
+    (a, b) => b.timestamp - a.timestamp,
+  );
 
   return (
-    <>
-      <ScrollView
-        style={[
-          styles.searchResults,
-          { boxShadow: `inset 3px 3px 10px ${s.shadow}` },
-          style,
-        ]}
-      >
-        {(notifications ?? []).length > 0 ? [...(notifications ?? [])]
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .map((notification: Notification, idx: number) => (
-            <NotificationComponent key={idx} notification={notification} dismiss={refresh} />
-          )) : <Text>No notifications!</Text>}
-      </ScrollView>
-    </>
+    <ScrollView
+      style={[styles.list, style]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {sortedNotifications.length > 0 ? (
+        sortedNotifications.map((notification: Notification) => (
+          <NotificationComponent
+            key={notification.id}
+            notification={notification}
+            dismiss={refresh}
+          />
+        ))
+      ) : (
+        <Text style={styles.emptyText}>No notifications!</Text>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
-  },
-  popup: {
+  list: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    width: "75%",
-    marginVertical: "3%",
-    borderRadius: "15px",
-    padding: "2%",
-    zIndex: 100,
+    width: "100%",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
+  content: {
+    width: "100%",
+    paddingBottom: 24,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: "80%",
-  },
-  searchResults: {
-    width: "80%",
-    borderRadius: 10,
-    marginBottom: 10,
-    padding: 10,
-  },
-  questionContainer: {
-    alignItems: "center",
-    marginHorizontal: 50,
-  },
-  questionText: {
-    fontSize: 17,
-    lineHeight: 24,
+  emptyText: {
+    marginTop: 16,
     textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

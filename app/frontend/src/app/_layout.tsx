@@ -130,10 +130,19 @@ function RootLayoutNav() {
         />
         <Stack.Screen name="auth/onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="profile/settings" options={{ title: "Accessibility" }} />
+        <Stack.Screen
+          name="profile/settings"
+          options={{ title: "Accessibility" }}
+        />
+        <Stack.Screen
+          name="notifications"
+          options={{ title: "notifications", headerBackTitle: "Back" }}
+        />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
-      {!isLoggedIn && !isPublicAuthRoute && <Redirect href="/auth/loginScreen" />}
+      {!isLoggedIn && !isPublicAuthRoute && (
+        <Redirect href="/auth/loginScreen" />
+      )}
     </ThemeProvider>
   );
 }
