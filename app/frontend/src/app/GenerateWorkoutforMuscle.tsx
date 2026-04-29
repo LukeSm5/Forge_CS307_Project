@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 
 import { Text, View, useScheme } from "@/components/Themed";
 import ForgeButton from "@/components/ForgeButton";
@@ -98,7 +98,17 @@ export default function GenerateWorkoutforMuscle() {
         }
 
     return (
+      <>
+      <Stack.Screen
+        options={{
+          headerBackTitle: "Back",
+          headerShown: false,
+        }}
+    />
         <View style={styles.container}>
+          <Text style={styles.title}>Generate Workout for Muscle</Text>
+          <View style={styles.divider}>
+                      <Text style={styles.description}>Select up to 4 muscle groups (or full body) to generate a workout specifically targeting the muscle groups that are explicitly stated</Text>
             <Text style={styles.sectionTitle}>Muscle group</Text>
 
                     <View style={styles.rowWrap}>
@@ -126,9 +136,17 @@ export default function GenerateWorkoutforMuscle() {
         <ForgeButton
           text="Generate Quick Workout"
           onPress={handleGenerateWorkoutForMuscle}
+          style = {{width: 300, alignContent: "center", marginLeft: 65}}
         />
       )}
+        <ForgeButton
+          text = "Back"
+          onPress = {() => router.push("/GenerateWorkoutScreen")}
+          style = {{width: 100, marginTop:375, marginLeft: 20}}
+        />
         </View>
+        </View>
+        </>
     );
 }
 
@@ -136,10 +154,23 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    title: {
+    marginTop: 30,
+    fontSize: 28,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+    },
     sectionTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     marginTop: 10,
+    textAlign: "center"
+    },
+    description: {
+      fontSize: 16,
+      textAlign: "center",
+      marginTop: 10,
     },
     muscleBtn: {
     minWidth: 92,
@@ -152,5 +183,11 @@ const styles = StyleSheet.create({
   error: {
     color: "red",
     marginBottom: 10,
+  },
+  divider: {
+    height: 3,
+    backgroundColor: "#ccc",
+    marginTop: 5, 
+    marginBottom: 5,
   },
 });

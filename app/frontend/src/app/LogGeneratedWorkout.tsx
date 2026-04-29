@@ -8,7 +8,7 @@ import {
   View as RNView,
   Modal,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 
 import { Text, View, useScheme } from "@/components/Themed";
 import ForgeButton from "@/components/ForgeButton";
@@ -346,6 +346,13 @@ export default function LogGeneratedWorkout() {
   }
 
   return (
+    <>
+    <Stack.Screen
+        options={{
+          headerBackTitle: "Back",
+          headerShown: false,
+        }}
+    />
     <View style={styles.container}>
       <Text style={styles.title}>{workout_name}</Text>
       <Text style={[styles.subtitle, { color: s.secondaryText }]}>
@@ -484,12 +491,14 @@ export default function LogGeneratedWorkout() {
               }}
               color={s.buttonBg}
               disabled={postingSavedWorkout || savedLogId == null}
+              style = {{marginRight: 100}}
                 />
                 <ForgeButton
                   text="Not Now"
                   onPress={closePostSaveModal}
                   color={s.buttonBg}
                   disabled={postingSavedWorkout}
+                  style = {{marginRight: 20}}
                 />
               </View>
             </View>
@@ -502,6 +511,7 @@ export default function LogGeneratedWorkout() {
         exerciseName={selectedExerciseName}
       />
     </View>
+    </>
   );
 }
 
@@ -517,10 +527,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 6,
+    textAlign: "center"
   },
   subtitle: {
     fontSize: 15,
     marginBottom: 18,
+    textAlign: "center",
   },
   scrollContent: {
     paddingBottom: 20,
@@ -583,6 +595,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     textAlign: "center",
+    fontWeight: "bold"
   },
   modalCard: {
     width: "100%",
@@ -596,5 +609,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginBottom: 20,
+    marginTop: 10, 
   },
 });

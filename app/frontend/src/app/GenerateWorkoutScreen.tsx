@@ -33,23 +33,38 @@ export default function GenerateWorkoutScreen() {
       <Stack.Screen
         options={{
           headerBackTitle: "Back",
-          headerTitle: "Generate Workout",
+          headerShown: false,
         }}
       />
       <View style={styles.container}>
-        <Text style={styles.title}>Which Workout Would You Like?</Text>
+        <Text style={styles.title}>Generate AI Workout</Text>
+        <View style={styles.divider}>
+        <Text style={styles.subHeader}> Generate Quick Workout</Text>
+        <Text style={styles.subtitle}>Given your submitted onboarding details, have a quick workout generated for you if you are running low on time. </Text>
         {loading ? (
           <ActivityIndicator />
         ) : (
           <ForgeButton
             text="Generate Generic Quick Workout"
             onPress={() => handleGenerateQuickWorkout()}
+            style = {{width: 300, alignContent: "center", marginLeft: 65}}
           />
         )}
-        <ForgeButton
+        <View style={styles.divider}>
+          <Text style={styles.subHeader}>Generate Quick Muscle Workout</Text>
+          <Text style={styles.subtitle}>Select muscle groups, or a full body workout, and have a workout generated for you to successfully hit those muscles</Text>
+          <ForgeButton
           text="Generate Workout for Muscle"
           onPress={() => router.push("./GenerateWorkoutforMuscle")}
+          style = {{width: 300, alignContent: "center", marginLeft: 65}}
         />
+        <ForgeButton
+          text = "Back"
+          onPress = {() => router.push("./(tabs)/workout")}
+          style = {{width: 100, marginTop:450, marginLeft: 20}}
+          />
+          </View>
+        </View>
       </View>
     </>
   );
@@ -59,10 +74,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  divider: {
+    height: 3,
+    backgroundColor: "#ccc",
+    marginTop: 5, 
+    marginBottom: 5,
+  },
   title: {
-    fontSize: 24,
+    marginTop: 30,
+    fontSize: 28,
     fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 20,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: "center",
+    marginLeft: 20,
+    marginRight: 20,
+    marginTop: 5,
+  },
+  subHeader: {
+    fontSize: 21,
+    textAlign: "center",
+    fontWeight:"bold",
+    marginTop: 5,
   },
   error: {
     color: "red",
