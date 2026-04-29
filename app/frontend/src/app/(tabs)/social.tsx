@@ -92,6 +92,7 @@ export default function ProfilesTab() {
     });
   };
 
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [groupGoals, setGroupGoals] = useState<GroupGoal[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
@@ -131,9 +132,14 @@ export default function ProfilesTab() {
 
   useEffect(() => {
     setGoalsLoading(true);
-    api
-      .getGroupGoals()
-      .then((data) => setGroupGoals(data as unknown as GroupGoal[]))
+    Promise.all([
+      api.getGroupGoals(),
+      api.getMyProfile().catch(() => null),
+    ])
+      .then(([goals, profile]) => {
+        setGroupGoals(goals as unknown as GroupGoal[]);
+        if (profile) setCurrentUserId(String(profile.id));
+      })
       .catch((e) => console.error(e))
       .finally(() => setGoalsLoading(false));
   }, []);
@@ -197,6 +203,18 @@ export default function ProfilesTab() {
     }
   };
 
+  const handleJoinGoal = async (goal: GroupGoal) => {
+    try {
+      const updated = (await api.joinGroupGoal(goal.goalId)) as unknown as GroupGoal;
+      setGroupGoals((prev) =>
+        prev.map((g) => (g.goalId === updated.goalId ? updated : g)),
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Could not join goal. Please try again.");
+    }
+  };
+
   const handleLeaveGoal = (goal: GroupGoal) => {
     Alert.alert(
       "Leave Goal",
@@ -208,10 +226,27 @@ export default function ProfilesTab() {
           style: "destructive",
           onPress: async () => {
             try {
-              await api.leaveGroupGoal(goal.goalId);
-              setGroupGoals((prev) =>
-                prev.filter((g) => g.goalId !== goal.goalId),
-              );
+              const updated = (await api.leaveGroupGoal(goal.goalId)) as unknown as GroupGoal | null;
+              if (updated) {
+                // API returned the updated goal (member removed)
+                setGroupGoals((prev) =>
+                  prev.map((g) => (g.goalId === goal.goalId ? updated : g)),
+                );
+              } else {
+                // API returned nothing — strip current user from members locally
+                setGroupGoals((prev) =>
+                  prev.map((g) =>
+                    g.goalId === goal.goalId
+                      ? {
+                          ...g,
+                          members: g.members.filter(
+                            (m) => String(m.profileId) !== currentUserId,
+                          ),
+                        }
+                      : g,
+                  ),
+                );
+              }
             } catch (e) {
               console.error(e);
               Alert.alert("Error", "Could not leave goal. Please try again.");
@@ -1069,53 +1104,80 @@ export default function ProfilesTab() {
                         </View>
                         {!isComplete && (
                           <View style={styles.goalActionRow}>
-                            <Pressable
-                              onPress={() =>
-                                setLogProgressModal({
-                                  visible: true,
-                                  loading: false,
-                                  goal,
-                                  amount: "",
-                                })
-                              }
-                              style={({ pressed }) => [
-                                styles.goalActionBtn,
-                                {
-                                  backgroundColor: colors.friendBg,
-                                  borderColor: colors.friendBorder,
-                                },
-                                pressed && styles.pressed,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.goalActionBtnText,
-                                  { color: colors.orange },
+                            {goal.members.some(
+                              (m) => String(m.profileId) === currentUserId,
+                            ) ? (
+                              <>
+                                <Pressable
+                                  onPress={() =>
+                                    setLogProgressModal({
+                                      visible: true,
+                                      loading: false,
+                                      goal,
+                                      amount: "",
+                                    })
+                                  }
+                                  style={({ pressed }) => [
+                                    styles.goalActionBtn,
+                                    {
+                                      backgroundColor: colors.friendBg,
+                                      borderColor: colors.friendBorder,
+                                    },
+                                    pressed && styles.pressed,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.goalActionBtnText,
+                                      { color: colors.orange },
+                                    ]}
+                                  >
+                                    Log progress
+                                  </Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={() => handleLeaveGoal(goal)}
+                                  style={({ pressed }) => [
+                                    styles.goalActionBtn,
+                                    {
+                                      backgroundColor: colors.flagBg,
+                                      borderColor: colors.flagBorder,
+                                    },
+                                    pressed && styles.pressed,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.goalActionBtnText,
+                                      { color: colors.red },
+                                    ]}
+                                  >
+                                    Leave
+                                  </Text>
+                                </Pressable>
+                              </>
+                            ) : (
+                              <Pressable
+                                onPress={() => handleJoinGoal(goal)}
+                                style={({ pressed }) => [
+                                  styles.goalActionBtn,
+                                  {
+                                    backgroundColor: colors.friendBg,
+                                    borderColor: colors.friendBorder,
+                                  },
+                                  pressed && styles.pressed,
                                 ]}
                               >
-                                Log progress
-                              </Text>
-                            </Pressable>
-                            <Pressable
-                              onPress={() => handleLeaveGoal(goal)}
-                              style={({ pressed }) => [
-                                styles.goalActionBtn,
-                                {
-                                  backgroundColor: colors.flagBg,
-                                  borderColor: colors.flagBorder,
-                                },
-                                pressed && styles.pressed,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.goalActionBtnText,
-                                  { color: colors.red },
-                                ]}
-                              >
-                                Leave
-                              </Text>
-                            </Pressable>
+                                <Text
+                                  style={[
+                                    styles.goalActionBtnText,
+                                    { color: colors.orange },
+                                  ]}
+                                >
+                                  Join
+                                </Text>
+                              </Pressable>
+                            )}
                           </View>
                         )}
                       </>
@@ -1346,7 +1408,6 @@ export default function ProfilesTab() {
         onChangeDescription={(t) => setFlagModal((prev) => ({ ...prev, description: t}))}
       />
 
-      {/* ─── CREATE GROUP GOAL MODAL ─── */}
       <GoalModal
       state={createGoalModal}
       onClose ={closeCreateGoalModal}
@@ -1357,7 +1418,6 @@ export default function ProfilesTab() {
       onChangeUnit={(u) => setCreateGoalModal((prev) => ({...prev,unit: u,}))}
       />
 
-      {/* ─── LOG PROGRESS MODAL ─── */}
       <LogProgressModal
       state={logProgressModal}
       onClose={closeLogProgressModal}
