@@ -25,6 +25,7 @@ import { View, Text } from "@/components/Themed";
 import { useAccessibility } from "@/core/accessibility";
 import { useRouter, Stack } from "expo-router";
 import { useUnits } from "@/core/conversions";
+import GymMapButton from "@/components/gymMap/GymMapButton";
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionHeader}>{title}</Text>;
@@ -339,12 +340,14 @@ export default function SettingsScreen() {
                   onChange={(item) => setPGymLocation(item.value)}
                 />
               </View>
-          
-              <ActionButton
-                label="Save Profile"
-                onPress={doUpdateProfile}
-                disabled={loading}
-              />
+              <View style={{flexDirection: 'row', gap: 10}}>
+                <ActionButton
+                  label="Save Profile"
+                  onPress={doUpdateProfile}
+                  disabled={loading}
+                />
+                <GymMapButton/>
+              </View>
             </View>
 
             <View style={styles.accountSubsection}>

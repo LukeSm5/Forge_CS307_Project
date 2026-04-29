@@ -1032,7 +1032,11 @@ const useStyles = () => {
       padding: 16,
     },
 
-    modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
+    modalTitle: { 
+      fontSize: 18, 
+      fontWeight: "700",
+      marginBottom: 12,
+      textAlign: "center" },
 
     label: {
       fontSize: 14,

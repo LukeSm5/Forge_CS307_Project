@@ -134,7 +134,7 @@ export default function GenerateWorkoutforMuscle() {
         <ActivityIndicator />
       ) : (
         <ForgeButton
-          text="Generate Quick Workout"
+          text="Generate Workout for Muscle"
           onPress={handleGenerateWorkoutForMuscle}
           style = {{width: 300, alignContent: "center", marginLeft: 65}}
         />
@@ -142,7 +142,7 @@ export default function GenerateWorkoutforMuscle() {
         <ForgeButton
           text = "Back"
           onPress = {() => router.push("/GenerateWorkoutScreen")}
-          style = {{width: 100, marginTop:375, marginLeft: 20}}
+          style = {{width: 100, marginTop:350, marginLeft: 20}}
         />
         </View>
         </View>
@@ -179,6 +179,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginLeft: 5,
+    marginRight: 5,
   },
   error: {
     color: "red",
