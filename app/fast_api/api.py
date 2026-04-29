@@ -3641,25 +3641,61 @@ def log_goal_progress(
     return _build_group_goal_out(db, goal)
 
 
-@app.delete("/group-goals/{goal_id}/members")
+@app.post("/group-goals/{goal_id}/members", response_model=GroupGoalOut)
+def join_group_goal(
+    goal_id: int,
+    me: Accounts = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    # Join an existing group goal. No-op if already a member.
+    goal = db.query(GroupGoals).filter(GroupGoals.goal_id == goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    if goal.completed_at:
+        raise HTTPException(status_code=409, detail="Goal is already complete")
+
+    existing = (
+        db.query(GroupGoalMembers)
+        .filter(GroupGoalMembers.goal_id == goal_id, GroupGoalMembers.profile_id == me.UserID)
+        .first()
+    )
+    if not existing:
+        member = GroupGoalMembers(
+            goal_id=goal_id,
+            profile_id=me.UserID,
+            progress=0.0,
+        )
+        db.add(member)
+        db.commit()
+        db.refresh(goal)
+
+    return _build_group_goal_out(db, goal)
+
+
+@app.delete("/group-goals/{goal_id}/members", response_model=GroupGoalOut)
 def leave_group_goal(
     goal_id: int,
     me: Accounts = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    # Remove yourself from a group goal.
+    # Remove yourself from a group goal and return the updated goal.
+    goal = db.query(GroupGoals).filter(GroupGoals.goal_id == goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
     member = (
         db.query(GroupGoalMembers)
         .filter(GroupGoalMembers.goal_id == goal_id, GroupGoalMembers.profile_id == me.UserID)
         .first()
     )
-
     if not member:
         raise HTTPException(status_code=404, detail="You are not a member of this goal")
 
     db.delete(member)
     db.commit()
-    return {"ok": True}
+    db.refresh(goal)
+
+    return _build_group_goal_out(db, goal)
 
 @app.get("/profile-data/{user_id}")
 def profile_prompt(user_id: int, me: Accounts = Depends(get_current_account), db: Session = Depends(get_db)):
