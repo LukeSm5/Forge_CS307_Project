@@ -1,107 +1,183 @@
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from "react";
+import {
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from "react-native";
 
-import { Separator, Text, useScheme, View } from '@/components/Themed';
-import CommentResult from '@/components/social/comments/CommentResult';
-import React, { useState } from 'react';
-import ForgeButton from '@/components/ForgeButton';
-import { Modal } from 'react-native';
+import { Separator, Text, useScheme, View } from "@/components/Themed";
+import CommentResult from "@/components/social/comments/CommentResult";
+import ForgeButton from "@/components/ForgeButton";
 
-export default function CommentsInterface({ visible, setVisible, postComment, comments }: { visible: boolean, setVisible: (visible: boolean) => void, postComment: (text: string) => void, comments: { user_id: number; username: string; text: string; timestamp: number }[] }) {
-    const [ commentBox, setCommentBox ] = useState("");
+export default function CommentsInterface({
+  visible,
+  setVisible,
+  postComment,
+  comments,
+}: {
+  visible: boolean;
+  setVisible: (visible: boolean) => void;
+  postComment: (text: string) => void;
+  comments: {
+    user_id: number;
+    username: string;
+    text: string;
+    timestamp: number;
+  }[];
+}) {
+  const [commentBox, setCommentBox] = useState("");
+  const s = useScheme();
 
-    const s = useScheme();
+  const sortedComments = useMemo(
+    () => [...comments].sort((a, b) => b.timestamp - a.timestamp),
+    [comments],
+  );
 
-    let searchComponent: React.JSX.Element;
-    if (comments.length > 0) {
-        // most recent comments at top
-        searchComponent = (<><ScrollView style={{ ...styles.searchResults, 
-        boxShadow: `inset 3px 3px 10px ${s.shadow}`, }}>
-            {comments.sort((a, b) => b.timestamp - a.timestamp).map((item: { user_id: number; username: string; text: string; timestamp: number }, idx: number) => <CommentResult key={idx} username={item.username} comment={item.text} timestamp={item.timestamp} />)}
-        </ScrollView></>);
-    } else {
-        searchComponent = (<><ScrollView style={{ ...styles.searchResults, 
-        boxShadow: `inset 3px 3px 10px ${s.shadow}`, }}>
-                <Text style={styles.title}>Be the first to comment!</Text>
-        </ScrollView></>);
-    }
+  if (!visible) return <></>;
 
-    if (!visible)
-        return (<></>);
+  return (
+    <Modal transparent animationType="slide">
+      <SafeAreaView style={[styles.container, { backgroundColor: s.backdrop }]}>
+        <View
+          style={[
+            styles.popup,
+            { backgroundColor: s.background ?? s.backdrop },
+          ]}
+        >
+          <Text style={styles.title}>Comments</Text>
+          <Separator />
 
-    return (<Modal style={{ backgroundColor: s.backdrop }}>
-        <View style={styles.container}>
-            <View style={styles.popup}>
-                <Text style={styles.title}>Comments</Text>
-                <Separator />
-                <View style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: 'center',
-                    width: '90%',
-                }}>
-                    <TextInput
-                        style={{ fontSize: 16, height: 60, borderColor: 'gray', borderWidth: 1, width: '60%', padding: 10, borderRadius: '5px', color: s.text, }}
-                        maxLength={150}
-                        onChangeText={setCommentBox}
-                        value={commentBox}
-                    />
-                    <ForgeButton text="Post Comment" onPress={() => {
-                        postComment(commentBox);
-                        setCommentBox("");
-                    }} />
-                </View>
-
-                <Separator />
-                {searchComponent}
-
-
-                <ForgeButton text="Close Comments" onPress={() => setVisible(false)}/>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: "gray",
+                  color: s.text,
+                  backgroundColor: s.cardBg ?? s.background,
+                },
+              ]}
+              placeholder="Write a comment"
+              placeholderTextColor={s.text + "88"}
+              maxLength={150}
+              multiline
+              onChangeText={setCommentBox}
+              value={commentBox}
+            />
+            <View style={styles.postButtonWrap}>
+              <ForgeButton
+                text="Post Comment"
+                onPress={() => {
+                  const trimmed = commentBox.trim();
+                  if (!trimmed) return;
+                  postComment(trimmed);
+                  setCommentBox("");
+                }}
+              />
             </View>
+          </View>
+
+          <Separator />
+
+          <View
+            style={[
+              styles.commentsContainer,
+              { boxShadow: `inset 3px 3px 10px ${s.shadow}` },
+            ]}
+          >
+            <ScrollView contentContainerStyle={styles.commentsContent}>
+              {sortedComments.length > 0 ? (
+                sortedComments.map((item, idx) => (
+                  <CommentResult
+                    key={`${item.user_id}-${item.timestamp}-${idx}`}
+                    username={item.username}
+                    comment={item.text}
+                    timestamp={item.timestamp}
+                  />
+                ))
+              ) : (
+                <Text style={styles.emptyStateText}>
+                  Be the first to comment!
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+
+          <View style={styles.closeButtonWrap}>
+            <ForgeButton
+              text="Close Comments"
+              onPress={() => setVisible(false)}
+            />
+          </View>
         </View>
-    </Modal>);
+      </SafeAreaView>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        ...StyleSheet.absoluteFill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-    },
-    popup: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '75%',
-        marginVertical: '3%',
-        borderRadius: '15px',
-        padding: '2%',
-        zIndex: 100,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    separator: {
-        marginVertical: 30,
-        height: 1,
-        width: '80%',
-    },
-    searchResults: {
-        width: '80%',
-        height: '45%',
-        borderRadius: 10,
-        marginBottom: 10,
-        padding: 10
-    },
-    questionContainer: {
-        alignItems: 'center',
-        marginHorizontal: 50,
-    },
-    questionText: {
-        fontSize: 17,
-        lineHeight: 24,
-        textAlign: 'center',
-    },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  popup: {
+    flex: 1,
+    width: "95%",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 16,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    width: "100%",
+  },
+  inputRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  input: {
+    flex: 1,
+    minHeight: 60,
+    maxHeight: 90,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    fontSize: 16,
+    textAlignVertical: "top",
+  },
+  postButtonWrap: {
+    width: 170,
+  },
+  commentsContainer: {
+    width: "100%",
+    flex: 1,
+    minHeight: 0,
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  commentsContent: {
+    paddingBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    paddingVertical: 20,
+  },
+  closeButtonWrap: {
+    width: "100%",
+  },
 });
