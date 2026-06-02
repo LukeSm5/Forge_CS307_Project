@@ -22,29 +22,3 @@ branch architecture
 - Used Expo for testing
 ## Installation
 ## Email Update Notifications
-
-User Story 21 is implemented in the FastAPI backend:
-- `PATCH /accounts/{user_id}/profile` updates username/bio and sends an email notification.
-- `POST /accounts/{user_id}/change_password` updates password and sends an email notification.
-
-Email provider integration is configured with environment variables:
-- `EMAIL_NOTIFICATIONS_ENABLED` (`true`/`false`)
-- `EMAIL_PROVIDER` (`smtp` or `log`)
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_FROM_EMAIL`
-- `SMTP_USERNAME`
-- `SMTP_PASSWORD`
-- `SMTP_USE_TLS` (`true`/`false`)
-
-Quick dev setup (no real email sending, logs notification events in backend console):
-- `EMAIL_NOTIFICATIONS_ENABLED=true`
-- `EMAIL_PROVIDER=log`
-
-SMTP setup (sends real emails):
-- `EMAIL_NOTIFICATIONS_ENABLED=true`
-- `EMAIL_PROVIDER=smtp`
-- plus all `SMTP_*` variables above
-
-Trigger-focused tests are in:
-- `app/fast_api/test_update_notifications.py`
