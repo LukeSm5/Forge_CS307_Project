@@ -15,6 +15,12 @@ branch architecture
   -> api.jsx       # connects client to server (send requests)
   ```
 
+## Features
+## Technologies Used
+- Written in React Native and Python (FastAPI)
+- Database in SQLLite
+- Used Expo for testing
+## Installation
 ## Email Update Notifications
 
 User Story 21 is implemented in the FastAPI backend:
