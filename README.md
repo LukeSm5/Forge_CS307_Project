@@ -21,4 +21,3 @@ branch architecture
 - Database in SQLLite
 - Used Expo for testing
 ## Installation
-## Email Update Notifications
