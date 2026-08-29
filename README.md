@@ -42,6 +42,7 @@ branch architecture
 
 # Clone the repo
 git clone https://github.com/LukeSm5/Forge_CS307_Project.git
+
 cd forge
 
 # Backend setup
