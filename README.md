@@ -29,26 +29,23 @@ branch architecture
 
 ## Team
 
-- [Your name(s) and roles — CS 307 grading usually wants this, tied to Agile/Scrum roles like Scrum Master, PO, dev team]
+- Luke Smith - Developer
+- Drew Balaji - Developer / SCRUM Master
+- Roan Finkle - Developer
+- Artem Yurovskiy - Developer
+- Jack Smith - Developer
+- Pratik Bang - Developer
 
 ## Getting Started
 
-### Prerequisites
-- Node.js and Expo CLI
-- Python 3.x
-- PostgreSQL
-
 ### Installation
 
-\`\`\`bash
 # Clone the repo
-git clone <repo-url>
+git clone https://github.com/LukeSm5/Forge_CS307_Project.git
 cd forge
 
 # Backend setup
-cd backend
-# configure your .env (DB connection, API keys)
-uvicorn main:app --reload
+uvicorn app.fast_api.api:app --reload
 
 # Frontend setup
 cd ../frontend
