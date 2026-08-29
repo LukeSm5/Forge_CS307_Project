@@ -54,9 +54,10 @@ uvicorn app.fast_api.api:app --reload
 In a different terminal:
 
 cd ../frontend
+
 npm install
+
 npx expo start
-\`\`\`
 
 ## Project Status
 
