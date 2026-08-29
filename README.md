@@ -43,12 +43,16 @@ branch architecture
 # Clone the repo
 git clone https://github.com/LukeSm5/Forge_CS307_Project.git
 
-cd forge
+cd Forge_CS307_Project
 
 # Backend setup
+In a terminal:
+
 uvicorn app.fast_api.api:app --reload
 
 # Frontend setup
+In a different terminal:
+
 cd ../frontend
 npm install
 npx expo start
