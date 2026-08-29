@@ -1,5 +1,5 @@
 # Forge_CS307_Project
-A workout and diet tracking app that integrates AI to help give personalized advice and keep them on their fitness goals. CS 307 Group Project
+A workout and diet tracking app that integrates AI to help give personalized advice and keep users on their fitness goals. CS 307 Group Project
 
 
 ```
@@ -16,8 +16,47 @@ branch architecture
   ```
 
 ## Features
-## Technologies Used
-- Written in React Native and Python (FastAPI)
-- Database in SQLLite
-- Used Expo for testing
-## Installation
+- Workout and diet tracking
+- AI-generated workout plans based on muscle group, user goals, and personal progress
+- AI-generated diet plans based on caloric and macro goals
+
+## Tech Stack
+
+- **Frontend:** React Native + Expo
+- **Backend:** FastAPI (Python)
+- **Database:** SQLLite
+- **AI/ML:** OpenAI API
+
+## Team
+
+- [Your name(s) and roles — CS 307 grading usually wants this, tied to Agile/Scrum roles like Scrum Master, PO, dev team]
+
+## Getting Started
+
+### Prerequisites
+- Node.js and Expo CLI
+- Python 3.x
+- PostgreSQL
+
+### Installation
+
+\`\`\`bash
+# Clone the repo
+git clone <repo-url>
+cd forge
+
+# Backend setup
+cd backend
+# configure your .env (DB connection, API keys)
+uvicorn main:app --reload
+
+# Frontend setup
+cd ../frontend
+npm install
+npx expo start
+\`\`\`
+
+## Project Status
+
+Complete — all core features implemented as of [May/Sprint 3].
+
