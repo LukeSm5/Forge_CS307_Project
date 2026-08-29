@@ -38,19 +38,17 @@ branch architecture
 
 ## Getting Started
 
-### Installation
-
-# Clone the repo
+### Clone the repo
 git clone https://github.com/LukeSm5/Forge_CS307_Project.git
 
 cd Forge_CS307_Project
 
-# Backend setup
+### Backend setup
 In a terminal:
 
 uvicorn app.fast_api.api:app --reload
 
-# Frontend setup
+### Frontend setup
 In a different terminal:
 
 cd ../frontend
